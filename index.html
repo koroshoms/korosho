@@ -1179,12 +1179,13 @@ function renderExamSet() {
 
         <div class="card fade-up-1">
           <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Question</span></div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
             <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
-          </div>
+            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
+        </div>
         </div>
         <div class="card fade-up-2">
           <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions (${state.examQuestions.length})</span></div>
@@ -1208,14 +1209,39 @@ function renderExamSet() {
 
 // FIXED MCQ RENDER LOGIC
 function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing' };
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question' };
   let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
   
   if (q.type === 'mcq') {
     extraFields += `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
+  } else if (q.type === 'picture') {
+    extraFields += `
+      <div class="space-y-2 mt-3">
+        <label class="form-label">Attach Picture (From Device)</label>
+        <input type="file" accept="image/*" class="text-xs" onchange="uploadPicture(${q.id}, this)">
+        <p class="text-[10px] text-slate-500 mt-1">Note: This image will print in the PDF but will NOT be saved in the database to save space.</p>
+        ${q.picture ? `<img src="${q.picture}" style="max-height:100px;margin-top:.5rem;border-radius:6px;border:1px solid var(--border)">` : ''}
+      </div>
+    `;
   }
   
   return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
+}
+
+// Add this new function right below renderQuestionEditor
+function uploadPicture(qId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const q = state.examQuestions.find(x => x.id === qId);
+    if (q) {
+      q.picture = e.target.result; // This is a base64 string
+      renderPage();
+      showToast('Picture attached', 'success');
+    }
+  };
+  reader.readAsDataURL(file);
 }
 
 function addQuestion(type) { const id = Date.now(); const newQ = { id, type, text: '', marks: 5 }; if (type === 'mcq') newQ.choices = ['','']; state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success'); }
@@ -1262,14 +1288,25 @@ async function downloadExamPDF(exam = null) {
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // If it's coming from the builder (not an admin reviewing an existing exam), save it to Supabase
+  // 1. Save to Supabase, BUT STRIP IMAGES FIRST
   if (!exam && state.examQuestions.length > 0) {
     showToast('Sending copy to Admin & downloading...', 'info');
+    
+    // Create a clean version of the questions WITHOUT the heavy image data
+    const questionsToSave = state.examQuestions.map(q => {
+      const cleanQ = { ...q };
+      if (cleanQ.type === 'picture' && cleanQ.picture) {
+        delete cleanQ.picture; // Remove the heavy image text
+        cleanQ.pictureNote = '[Picture was attached during creation]'; // Leave a small note for the admin
+      }
+      return cleanQ;
+    });
+
     const { error } = await supabase.from('exams').insert([{
       title: draft.title || 'Untitled Exam',
       class_id: draft.classId,
       subject_id: draft.subjectId,
-      questions: state.examQuestions,
+      questions: questionsToSave, // Save the clean version
       created_by: state.currentUser.id
     }]);
     
@@ -1277,10 +1314,11 @@ async function downloadExamPDF(exam = null) {
       showToast('Failed to send for review: ' + error.message, 'error');
     } else {
       showToast('Copy sent to Admin for review.', 'success');
-      await fetchAllData(); // Update admin's view if they are logged in
+      await fetchAllData(); 
     }
   }
 
+  // 2. Generate the PDF (This part keeps the images so they print on the paper)
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
   
@@ -1290,25 +1328,34 @@ async function downloadExamPDF(exam = null) {
   const timeAllowed = c.timeAllowed.toUpperCase();
   const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
   
-  let mcqHtml = '';
-  const romans = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
-  let mcqCount = 0;
+  let questionsHtml = '';
+  let qCount = 0;
 
   questions.forEach((q, i) => {
-    if(q.type === 'mcq') {
-      mcqCount++;
-      mcqHtml += `
-        <div style="margin-bottom: 15px; page-break-inside: avoid;">
-          <div style="font-size: 14px; margin-bottom: 5px;">${romans[mcqCount-1] || mcqCount}. ${q.text || ''}</div>
-          <div style="display: flex; justify-content: space-between; padding-left: 20px; font-size: 14px;">
-            <span>A. ${q.choices[0] || ''}</span>
-            <span>B. ${q.choices[1] || ''}</span>
-            <span>C. ${q.choices[2] || ''}</span>
-            <span>D. ${q.choices[3] || ''}</span>
-          </div>
-        </div>
-      `;
+    qCount++;
+    questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid;"><div style="font-weight:bold;">${qCount}. ${q.text || 'Untitled question'} <span style="float:right;font-weight:normal;font-size: 11px;color:#555;">(${q.marks||0} marks)</span></div>`;
+    
+    if(q.type === 'mcq'){
+      (q.choices||[]).forEach((opt, idx) => {
+        if(opt) questionsHtml += `<div style="margin: 4px 0 4px 24px;font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
+      });
+    } else if (q.type === 'picture') {
+      if (q.picture) {
+        // If generating from builder, show the image
+        questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
+      } else {
+        // If admin is reviewing from database, the image is gone, show the note
+        questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
+      }
+      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`; // Answer line
+    } else if (q.type === 'short') {
+      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
+    } else if (q.type === 'long') {
+      for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
+    } else if (q.type === 'drawing') {
+      questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
     }
+    questionsHtml += `</div>`;
   });
 
   const html = `
@@ -1332,11 +1379,6 @@ async function downloadExamPDF(exam = null) {
         .instructions h3 { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
         .instructions ul { list-style-type: disc; padding-left: 25px; }
         .instructions li { font-size: 14px; margin-bottom: 5px; line-height: 1.5; }
-        .section-title { text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline; }
-        .q-instruction { font-size: 14px; margin-bottom: 20px; font-weight: 500; }
-        .ans-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .ans-table th, .ans-table td { border: 1px solid #000; padding: 8px; text-align: center; font-size: 14px; }
-        .ans-label { font-size: 14px; font-weight: bold; margin-bottom: 5px; }
         .footer { position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px; }
       </style>
       
@@ -1379,33 +1421,10 @@ async function downloadExamPDF(exam = null) {
         </ul>
       </div>
 
-      <div class="section-title">SECTION A (20 Marks)</div>
-      <div class="q-instruction">
-        1. Choose the most correct answer from the given alternatives and write its letter in the table below (10 Marks @ 2)
-      </div>
-
-      ${mcqHtml}
-
-      <div style="margin-top: 30px;">
-        <div class="ans-label">Answers for question no. 1</div>
-        <table class="ans-table">
-          <tr>
-            <th>Questions</th>
-            <th>i</th>
-            <th>ii</th>
-            <th>iii</th>
-            <th>iv</th>
-            <th>v</th>
-          </tr>
-          <tr>
-            <td>Answers</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-          </tr>
-        </table>
+      <div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline;">SECTION A (20 Marks)</div>
+      
+      <div style="font-size: 14px; margin-bottom: 20px;">
+        ${questionsHtml}
       </div>
 
       <div class="footer">1</div>
@@ -1432,7 +1451,7 @@ async function downloadExamPDF(exam = null) {
     showToast('Failed to generate PDF', 'error');
     renderArea.innerHTML = '';
   });
-}
+ }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
