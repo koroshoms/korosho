@@ -205,9 +205,15 @@ var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const state = {
   currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [],
-  examConfig: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.5, showSchoolHeader: true, showInstructions: true, totalMarks: 50 },
+  examConfig: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:00 HOUR', instructions: 'Answer ALL questions.' },
   examQuestions: [], timetable: null
 };
+
+// Load saved exam config from local storage
+const savedConfig = localStorage.getItem('korosho_exam_config');
+if (savedConfig) {
+  try { state.examConfig = JSON.parse(savedConfig); } catch(e) {}
+}
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -938,17 +944,36 @@ function renderExamConfig() {
   return `
     <div class="card fade-up-1">
       <div class="section-title"><span><i class="fa-solid fa-sliders text-emerald-600 mr-2"></i> Exam Paper Formatting Rules</span></div>
-      <p class="text-xs text-slate-500 mb-4">These settings define how teachers must format their exams.</p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div><label class="form-label">Number of Questions</label><input type="number" class="form-input" value="${c.defaultQuestions}" onchange="updateExamConfig('defaultQuestions', this.value)"></div>
-        <div><label class="form-label">Total Marks</label><input type="number" class="form-input" value="${c.totalMarks}" onchange="updateExamConfig('totalMarks', this.value)"></div>
-        <div><label class="form-label">Font Type</label><select class="form-input" onchange="updateExamConfig('fontType', this.value)">${['Times New Roman','Arial','Calibri','Cambria','Georgia'].map(f=>`<option ${f===c.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
-        <div><label class="form-label">Font Size</label><select class="form-input" onchange="updateExamConfig('fontSize', this.value)">${[10,11,12,13,14].map(s=>`<option ${s==c.fontSize?'selected':''}>${s}</option>`).join('')}</select></div>
-      </div>
+      <p class="text-xs text-slate-500 mb-4">These settings define how teachers must format their exams. The PDF export will follow these exact rules.</p>
+      <form id="exam-settings-form" class="grid md:grid-cols-2 gap-4" onsubmit="saveExamConfig(event)">
+        <div><label class="form-label">Number of Questions</label><input type="number" name="defaultQuestions" class="form-input" value="${c.defaultQuestions}" required></div>
+        <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${c.totalMarks}" required></div>
+        <div><label class="form-label">Exam Title</label><input type="text" name="examTitle" class="form-input" value="${c.examTitle}" required></div>
+        <div><label class="form-label">Time Allowed</label><input type="text" name="timeAllowed" class="form-input" value="${c.timeAllowed}" required></div>
+        <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Georgia'].map(f=>`<option ${f===c.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div><label class="form-label">Font Size</label><select name="fontSize" class="form-input">${[10,11,12,13,14].map(s=>`<option ${s==c.fontSize?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label class="form-label">Alignment</label><select name="alignment" class="form-input">${['left','center','right','justify'].map(a=>`<option ${a===c.alignment?'selected':''}>${a}</option>`).join('')}</select></div>
+        <div><label class="form-label">Line Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(s=>`<option ${s==c.lineSpacing?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="md:col-span-2"><label class="form-label">General Instructions</label><textarea name="instructions" class="form-input" rows="2">${c.instructions}</textarea></div>
+        <div class="md:col-span-2"><button type="submit" class="btn-primary">Save Settings</button></div>
+      </form>
     </div>
   `;
 }
-function updateExamConfig(key, val) { state.examConfig[key] = isNaN(val) ? val : Number(val); showToast('Setting saved locally', 'success'); }
+
+function saveExamConfig(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const obj = {};
+  for(const [k,v] of fd.entries()) obj[k] = v;
+  obj.defaultQuestions = parseInt(obj.defaultQuestions);
+  obj.fontSize = parseInt(obj.fontSize);
+  obj.lineSpacing = parseFloat(obj.lineSpacing);
+  state.examConfig = obj;
+  localStorage.setItem('korosho_exam_config', JSON.stringify(obj));
+  showToast('Exam settings saved successfully 🥰', 'success');
+  renderPage();
+}
 
 function renderExamSet() {
   return `
@@ -959,8 +984,8 @@ function renderExamSet() {
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
             <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
-            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
-            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Picture</div></div>
+            <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
+            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
           </div>
         </div>
         <div class="card fade-up-2">
@@ -979,8 +1004,9 @@ function renderExamSet() {
     </div>
   `;
 }
+
 function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', drawing: 'Drawing', picture: 'Picture' };
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing' };
   let extraFields = '';
   if (q.type === 'mcq') {
     extraFields = `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
@@ -998,14 +1024,102 @@ function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?
 
 function downloadExamPDF() {
   const c = state.examConfig;
-  const html = `<div style="font-family: '${c.fontType}', serif; font-size: ${c.fontSize}px; padding: 40px; color:#000;">
-    ${c.showSchoolHeader ? `<div style="text-align:center; border-bottom: 3px double #000; padding-bottom: 14px; margin-bottom: 20px;"><div style="font-size: 22px; font-weight: 800;">KOROSHO ENGLISH MEDIUM SCHOOL</div></div>` : ''}
-    ${state.examQuestions.map((q, i) => `<div style="margin-bottom: 20px;"><div style="font-weight:700;">${i+1}. ${q.text || ''} <span style="font-weight:normal; font-size: 11px; color:#555;">(${q.marks||0} marks)</span></div>${q.type === 'mcq' ? q.choices.map((ch, idx) => `<div style="margin: 6px 0 6px 24px; font-size: 13px;">${String.fromCharCode(65+idx)}. ${ch}</div>`).join('') : '<div style="margin: 8px 0 8px 24px; border-bottom: 1px solid #999; height: 30px;"></div>'}</div>`).join('')}
-  </div>`;
-  const wrapper = document.createElement('div'); wrapper.innerHTML = html; document.body.appendChild(wrapper);
-  showToast('Generating PDF...', 'info');
-  html2pdf().set({ filename: 'Korosho_Exam.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'px', format: 'a4', orientation: 'portrait' } }).from(wrapper).save().then(() => { document.body.removeChild(wrapper); showToast('PDF downloaded', 'success'); });
-}
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format: 'a4'});
+  
+  const fontMap = { 'Times New Roman':'times', 'Georgia':'times', 'Cambria':'times', 'Arial':'helvetica', 'Verdana':'helvetica', 'Calibri':'helvetica' };
+  const font = fontMap[c.fontType] || 'helvetica';
+  
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 50;
+  const contentW = pageW - margin*2;
+  const fontSize = c.fontSize;
+  const lineHeight = fontSize * c.lineSpacing * 1.2;
+  
+  let y = margin;
+  
+  // Header
+  doc.setFont(font, 'bold');
+  doc.setFontSize(fontSize + 4);
+  doc.text("KOROSHO ENGLISH MEDIUM SCHOOL", pageW/2, y, {align:'center'});
+  y += lineHeight + 4;
+  
+  doc.setFont(font, 'normal');
+  doc.setFontSize(fontSize - 2);
+  doc.text("Knowledge • Discipline • Integrity", pageW/2, y, {align:'center'});
+  y += 10;
+  
+  // Lines
+  doc.setLineWidth(2); doc.line(margin, y, pageW - margin, y); y += 4;
+  doc.setLineWidth(0.5); doc.line(margin, y, pageW - margin, y); y += 12;
+  
+  // Exam Info
+  doc.setFont(font, 'bold'); doc.setFontSize(fontSize + 2);
+  doc.text(c.examTitle, pageW/2, y, {align:'center'}); y += lineHeight + 2;
+  
+  doc.setFont(font, 'normal'); doc.setFontSize(fontSize);
+  doc.text(`Time: ${c.timeAllowed}   •   Total Marks: ${c.totalMarks}`, pageW/2, y, {align:'center'});
+  y += 14;
+  
+  // Instructions
+  doc.setFont(font, 'italic'); doc.setFontSize(fontSize - 1);
+  const instrLines = doc.splitTextToSize(c.instructions, contentW);
+  doc.text(instrLines, margin, y);
+  y += instrLines.length * (lineHeight - 2) + 10;
+  
+  // Questions
+  state.examQuestions.forEach((q, i) => {
+    if(y > pageH - margin - 40) { doc.addPage(); y = margin; }
+    
+    const qText = `${i+1}. ${q.text || 'Untitled question'}`;
+    const marksText = `(${q.marks||1} marks)`;
+    
+    doc.setFont(font, 'bold'); doc.setFontSize(fontSize);
+    const qLines = doc.splitTextToSize(qText, contentW - 60);
+    doc.text(qLines, margin, y);
+    doc.setFont(font, 'normal'); doc.text(marksText, pageW - margin, y, {align:'right'});
+    y += qLines.length * lineHeight + 4;
+    
+    if(q.type === 'mcq'){
+      (q.choices||[]).forEach((opt, idx) => {
+        if(!opt) return;
+        if(y > pageH - margin - 20){ doc.addPage(); y = margin; }
+        const optLines = doc.splitTextToSize(`${String.fromCharCode(65+idx)}) ${opt}`, contentW - 80);
+        doc.text(optLines, margin + 20, y);
+        y += optLines.length * lineHeight + 2;
+      });
+      y += 4;
+    } else if(q.type === 'short'){
+      if(y > pageH - margin - 20){ doc.addPage(); y = margin; }
+      doc.setLineWidth(0.5); doc.line(margin + 10, y + 12, pageW - margin, y + 12);
+      y += 24;
+    } else if(q.type === 'long'){
+      for(let l=0; l<4; l++){
+        if(y > pageH - margin - 20){ doc.addPage(); y = margin; }
+        doc.setLineWidth(0.5); doc.line(margin + 10, y + 10, pageW - margin, y + 10);
+        y += lineHeight + 4;
+      }
+      y += 4;
+    } else if(q.type === 'drawing'){
+      if(y > pageH - margin - 120){ doc.addPage(); y = margin; }
+      doc.setLineWidth(0.7); doc.rect(margin + 10, y, contentW - 20, 100);
+      doc.setLineWidth(0.3);
+      for(let dx = 0; dx < contentW - 20; dx += 10){
+        doc.line(margin + 10 + dx, y, margin + 10 + dx + 30, y + 100);
+      }
+      y += 110;
+    }
+    y += 6;
+  });
+  
+  // Footer
+  doc.setFont(font, 'italic'); doc.setFontSize(fontSize - 2);
+  doc.text('— End of Examination —', pageW/2, pageH - 30, {align:'center'});
+  
+  doc.save('Korosho_Exam.pdf');
+  showToast('PDF downloaded', 'success');
+ }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
