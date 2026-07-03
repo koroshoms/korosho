@@ -1055,12 +1055,14 @@ async function saveResult(studentId, subjectId, marksStr) {
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
 
   if (existing) {
+    // Update existing result
     const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
     existing.marks = marks;
     existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
+    // Insert new result (Removed created_by to prevent schema cache error)
     const { data, error } = await supabase.from('results').insert([{
       student_id: studentId,
       subject_id: subjectId,
@@ -1068,9 +1070,9 @@ async function saveResult(studentId, subjectId, marksStr) {
       grade,
       term: 'Term II',
       year: '2025',
-      created_by: state.currentUser.id,
       published: false
     }]).select().single();
+    
     if (error) return showToast(error.message, 'error');
     state.results.push(data);
     showToast('Result saved', 'success');
