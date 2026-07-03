@@ -956,39 +956,230 @@ function saveTimetableCell(day, sIdx, subjId, teaId) {
 }
 
 // --- RESULTS MODULE ---
+let resultsViewMode = 'dashboard';
+let currentResClass = null;
+let isResPublished = false;
+
+function getGrade(m) {
+  if(m >= 81) return "A";
+  if(m >= 61) return "B";
+  if(m >= 41) return "C";
+  if(m >= 21) return "D";
+  return "E";
+}
+
+function getGpa(g) {
+  return {A:1,B:2,C:3,D:4,E:5}[g] || 5;
+}
+
+function formatSubjectName(name) {
+  const map = {
+    "Historia ya Tanzania na Maadili": "HIST.TZ",
+    "Geography and the environment": "GEOGRAPHY",
+    "Arts and Sports": "ARTS & SPORTS"
+  };
+  return map[name] || name;
+}
+
 function renderResults() {
-  if (state.currentUser.role === 'teacher' || state.currentUser.role === 'academic') {
-    return renderTeacherResults();
+  if (resultsViewMode === 'entry' && ['teacher', 'academic'].includes(state.currentUser.role)) {
+    return renderResultsEntry();
   }
+  return renderResultsDashboard();
+}
+
+function renderResultsDashboard() {
+  const canPublish = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
+  const canEnter = ['teacher', 'academic'].includes(state.currentUser.role);
+
   return `
-    <div class="card fade-up-1">
-      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Results Management</span></div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>Student</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Status</th></tr></thead>
-          <tbody>
-            ${state.results.length === 0 ? '<tr><td colspan="5" class="text-center text-slate-500 py-6">No results entered yet.</td></tr>' : state.results.slice(0, 50).map(r => {
-              const st = state.students.find(s => s.id === r.student_id);
-              const sub = state.subjects.find(s => s.id === r.subject_id);
-              return `<tr>
-                <td>${st?.name || 'Unknown'}</td>
-                <td>${sub?.name || 'Unknown'}</td>
-                <td>${r.marks}</td>
-                <td>${r.grade}</td>
-                <td>${r.published ? '<span class="badge badge-green">Published</span>' : '<span class="badge badge-amber">Draft</span>'}</td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
+    <div class="card fade-up-1" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
+      <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">
+        KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD
+      </div>
+      
+      <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
+        <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
+          <option value="">Select Class</option>
+          ${state.classes.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        </select>
+        
+        ${canPublish ? `
+        <div id="publishBar" style="display: ${currentResClass ? 'flex' : 'none'}; gap: 10px;">
+          <button class="btn-primary" style="padding: 8px 16px;" onclick="togglePublish()" id="publishBtn">PUBLISH</button>
+          <button class="btn-ghost" style="padding: 8px 16px;" onclick="copyViewLink()">COPY VIEW LINK</button>
+        </div>
+        ` : ''}
+        
+        ${canEnter ? `
+        <button class="btn-ghost" style="padding: 8px 16px; margin-left: auto;" onclick="resultsViewMode='entry'; renderPage();">Enter Marks</button>
+        ` : ''}
+      </div>
+
+      <div id="res-status" style="padding: 10px 20px; font-weight: bold; color: red; background: #f8f9fa;"></div>
+
+      <div id="necta-dashboard" class="p-5" style="background: #f5f6fa;">
+        <p class="text-slate-500 text-center py-6">Select a class to view results.</p>
       </div>
     </div>
   `;
 }
 
-function renderTeacherResults() {
+async function onResultsClassChange() {
+  currentResClass = document.getElementById('res-class-select').value;
+  const pubBar = document.getElementById('publishBar');
+  if (pubBar) pubBar.style.display = currentResClass ? 'flex' : 'none';
+  
+  await checkPublishStatus();
+  await loadNectaReport();
+}
+
+async function checkPublishStatus() {
+  if (!currentResClass) return;
+  const { data } = await supabase.from('published_reports').select('*').eq('class_id', currentResClass).maybeSingle();
+  isResPublished = data?.is_published || false;
+  
+  const pubBtn = document.getElementById('publishBtn');
+  if (pubBtn) pubBtn.innerText = isResPublished ? 'UNPUBLISH' : 'PUBLISH';
+  
+  const statusEl = document.getElementById('res-status');
+  if (state.currentUser.role === 'teacher' && !isResPublished) {
+    statusEl.innerText = "⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER";
+  } else {
+    statusEl.innerText = isResPublished ? "✅ RESULTS ARE PUBLISHED" : "";
+  }
+}
+
+async function togglePublish() {
+  if (!currentResClass) return;
+  const newState = !isResPublished;
+  const { error } = await supabase.from('published_reports').upsert({ class_id: currentResClass, is_published: newState }, { onConflict: 'class_id' });
+  if (error) return showToast(error.message, 'error');
+  await checkPublishStatus();
+  await loadNectaReport();
+  showToast(newState ? 'Results Published' : 'Results Unpublished', 'success');
+}
+
+function copyViewLink() {
+  const link = `${window.location.origin}${window.location.pathname}?page=results&class=${currentResClass}`;
+  navigator.clipboard.writeText(link);
+  showToast('Link copied to clipboard', 'success');
+}
+
+async function loadNectaReport() {
+  const dash = document.getElementById('necta-dashboard');
+  if (!dash) return;
+  if (!currentResClass) { dash.innerHTML = ''; return; }
+  
+  if (state.currentUser.role === 'teacher' && !isResPublished) {
+    dash.innerHTML = '<p class="text-red-500 text-center py-6">Results not published yet.</p>';
+    return;
+  }
+
+  const students = state.students.filter(s => String(s.class_id) === String(currentResClass))
+    .sort((a, b) => {
+      if ((a.gender || "Male") !== (b.gender || "Male")) return (a.gender === "Female") ? 1 : -1;
+      return (a.admission_no || a.name || "").localeCompare(b.admission_no || b.name || "");
+    });
+
+  let final = [];
+  let gradePerf = { Male:{A:0,B:0,C:0,D:0,E:0}, Female:{A:0,B:0,C:0,D:0,E:0} };
+
+  students.forEach(stu => {
+    let total = 0, count = 0, detail = [];
+    state.subjects.forEach(sub => {
+      let r = state.results.find(x => String(x.student_id) === String(stu.id) && String(x.subject_id) === String(sub.id));
+      if (!r) return;
+      let m = Number(r.marks);
+      total += m; count++;
+      detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
+    });
+
+    if (count === 0) return;
+    let avg = total / count;
+    let g = getGrade(avg);
+    detail.push("Average - " + g);
+    gradePerf[stu.gender || "Male"][g]++;
+
+    final.push({
+      adm: stu.admission_no || 'N/A',
+      prem: stu.prem_no || 'N/A',
+      name: stu.name || "-",
+      sex: stu.gender === "Female" ? "F" : "M",
+      detail: detail.join(", ")
+    });
+  });
+
+  let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `
+    <tr><td>${k}</td><td>${v.A}</td><td>${v.B}</td><td>${v.C}</td><td>${v.D}</td><td>${v.E}</td></tr>
+  `).join("");
+
+  let tbodyHtml = final.map(r => `
+    <tr><td>${r.adm}</td><td>${r.prem}</td><td>${r.name}</td><td>${r.sex}</td><td>${r.detail}</td></tr>
+  `).join("");
+
+  let subjectStats = state.subjects.map(sub => {
+    let st = state.results.filter(r => {
+      if (String(r.subject_id) !== String(sub.id)) return false;
+      return students.some(s => String(s.id) === String(r.student_id));
+    });
+    if (st.length === 0) return null;
+    let total = st.reduce((a,b) => a + Number(b.marks), 0);
+    let avg = total / st.length;
+    return { name: sub.name, sat: st.length, passed: st.filter(x => x.marks >= 41).length, avg };
+  }).filter(Boolean);
+
+  let subtbodyHtml = subjectStats.length === 0 ? 
+    `<tr><td colspan="7" style="text-align:center;">NO SUBJECT PERFORMANCE DATA AVAILABLE</td></tr>` :
+    subjectStats.map((sub, i) => {
+      let g = getGrade(sub.avg);
+      return `
+        <tr>
+          <td>${i+1}</td><td>${sub.name}</td><td>${sub.sat}</td><td>${sub.sat}</td><td>${sub.passed}</td>
+          <td>${sub.avg.toFixed(1)}</td><td class="grade-${g}">${g} (${
+            g==="A" ? "Excellent" : g==="B" ? "Very Good" : g==="C" ? "Good" : g==="D" ? "Satisfactory" : "Unsatisfactory"
+          })</td>
+        </tr>
+      `;
+    }).join("");
+
+  dash.innerHTML = `
+    <style>
+      .res-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; background: #fff; }
+      .res-table th { background: #e6e6e6; border: 1px solid #999; padding: 4px 6px; text-align: left; white-space: nowrap; }
+      .res-table td { border: 1px solid #ccc; padding: 4px 6px; white-space: nowrap; }
+      .res-table tr:hover td { background: #f3f8ff; }
+      .grade-A { background: #006400; color: white; font-weight: bold; text-align: center; }
+      .grade-B { background: #90EE90; color: black; font-weight: bold; text-align: center; }
+      .grade-C { background: #FFFF66; color: black; font-weight: bold; text-align: center; }
+      .grade-D { background: #FFB6B6; color: black; font-weight: bold; text-align: center; }
+      .grade-E { background: #FF0000; color: white; font-weight: bold; text-align: center; }
+    </style>
+    <div class="overflow-x-auto mb-4">
+      <table class="res-table">
+        <thead><tr><th>SEX</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr></thead>
+        <tbody>${gradePerfHtml}</tbody>
+      </table>
+    </div>
+    <div class="overflow-x-auto mb-4">
+      <table class="res-table">
+        <thead><tr><th>CAND NO</th><th>PREM NO</th><th>NAME</th><th>SEX</th><th>SUBJECTS</th></tr></thead>
+        <tbody>${tbodyHtml}</tbody>
+      </table>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="res-table">
+        <thead><tr><th>NO</th><th>SUBJECT</th><th>REGISTERED</th><th>SAT</th><th>PASSED</th><th>AVERAGE</th><th>GPA</th></tr></thead>
+        <tbody>${subtbodyHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderResultsEntry() {
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
   if (mySubjects.length === 0) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span></div><p class="text-slate-500 text-center py-6">You have no subjects assigned to you yet. Please contact the Admin.</p></div>`;
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have no subjects assigned to you yet.</p></div>`;
   }
 
   if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
@@ -996,12 +1187,14 @@ function renderTeacherResults() {
 
   const selectedSubjectId = state.resultsDraft.subjectId;
   const selectedClassId = state.resultsDraft.classId;
-  
   const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
 
   return `
     <div class="card fade-up-1">
-      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span></div>
+      <div class="section-title">
+        <span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span>
+        <button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button>
+      </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div>
           <label class="form-label">Select Subject</label>
@@ -1031,10 +1224,10 @@ function renderTeacherResults() {
                 <td>
                   <input type="number" min="0" max="100" value="${marks}" 
                     class="form-input" style="width: 100px; padding: 8px;" 
-                    onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value)"
+                    onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value, 'grade-cell-${st.id}')"
                     placeholder="---" />
                 </td>
-                <td><span class="badge badge-blue">${grade}</span></td>
+                <td id="grade-cell-${st.id}"><span class="badge badge-blue">${grade}</span></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1045,24 +1238,22 @@ function renderTeacherResults() {
   `;
 }
 
-async function saveResult(studentId, subjectId, marksStr) {
+async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   let marks = parseInt(marksStr);
   if (isNaN(marks)) marks = 0;
   if (marks < 0) marks = 0;
   if (marks > 100) marks = 100;
 
-  const grade = marks >= 80 ? 'A' : marks >= 70 ? 'B' : marks >= 50 ? 'C' : marks >= 40 ? 'D' : 'F';
+  const grade = getGrade(marks);
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
 
   if (existing) {
-    // Update existing result
     const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
     existing.marks = marks;
     existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
-    // Insert new result (Removed created_by to prevent schema cache error)
     const { data, error } = await supabase.from('results').insert([{
       student_id: studentId,
       subject_id: subjectId,
@@ -1077,7 +1268,12 @@ async function saveResult(studentId, subjectId, marksStr) {
     state.results.push(data);
     showToast('Result saved', 'success');
   }
-  renderPage();
+  
+  // Update just the grade cell without reloading the whole page
+  const gradeCell = document.getElementById(gradeCellId);
+  if (gradeCell) {
+    gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
+  }
 }
 
 function renderNotices() {
