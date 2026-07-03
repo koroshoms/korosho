@@ -197,7 +197,6 @@ select.form-input { cursor: pointer; }
 
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
-<!-- Hidden render area for PDF generation to prevent screen flashing/crashing -->
 <div id="pdf-render-area" style="position: absolute; left: 0; top: 0; z-index: -100; width: 210mm; background: #fff;"></div>
 
 <script>
@@ -205,18 +204,18 @@ const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
 var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Replace this with your actual Supabase Public URL for the logo
-const LOGO_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co/storage/v1/object/sign/school-logo/school.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81NmQ0YjljMi00NWMwLTQ3YTUtOGZmZS0xMGEyZTczOGM4NjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzY2hvb2wtbG9nby9zY2hvb2wucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzA4NTU2NywiZXhwIjo0OTM2Njg1NTY3fQ.mU66x7iyddGWTInPanadG4pAw3CeNqSo83FoHAgfCWk';
+const LOGO_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co/storage/v1/object/sign/school-logo/school.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81NmQ0YjljMi00NWMwLTQ3YTUtOGZmZS0xMGEyZTczOGM4NjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzY2hvb2wtbG9nby9zY2hvb2wucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzEwMTgxOSwiZXhwIjo0OTM2NzAxODE5fQ.hTGvs249_1szP--Fb0FJzVy3XSneO1tHhW26mV7MWpg';
 
 const state = {
   currentUser: null, currentPage: 'dashboard',
-  teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [],
+  teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [],
   examConfig: {
     default: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:30 HOURS', instructions: 'Answer ALL questions.' },
     overrides: {}
   },
   examQuestions: [], timetable: null,
-  examDraft: { classId: null, subjectId: null, title: '' }
+  examDraft: { classId: null, subjectId: null, title: '' },
+  resultsDraft: { subjectId: null, classId: null }
 };
 
 const savedConfig = localStorage.getItem('korosho_exam_config');
@@ -349,6 +348,12 @@ async function fetchAllData() {
     state.exams = exams || [];
   } catch (e) { console.warn("Exams fetch failed:", e.message); state.exams = []; }
 
+  try {
+    const { data: results, error: rErr } = await supabase.from('results').select('*');
+    if (rErr) throw rErr;
+    state.results = results || [];
+  } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
+
   if (!state.timetable) generateTimetable();
 }
 
@@ -378,7 +383,7 @@ const NAV_MENUS = {
   teacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Teaching' },
-    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'My Results', icon: 'fa-chart-line' },
+    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Enter Results', icon: 'fa-chart-line' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'My Reports', icon: 'fa-file-lines' }
   ]
 };
@@ -636,7 +641,7 @@ async function renderTeachers() {
       <div class="card fade-up-1">
         <div class="section-title">
           <span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>
-          ${isAdmin ? `<button class="btn-primary" onclick="showTeacherHelp()"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
+          ${isAdmin ? `<button class="btn-primary" onclick="openModal('addTeacher')"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
         </div>
         <div class="overflow-x-auto">
           <table class="data-table">
@@ -661,10 +666,6 @@ async function renderTeachers() {
   } catch (error) {
     host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`;
   }
-}
-
-function showTeacherHelp() {
-  openConfirmModal('How to Add a Teacher', 'To add a new teacher who can log in, please go to your Supabase Dashboard -> Authentication -> Users -> Add User. Enter their email and password. Once created, they will appear in this list automatically, and you can assign their role in the Supabase Table Editor (profiles table).', () => closeModal());
 }
 
 async function deleteTeacher(id) {
@@ -954,20 +955,127 @@ function saveTimetableCell(day, sIdx, subjId, teaId) {
   showToast('Session updated', 'success');
 }
 
+// --- RESULTS MODULE ---
 function renderResults() {
+  if (state.currentUser.role === 'teacher' || state.currentUser.role === 'academic') {
+    return renderTeacherResults();
+  }
   return `
     <div class="card fade-up-1">
-      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Results</span></div>
+      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Results Management</span></div>
       <div class="overflow-x-auto">
         <table class="data-table">
           <thead><tr><th>Student</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Status</th></tr></thead>
           <tbody>
-            <tr><td colspan="5" class="text-center text-slate-500 py-6">Results module is connected to Supabase. Add results via Supabase Table Editor.</td></tr>
+            ${state.results.length === 0 ? '<tr><td colspan="5" class="text-center text-slate-500 py-6">No results entered yet.</td></tr>' : state.results.slice(0, 50).map(r => {
+              const st = state.students.find(s => s.id === r.student_id);
+              const sub = state.subjects.find(s => s.id === r.subject_id);
+              return `<tr>
+                <td>${st?.name || 'Unknown'}</td>
+                <td>${sub?.name || 'Unknown'}</td>
+                <td>${r.marks}</td>
+                <td>${r.grade}</td>
+                <td>${r.published ? '<span class="badge badge-green">Published</span>' : '<span class="badge badge-amber">Draft</span>'}</td>
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>
     </div>
   `;
+}
+
+function renderTeacherResults() {
+  const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+  if (mySubjects.length === 0) {
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span></div><p class="text-slate-500 text-center py-6">You have no subjects assigned to you yet. Please contact the Admin.</p></div>`;
+  }
+
+  if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
+  if (!state.resultsDraft.classId) state.resultsDraft.classId = state.classes[0]?.id;
+
+  const selectedSubjectId = state.resultsDraft.subjectId;
+  const selectedClassId = state.resultsDraft.classId;
+  
+  const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
+
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label class="form-label">Select Subject</label>
+          <select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">
+            ${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Select Class</label>
+          <select class="form-input" onchange="state.resultsDraft.classId = this.value; renderPage();">
+            ${state.classes.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead>
+          <tbody>
+            ${studentsInClass.length === 0 ? '<tr><td colspan="4" class="text-center text-slate-500 py-6">No students in this class.</td></tr>' : studentsInClass.map(st => {
+              const existingResult = state.results.find(r => r.student_id == st.id && r.subject_id == selectedSubjectId);
+              const marks = existingResult ? existingResult.marks : '';
+              const grade = existingResult ? existingResult.grade : '-';
+              return `<tr>
+                <td class="font-semibold">${st.name}</td>
+                <td>${st.gender}</td>
+                <td>
+                  <input type="number" min="0" max="100" value="${marks}" 
+                    class="form-input" style="width: 100px; padding: 8px;" 
+                    onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value)"
+                    placeholder="---" />
+                </td>
+                <td><span class="badge badge-blue">${grade}</span></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-500 mt-4"><i class="fa-solid fa-info-circle mr-1"></i> Marks are saved automatically to the database when you type and click away.</p>
+    </div>
+  `;
+}
+
+async function saveResult(studentId, subjectId, marksStr) {
+  let marks = parseInt(marksStr);
+  if (isNaN(marks)) marks = 0;
+  if (marks < 0) marks = 0;
+  if (marks > 100) marks = 100;
+
+  const grade = marks >= 80 ? 'A' : marks >= 70 ? 'B' : marks >= 50 ? 'C' : marks >= 40 ? 'D' : 'F';
+  const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
+
+  if (existing) {
+    const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
+    if (error) return showToast(error.message, 'error');
+    existing.marks = marks;
+    existing.grade = grade;
+    showToast('Result updated', 'success');
+  } else {
+    const { data, error } = await supabase.from('results').insert([{
+      student_id: studentId,
+      subject_id: subjectId,
+      marks,
+      grade,
+      term: 'Term II',
+      year: '2025',
+      created_by: state.currentUser.id,
+      published: false
+    }]).select().single();
+    if (error) return showToast(error.message, 'error');
+    state.results.push(data);
+    showToast('Result saved', 'success');
+  }
+  renderPage();
 }
 
 function renderNotices() {
@@ -1143,7 +1251,6 @@ function renderExamSet() {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-5">
         
-        <!-- Rules Banner -->
         <div class="card fade-up-1" style="background:#F0FDF4; border-color:#A7F3D0">
           <div class="flex items-center gap-3">
             <i class="fa-solid fa-lock text-emerald-600"></i>
@@ -1154,7 +1261,6 @@ function renderExamSet() {
           </div>
         </div>
 
-        <!-- Exam Details -->
         <div class="card fade-up-1">
           <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
           <div class="grid md:grid-cols-3 gap-3">
@@ -1207,7 +1313,6 @@ function renderExamSet() {
   `;
 }
 
-// FIXED MCQ RENDER LOGIC
 function renderQuestionEditor(q, i) {
   const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question' };
   let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
@@ -1228,7 +1333,6 @@ function renderQuestionEditor(q, i) {
   return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
 }
 
-// Add this new function right below renderQuestionEditor
 function uploadPicture(qId, input) {
   const file = input.files[0];
   if (!file) return;
@@ -1236,7 +1340,7 @@ function uploadPicture(qId, input) {
   reader.onload = e => {
     const q = state.examQuestions.find(x => x.id === qId);
     if (q) {
-      q.picture = e.target.result; // This is a base64 string
+      q.picture = e.target.result;
       renderPage();
       showToast('Picture attached', 'success');
     }
@@ -1282,22 +1386,19 @@ function reviewExamPDF(examId) {
   downloadExamPDF(exam);
 }
 
-// COMBINED DOWNLOAD & SAVE LOGIC
 async function downloadExamPDF(exam = null) {
   const draft = exam ? { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title } : state.examDraft;
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // 1. Save to Supabase, BUT STRIP IMAGES FIRST
   if (!exam && state.examQuestions.length > 0) {
     showToast('Sending copy to Admin & downloading...', 'info');
     
-    // Create a clean version of the questions WITHOUT the heavy image data
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
       if (cleanQ.type === 'picture' && cleanQ.picture) {
-        delete cleanQ.picture; // Remove the heavy image text
-        cleanQ.pictureNote = '[Picture was attached during creation]'; // Leave a small note for the admin
+        delete cleanQ.picture;
+        cleanQ.pictureNote = '[Picture was attached during creation]';
       }
       return cleanQ;
     });
@@ -1306,7 +1407,7 @@ async function downloadExamPDF(exam = null) {
       title: draft.title || 'Untitled Exam',
       class_id: draft.classId,
       subject_id: draft.subjectId,
-      questions: questionsToSave, // Save the clean version
+      questions: questionsToSave,
       created_by: state.currentUser.id
     }]);
     
@@ -1318,7 +1419,6 @@ async function downloadExamPDF(exam = null) {
     }
   }
 
-  // 2. Generate the PDF (This part keeps the images so they print on the paper)
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
   
@@ -1341,13 +1441,11 @@ async function downloadExamPDF(exam = null) {
       });
     } else if (q.type === 'picture') {
       if (q.picture) {
-        // If generating from builder, show the image
         questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
       } else {
-        // If admin is reviewing from database, the image is gone, show the note
         questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
       }
-      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`; // Answer line
+      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
     } else if (q.type === 'short') {
       questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
     } else if (q.type === 'long') {
@@ -1431,7 +1529,6 @@ async function downloadExamPDF(exam = null) {
     </div>
   `;
 
-    // Append to hidden render area
   const renderArea = document.getElementById('pdf-render-area');
   renderArea.innerHTML = html;
 
@@ -1440,11 +1537,11 @@ async function downloadExamPDF(exam = null) {
   html2pdf().set({
     filename: `${examTitle.replace(/\s/g,'_')}_${subjectName}_${className}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' }, // Added backgroundColor here
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
   }).from(renderArea).save().then(() => {
-    renderArea.innerHTML = ''; // Clear it out after
+    renderArea.innerHTML = '';
     if (exam) showToast('PDF downloaded', 'success');
     else showToast('Download started!', 'success');
   }).catch(err => {
@@ -1480,6 +1577,18 @@ function openModal(type, data) {
       <div><label class="form-label">Room</label><input type="text" class="form-input" id="c-room" placeholder="e.g. Block B-201"></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveClass()">Create Class</button></div>`;
+  } else if (type === 'addTeacher') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Staff</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="t-name" placeholder="e.g. Shadafi"></div>
+      <div><label class="form-label">Email Address</label><input type="email" class="form-input" id="t-email" placeholder="e.g. shadafi@korosho.ac.tz"></div>
+      <div><label class="form-label">Phone Number</label><input type="text" class="form-input" id="t-phone" placeholder="+255 7XX"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">Role</label><select class="form-input" id="t-role"><option value="teacher">Teacher</option><option value="academic">Academic Master</option><option value="headteacher">Headteacher</option></select></div>
+        <div><label class="form-label">Temporary Password</label><input type="password" class="form-input" id="t-password" placeholder="Min 6 characters" required></div>
+      </div>
+    </div></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveTeacher()">Create Account</button></div>`;
   } else if (type === 'assignTeacher') {
     const cls = state.classes.find(c => c.id === data);
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Assign Class Teacher</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -1556,6 +1665,46 @@ async function saveClass() {
   closeModal(); await fetchAllData(); renderPage(); showToast(`Class ${name} created`, 'success');
 }
 
+async function saveTeacher() {
+  const email = document.getElementById('t-email').value.trim();
+  const password = document.getElementById('t-password').value;
+  const fullName = document.getElementById('t-name').value.trim();
+  const phone = document.getElementById('t-phone').value.trim();
+  const role = document.getElementById('t-role').value;
+
+  if (!email || !password || !fullName) return showToast('Please fill all required fields', 'error');
+
+  const { data: { session: adminSession } } = await supabase.auth.getSession();
+  if (!adminSession) return showToast('Admin session lost. Please log in again.', 'error');
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+  if (authError) {
+    return showToast('Auth Error: ' + authError.message, 'error');
+  }
+
+  await supabase.auth.setSession({
+    access_token: adminSession.access_token,
+    refresh_token: adminSession.refresh_token
+  });
+
+  const { error: profileError } = await supabase.from('profiles').insert([{
+    id: authData.user.id,
+    full_name: fullName,
+    email: email,
+    phone: phone,
+    role: role
+  }]);
+
+  if (profileError) {
+    showToast('Auth created, but profile failed: ' + profileError.message, 'error');
+  } else {
+    showToast(`${role} added successfully!`, 'success');
+    closeModal();
+    await fetchAllData();
+    renderPage();
+  }
+}
+
 async function assignTeacher(clsId) {
   const teacherId = document.getElementById('assign-teacher').value;
   const { error } = await supabase.from('classes').update({ class_teacher_id: teacherId || null }).eq('id', clsId);
@@ -1592,4 +1741,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-  </html>
+</html>
