@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Korosho English Medium School — Management Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --primary: #047857; --primary-light: #10B981; --primary-dark: #065F46;
+  --accent: #D97706; --accent-light: #F59E0B;
+  --sidebar-bg: #0F172A; --sidebar-hover: #1E293B;
+  --app-bg: #F1F5F9; --card: #FFFFFF; --text: #0F172A;
+  --muted: #64748B; --border: #E2E8F0;
+  --danger: #DC2626; --success: #16A34A; --warning: #F59E0B;
+  --info: #0EA5E9; --purple: #9333EA;
+}
+* { font-family: 'Outfit', sans-serif; box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { background: var(--app-bg); color: var(--text); }
+
+/* ===== LOGIN ===== */
+.login-bg {
+  background: linear-gradient(135deg, #0F172A 0%, #065F46 50%, #0F172A 100%);
+  min-height: 100vh; position: relative; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.blob {
+  position: absolute; border-radius: 50%; filter: blur(80px);
+  opacity: 0.45; pointer-events: none; animation: float 14s ease-in-out infinite;
+}
+.blob-1 { width: 520px; height: 520px; background: radial-gradient(circle, #10B981, transparent 70%); top: -160px; left: -120px; }
+.blob-2 { width: 480px; height: 480px; background: radial-gradient(circle, #F59E0B, transparent 70%); bottom: -160px; right: -120px; animation-delay: -7s; }
+@keyframes float {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33% { transform: translate(60px,-50px) scale(1.1); }
+  66% { transform: translate(-40px,40px) scale(0.95); }
+}
+.glass-card {
+  background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+}
+.glass-input {
+  background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white;
+  padding: 13px 16px 13px 44px; border-radius: 12px; width: 100%; font-size: 14px; transition: all 0.2s;
+}
+.glass-input::placeholder { color: rgba(255,255,255,0.5); }
+.glass-input:focus { outline: none; border-color: rgba(16,185,129,0.7); background: rgba(255,255,255,0.05); }
+.input-wrap { position: relative; }
+.input-wrap i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white;
+  padding: 13px 24px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 14px;
+}
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -6px rgba(4,120,87,0.5); }
+.btn-ghost {
+  background: white; color: var(--text); padding: 10px 18px; border-radius: 10px;
+  font-weight: 500; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; font-size: 14px;
+}
+.btn-ghost:hover { background: #F8FAFC; border-color: #CBD5E1; }
+
+/* ===== DEMO ACCOUNT BUTTONS ===== */
+.demo-btn {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px; color: rgba(255,255,255,0.8); cursor: pointer;
+  transition: all 0.2s; text-align: left; width: 100%;
+}
+.demo-btn:hover { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: white; transform: translateY(-1px); }
+.demo-btn i { font-size: 16px; flex-shrink: 0; }
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width: 260px; background: var(--sidebar-bg); color: rgba(255,255,255,0.6);
+  position: fixed; left: 0; top: 0; bottom: 0; z-index: 50;
+  display: flex; flex-direction: column; transition: transform 0.3s;
+}
+.sidebar-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; flex-shrink: 0;
+}
+.nav-scroll { flex: 1; overflow-y: auto; padding: 12px; }
+.nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.3); padding: 12px 16px 6px; font-weight: 600; }
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px;
+  color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.2s; font-size: 14px; font-weight: 500; margin-bottom: 2px; border: 1px solid transparent;
+}
+.nav-item:hover { background: var(--sidebar-hover); color: rgba(255,255,255,0.9); }
+.nav-item.active { background: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(4,120,87,0.08)); color: var(--primary-light); border: 1px solid rgba(16,185,129,0.3); }
+.nav-item i { width: 20px; text-align: center; font-size: 15px; }
+.sidebar-footer { padding: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+.user-chip { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; margin-bottom: 8px; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.signout-btn {
+  width: 100%; padding: 11px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.signout-btn:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+/* ===== MAIN ===== */
+.main-content { margin-left: 260px; min-height: 100vh; }
+.header-bar {
+  position: sticky; top: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 16px 32px; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.page-content { padding: 28px 32px; }
+
+/* ===== DEMO BANNER ===== */
+.demo-banner {
+  background: linear-gradient(90deg, #F59E0B, #D97706); color: white;
+  padding: 7px 24px; text-align: center; font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+
+/* ===== CARDS ===== */
+.stat-card {
+  background: white; border-radius: 14px; padding: 22px; border: 1px solid var(--border);
+  position: relative; overflow: hidden; transition: all 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(0,0,0,0.08); }
+.stat-card::before {
+  content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px;
+  border-radius: 50%; background: linear-gradient(135deg, var(--primary-light), transparent); opacity: 0.12;
+}
+.card { background: white; border-radius: 14px; border: 1px solid var(--border); padding: 22px; }
+.section-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+/* ===== BADGES ===== */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-green { background: #DCFCE7; color: #166534; } .badge-amber { background: #FEF3C7; color: #92400E; }
+.badge-red { background: #FEE2E2; color: #991B1B; } .badge-blue { background: #DBEAFE; color: #1E40AF; }
+.badge-gray { background: #F1F5F9; color: #475569; } .badge-purple { background: #F3E8FF; color: #6B21A8; }
+
+/* ===== TABLES ===== */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead th {
+  background: #F8FAFC; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.6px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
+}
+.data-table tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.data-table tbody tr { transition: background 0.15s; }
+.data-table tbody tr:hover { background: #F8FAFC; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: auto; }
+.modal-box { background: white; border-radius: 16px; max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s; }
+.modal-overlay.active .modal-box { transform: translateY(0); }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; display: block; }
+.form-input { width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; font-family: 'Outfit', sans-serif; background: white; color: var(--text); transition: all 0.15s; }
+.form-input:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+select.form-input { cursor: pointer; }
+
+/* ===== TOAST ===== */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: white; border-left: 4px solid var(--success); padding: 14px 18px; border-radius: 10px; box-shadow: 0 12px 30px -6px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 12px; min-width: 300px; animation: slideIn 0.3s ease-out; }
+.toast.error { border-left-color: var(--danger); } .toast.info { border-left-color: var(--info); } .toast.warn { border-left-color: var(--warning); }
+@keyframes slideIn { from { transform: translateX(420px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* ===== TIMETABLE ===== */
+.timetable-wrapper { overflow-x: auto; }
+.timetable-grid { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; min-width: 800px; }
+.tt-cell { background: white; padding: 10px; min-height: 72px; font-size: 13px; }
+.tt-header { background: #F8FAFC; font-weight: 700; color: var(--muted); text-align: center; padding: 12px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+.tt-time { background: #F8FAFC; font-weight: 600; color: var(--muted); font-size: 11px; text-align: center; display: flex; align-items: center; justify-content: center; padding: 8px; }
+.tt-class { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; font-size: 12px; height: 100%; cursor: pointer; transition: all 0.15s; }
+.tt-class:hover { background: #D1FAE5; transform: scale(1.02); }
+.tt-class .subj { font-weight: 700; color: var(--primary-dark); }
+.tt-class .tea { color: var(--muted); font-size: 10px; margin-top: 2px; }
+.tt-break { background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; padding: 8px; font-size: 12px; color: #92400E; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; }
+
+/* ===== NOTICE ===== */
+.notice-card { background: white; border-radius: 12px; border-left: 4px solid var(--primary); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 16px 18px; transition: all 0.2s; }
+.notice-card:hover { transform: translateX(2px); box-shadow: 0 8px 20px -8px rgba(0,0,0,0.08); }
+.notice-card.high { border-left-color: var(--danger); }
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+.fade-up-1 { animation: fadeUp 0.5s ease-out 0.05s both; } .fade-up-2 { animation: fadeUp 0.5s ease-out 0.1s both; }
+.fade-up-3 { animation: fadeUp 0.5s ease-out 0.15s both; } .fade-up-4 { animation: fadeUp 0.5s ease-out 0.2s both; }
+.fade-up-5 { animation: fadeUp 0.5s ease-out 0.25s both; } .fade-up-6 { animation: fadeUp 0.5s ease-out 0.3s both; }
+
+/* ===== MISC ===== */
+::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+.hidden-page { display: none !important; }
+
+@media (max-width: 1024px) {
+  .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; }
+}
+@media (max-width: 640px) { .header-bar { padding: 14px 18px; } .page-content { padding: 18px; } }
+.menu-btn { background: white; border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 10px; display: none; align-items: center; justify-content: center; cursor: pointer; }
+@media (max-width: 1024px) { .menu-btn { display: flex; } }
+.icon-btn { width: 40px; height: 40px; background: #F8FAFC; border: 1px solid var(--border); border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: all 0.15s; color: var(--muted); }
+.icon-btn:hover { background: white; color: var(--text); }
+.icon-btn .dot { position: absolute; top: 8px; right: 9px; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; border: 2px solid white; }
+
+.q-type-card { border: 2px dashed var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; text-align: center; }
+.q-type-card:hover { border-color: var(--primary-light); background: #ECFDF5; }
+.q-type-card.selected { border-color: var(--primary); border-style: solid; background: #ECFDF5; }
+.question-block { background: #F8FAFC; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
+.progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN PAGE ===================== -->
+<div id="loginPage" class="login-bg">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="glass-card w-full max-w-md p-8 sm:p-10 relative z-10 fade-up-1">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style="background: linear-gradient(135deg, var(--primary), var(--primary-light));">
+        <i class="fa-solid fa-graduation-cap text-white text-2xl"></i>
+      </div>
+      <h1 class="text-white text-2xl font-bold tracking-tight">Korosho English Medium School</h1>
+      <p class="text-white/50 text-sm mt-1">School Management System Portal</p>
+    </div>
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2 block">Email</label>
+        <div class="input-wrap"><i class="fa-solid fa-envelope"></i><input type="email" id="loginUsername" class="glass-input" placeholder="Enter your email" required></div>
+      </div>
+      <div>
+        <label class="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2 block">Password</label>
+        <div class="input-wrap"><i class="fa-solid fa-lock"></i><input type="password" id="loginPassword" class="glass-input" placeholder="Enter your password" required></div>
+      </div>
+      <div id="loginErrorBox" class="hidden bg-red-500/20 border border-red-500/40 text-red-200 text-sm rounded-xl px-4 py-3 text-center"></div>
+      <button type="submit" class="btn-primary w-full mt-4 flex items-center justify-center gap-2"><i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal</button>
+    </form>
+
+    <!-- ===== DEMO ACCOUNTS SECTION ===== -->
+    <div class="relative my-6">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div>
+      <div class="relative flex justify-center"><span class="px-4 text-[11px] text-white/40 uppercase tracking-widest font-semibold">Or Try Demo Accounts</span></div>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+      <button onclick="loginAsDemo('admin')" class="demo-btn">
+        <i class="fa-solid fa-user-shield text-emerald-400"></i>
+        <div><div class="text-sm font-semibold text-white">Admin</div><div class="text-[10px] text-white/40">Full Access</div></div>
+      </button>
+      <button onclick="loginAsDemo('headteacher')" class="demo-btn">
+        <i class="fa-solid fa-user-tie text-amber-400"></i>
+        <div><div class="text-sm font-semibold text-white">Headteacher</div><div class="text-[10px] text-white/40">Oversight</div></div>
+      </button>
+      <button onclick="loginAsDemo('academic')" class="demo-btn">
+        <i class="fa-solid fa-clipboard-user text-blue-400"></i>
+        <div><div class="text-sm font-semibold text-white">Academic</div><div class="text-[10px] text-white/40">Academics</div></div>
+      </button>
+      <button onclick="loginAsDemo('teacher')" class="demo-btn">
+        <i class="fa-solid fa-chalkboard-user text-purple-400"></i>
+        <div><div class="text-sm font-semibold text-white">Teacher</div><div class="text-[10px] text-white/40">Class View</div></div>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="appShell" class="hidden-page">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">K</div>
+      <div><div class="text-white font-bold text-sm leading-tight">Korosho EMS</div><div class="text-white/40 text-[11px]">Management Portal</div></div>
+    </div>
+    <div class="nav-scroll" id="navMenu"></div>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="avatar" id="sideAvatar">S</div>
+        <div class="flex-1 min-w-0"><div class="text-white text-sm font-semibold truncate" id="sideName">User</div><div class="text-white/40 text-[11px] capitalize" id="sideRole">role</div></div>
+      </div>
+      <button class="signout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
+    </div>
+  </aside>
+  <div class="main-content">
+    <!-- DEMO BANNER -->
+    <div id="demoBanner" class="demo-banner hidden">
+      <i class="fa-solid fa-flask"></i> Demo Mode — Changes are stored locally only and will be lost on refresh. Sign out to switch accounts.
+    </div>
+    <header class="header-bar">
+      <div class="flex items-center gap-3">
+        <button class="menu-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+        <div><h2 class="text-lg font-bold text-slate-900" id="pageTitle">Dashboard</h2><p class="text-xs text-slate-500" id="pageBreadcrumb">Home / Dashboard</p></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="icon-btn" onclick="navigateTo('notices')"><i class="fa-solid fa-bell"></i><span class="dot"></span></button>
+        <div class="hidden sm:flex items-center gap-2 pl-3 ml-1 border-l border-slate-200">
+          <div class="avatar" id="headerAvatar" style="width:36px;height:36px;font-size:13px;">S</div>
+          <div class="hidden md:block"><div class="text-sm font-semibold text-slate-900" id="headerName">User</div><div class="text-[11px] text-slate-500 capitalize" id="headerRole">role</div></div>
+        </div>
+      </div>
+    </header>
+    <main class="page-content" id="pageContent"></main>
+  </div>
+</div>
+
+<div id="modalHost"></div>
+<div class="toast-container" id="toastHost"></div>
+
+<script>
+/* ===================== INITIALIZE SUPABASE ===================== */
+const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ===================== STATE ===================== */
+const state = {
+  currentUser: null, currentPage: 'dashboard', isDemo: false,
+  teachers: [], students: [], classes: [], subjects: [], notices: [],
+  examConfig: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.5, showSchoolHeader: true, showInstructions: true, totalMarks: 50 },
+  examQuestions: [], timetable: null
+};
+
+/* ===================== DEMO ACCOUNTS ===================== */
+const DEMO_ACCOUNTS = {
+  admin:       { name: 'Administrative User',  email: 'admin@korosho.ac.tz',       role: 'admin' },
+  headteacher: { name: 'Sarah Kimaro',          email: 'headteacher@korosho.ac.tz', role: 'headteacher' },
+  academic:    { name: 'Joseph Mushi',          email: 'academic@korosho.ac.tz',    role: 'academic' },
+  teacher:     { name: 'Grace Mollel',          email: 'grace.mollel@korosho.ac.tz',role: 'teacher' }
+};
+
+function loginAsDemo(role) {
+  const acc = DEMO_ACCOUNTS[role];
+  state.currentUser = { id: 'demo-' + role, username: acc.email, name: acc.name, role: acc.role };
+  state.isDemo = true;
+  generateMockData();
+  document.getElementById('loginPage').classList.add('hidden-page');
+  document.getElementById('appShell').classList.remove('hidden-page');
+  initApp();
+  showToast(`Welcome, ${acc.name}! (Demo — ${acc.role})`, 'success');
+}
+
+function generateMockData() {
+  state.teachers = [
+    { id: 't1', full_name: 'Sarah Kimaro',    email: 'headteacher@korosho.ac.tz',  role: 'headteacher', phone: '+255 754 111 222' },
+    { id: 't2', full_name: 'Joseph Mushi',     email: 'academic@korosho.ac.tz',     role: 'academic',    phone: '+255 754 333 444' },
+    { id: 't3', full_name: 'Grace Mollel',     email: 'grace.mollel@korosho.ac.tz', role: 'teacher',     phone: '+255 754 555 666' },
+    { id: 't4', full_name: 'Hassan Juma',      email: 'hassan.juma@korosho.ac.tz',  role: 'teacher',     phone: '+255 754 777 888' },
+    { id: 't5', full_name: 'Steven Nyerere',   email: 'steven.n@korosho.ac.tz',     role: 'teacher',     phone: '+255 754 999 000' },
+    { id: 't6', full_name: 'Mary Laurent',     email: 'mary.l@korosho.ac.tz',       role: 'teacher',     phone: '+255 753 222 333' },
+    { id: 't7', full_name: 'Peter Shayo',      email: 'peter.shayo@korosho.ac.tz',  role: 'teacher',     phone: '+255 753 444 555' },
+    { id: 't8', full_name: 'Aisha Hassan',     email: 'aisha.h@korosho.ac.tz',      role: 'teacher',     phone: '+255 753 666 777' }
+  ];
+
+  state.classes = [
+    { id: 1, name: 'Form 1A',    room: 'Block A-101', class_teacher_id: 't3', profiles: { full_name: 'Grace Mollel' } },
+    { id: 2, name: 'Form 2A',    room: 'Block A-102', class_teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
+    { id: 3, name: 'Form 3A',    room: 'Block B-201', class_teacher_id: 't5', profiles: { full_name: 'Steven Nyerere' } },
+    { id: 4, name: 'Standard 7', room: 'Block B-202', class_teacher_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
+    { id: 5, name: 'Standard 5', room: 'Block C-101', class_teacher_id: 't6', profiles: { full_name: 'Mary Laurent' } }
+  ];
+
+  state.subjects = [
+    { id: 1, name: 'Mathematics',    code: 'MATH', teacher_id: 't5', profiles: { full_name: 'Steven Nyerere' } },
+    { id: 2, name: 'English',        code: 'ENG',  teacher_id: 't3', profiles: { full_name: 'Grace Mollel' } },
+    { id: 3, name: 'Kiswahili',      code: 'KIS',  teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
+    { id: 4, name: 'Science',        code: 'SCI',  teacher_id: 't7', profiles: { full_name: 'Peter Shayo' } },
+    { id: 5, name: 'Social Studies', code: 'SST',  teacher_id: 't6', profiles: { full_name: 'Mary Laurent' } },
+    { id: 6, name: 'Civics',         code: 'CIV',  teacher_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
+    { id: 7, name: 'Geography',      code: 'GEO',  teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
+    { id: 8, name: 'History',        code: 'HIS',  teacher_id: 't8', profiles: { full_name: 'Aisha Hassan' } }
+  ];
+
+  state.students = [
+    { id: 1,  name: 'Aisha Mohamed',  class_id: 1, classes: { name: 'Form 1A' },    gender: 'F', age: 14, parent_name: 'Mohamed Ali',     parent_phone: '+255 712 100 200' },
+    { id: 2,  name: 'Baraka John',    class_id: 1, classes: { name: 'Form 1A' },    gender: 'M', age: 13, parent_name: 'John Peter',      parent_phone: '+255 712 300 400' },
+    { id: 3,  name: 'Neema Peter',    class_id: 1, classes: { name: 'Form 1A' },    gender: 'F', age: 14, parent_name: 'Peter James',     parent_phone: '+255 712 500 600' },
+    { id: 4,  name: 'David Said',     class_id: 1, classes: { name: 'Form 1A' },    gender: 'M', age: 13, parent_name: 'Said Hassan',     parent_phone: '+255 712 700 800' },
+    { id: 5,  name: 'Zainab Ali',     class_id: 2, classes: { name: 'Form 2A' },    gender: 'F', age: 15, parent_name: 'Ali Hassan',      parent_phone: '+255 713 100 200' },
+    { id: 6,  name: 'Josephat Lucas', class_id: 2, classes: { name: 'Form 2A' },    gender: 'M', age: 15, parent_name: 'Lucas Michael',   parent_phone: '+255 713 300 400' },
+    { id: 7,  name: 'Happy Robert',   class_id: 2, classes: { name: 'Form 2A' },    gender: 'F', age: 14, parent_name: 'Robert William',  parent_phone: '+255 713 500 600' },
+    { id: 8,  name: 'Erick James',    class_id: 2, classes: { name: 'Form 2A' },    gender: 'M', age: 15, parent_name: 'James Thomas',    parent_phone: '+255 713 700 800' },
+    { id: 9,  name: 'Rehema Juma',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'F', age: 16, parent_name: 'Juma Aboud',     parent_phone: '+255 714 100 200' },
+    { id: 10, name: 'Kelvin Mark',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'M', age: 16, parent_name: 'Mark Joseph',     parent_phone: '+255 714 300 400' },
+    { id: 11, name: 'Sophia Anna',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'F', age: 15, parent_name: 'Anna Simon',      parent_phone: '+255 714 500 600' },
+    { id: 12, name: 'Brian Chris',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'M', age: 16, parent_name: 'Chris Daniel',    parent_phone: '+255 714 700 800' },
+    { id: 13, name: 'Upendo William', class_id: 4, classes: { name: 'Standard 7' }, gender: 'F', age: 13, parent_name: 'William John',    parent_phone: '+255 715 100 200' },
+    { id: 14, name: 'Festo Daniel',   class_id: 4, classes: { name: 'Standard 7' }, gender: 'M', age: 13, parent_name: 'Daniel Paul',     parent_phone: '+255 715 300 400' },
+    { id: 15, name: 'Tuma Emmanuel',  class_id: 4, classes: { name: 'Standard 7' }, gender: 'F', age: 12, parent_name: 'Emmanuel Kay',    parent_phone: '+255 715 500 600' },
+    { id: 16, name: 'Gift Alex',      class_id: 4, classes: { name: 'Standard 7' }, gender: 'M', age: 13, parent_name: 'Alex Moses',      parent_phone: '+255 715 700 800' },
+    { id: 17, name: 'Lucy Patrick',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'F', age: 11, parent_name: 'Patrick Sanga',   parent_phone: '+255 716 100 200' },
+    { id: 18, name: 'Nelson Frank',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'M', age: 10, parent_name: 'Frank Mwita',     parent_phone: '+255 716 300 400' },
+    { id: 19, name: 'Dorice Samuel',  class_id: 5, classes: { name: 'Standard 5' }, gender: 'F', age: 11, parent_name: 'Samuel Kileo',    parent_phone: '+255 716 500 600' },
+    { id: 20, name: 'Isaac Thomas',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'M', age: 10, parent_name: 'Thomas Mori',     parent_phone: '+255 716 700 800' }
+  ];
+
+  state.notices = [
+    { id: 1, title: 'Term 2 Opening Date Announced', body: 'School reopens on Monday, 8th January 2024 for Term 2. All students must report by 8:00 AM sharp in full uniform. Late arrivals will be penalized.', priority: 'high', created_at: '2024-12-28T10:00:00', author_id: 't1', profiles: { full_name: 'Sarah Kimaro' } },
+    { id: 2, title: 'Parent-Teacher Meeting', body: 'PTM is scheduled for Friday, 15th December at 2:00 PM in the main hall. All parents are strongly encouraged to attend to discuss student progress.', priority: 'normal', created_at: '2024-12-20T14:00:00', author_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
+    { id: 3, title: 'Annual Sports Day', body: 'Annual sports day will be held on 20th January 2024. Students should wear their sports uniform and bring a water bottle. Events include athletics, football, and netball.', priority: 'normal', created_at: '2024-12-15T09:00:00', author_id: 't3', profiles: { full_name: 'Grace Mollel' } },
+    { id: 4, title: 'Mid-Term Examination Schedule', body: 'Mid-term exams begin Monday, 5th February 2024. Timetables have been posted on the notice board. All students must arrive 15 minutes before each exam.', priority: 'high', created_at: '2024-12-10T11:00:00', author_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
+    { id: 5, title: 'Library Extended Hours', body: 'The school library will now remain open until 5:30 PM on weekdays to support exam preparation. Librarian Mr. Shayo will be available for assistance.', priority: 'normal', created_at: '2024-12-05T13:00:00', author_id: 't7', profiles: { full_name: 'Peter Shayo' } }
+  ];
+
+  generateTimetable();
+}
+
+/* ===================== AUTH & SESSION ===================== */
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  const errorBox = document.getElementById('loginErrorBox');
+
+  if (errorBox) { errorBox.classList.add('hidden'); errorBox.innerText = ''; }
+
+  submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In...';
+  submitBtn.disabled = true;
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError) throw new Error(authError.message);
+
+    let { data: profile, error: profileError } = await supabase
+      .from('profiles').select('*').eq('id', authData.user.id).single();
+
+    if (profileError && profileError.code === 'PGRST116') {
+      const { data: newProfile, error: insertError } = await supabase
+        .from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
+      if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
+      profile = newProfile;
+    } else if (profileError) {
+      throw new Error('Database Error: ' + profileError.message);
+    }
+
+    state.currentUser = { id: authData.user.id, username: email, name: profile.full_name || email.split('@')[0], role: profile.role || 'admin' };
+    state.isDemo = false;
+    document.getElementById('loginPage').classList.add('hidden-page');
+    document.getElementById('appShell').classList.remove('hidden-page');
+    await initApp();
+    showToast(`Welcome back, ${state.currentUser.name.split(' ')[0]}!`, 'success');
+  } catch (err) {
+    document.getElementById('loginPage').classList.remove('hidden-page');
+    document.getElementById('appShell').classList.add('hidden-page');
+    if (errorBox) { errorBox.innerText = "Login Failed: " + err.message; errorBox.classList.remove('hidden'); }
+    submitBtn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal';
+    submitBtn.disabled = false;
+    await supabase.auth.signOut();
+  }
+});
+
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    try {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      if (profile) {
+        state.currentUser = { id: session.user.id, username: session.user.email, name: profile.full_name, role: profile.role };
+        state.isDemo = false;
+        document.getElementById('loginPage').classList.add('hidden-page');
+        document.getElementById('appShell').classList.remove('hidden-page');
+        await initApp();
+      }
+    } catch (e) { console.error("Session check error", e); }
+  }
+}
+
+async function logout() {
+  if (state.isDemo) {
+    state.currentUser = null; state.isDemo = false;
+    state.teachers = []; state.students = []; state.classes = [];
+    state.subjects = []; state.notices = []; state.timetable = null;
+    document.getElementById('appShell').classList.add('hidden-page');
+    document.getElementById('loginPage').classList.remove('hidden-page');
+    document.getElementById('loginForm').reset();
+    showToast('Signed out of demo mode', 'info');
+    return;
+  }
+  await supabase.auth.signOut();
+  state.currentUser = null;
+  document.getElementById('appShell').classList.add('hidden-page');
+  document.getElementById('loginPage').classList.remove('hidden-page');
+  document.getElementById('loginForm').reset();
+  showToast('Signed out successfully', 'info');
+}
+
+/* ===================== DATA FETCHING (SAFE) ===================== */
+async function fetchAllData() {
+  if (state.isDemo) return;
+
+  try { const { data: teachers } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']); state.teachers = teachers || []; } catch (e) { console.warn("Teachers fetch failed:", e.message); state.teachers = []; }
+  try { const { data: students } = await supabase.from('students').select('*, classes(name)'); state.students = students || []; } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
+  try { const { data: classes } = await supabase.from('classes').select('*, profiles(full_name)'); state.classes = classes || []; } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
+  try { const { data: subjects } = await supabase.from('subjects').select('*, profiles(full_name)'); state.subjects = subjects || []; } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
+  try { const { data: notices } = await supabase.from('notices').select('*, profiles(full_name)').order('created_at', { ascending: false }); state.notices = notices || []; } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
+
+  if (!state.timetable) generateTimetable();
+}
+
+/* ===================== NAVIGATION ===================== */
+const NAV_MENUS = {
+  admin: [
+    { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
+    { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Management' },
+    { id: 'teachers', label: 'Teachers', icon: 'fa-chalkboard-user' }, { id: 'students', label: 'Students', icon: 'fa-user-graduate' },
+    { id: 'classes', label: 'Classes', icon: 'fa-school' }, { id: 'subjects', label: 'Subjects', icon: 'fa-book' },
+    { section: 'Academic' }, { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' },
+    { id: 'results', label: 'Results', icon: 'fa-chart-line' }, { id: 'publish', label: 'Publish Results', icon: 'fa-cloud-arrow-up' },
+    { id: 'exam-config', label: 'Exam Configuration', icon: 'fa-sliders' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+  ],
+  headteacher: [
+    { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
+    { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Academic' },
+    { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Results', icon: 'fa-chart-line' },
+    { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+  ],
+  academic: [
+    { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
+    { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Academic' },
+    { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Results', icon: 'fa-chart-line' },
+    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+  ],
+  teacher: [
+    { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
+    { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Teaching' },
+    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'My Results', icon: 'fa-chart-line' },
+    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'My Reports', icon: 'fa-file-lines' }
+  ]
+};
+
+async function initApp() {
+  const u = state.currentUser;
+  const initials = u.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('sideAvatar').textContent = initials;
+  document.getElementById('sideName').textContent = u.name;
+  document.getElementById('sideRole').textContent = u.role;
+  document.getElementById('headerAvatar').textContent = initials;
+  document.getElementById('headerName').textContent = u.name;
+  document.getElementById('headerRole').textContent = u.role;
+  document.getElementById('demoBanner').classList.toggle('hidden', !state.isDemo);
+  buildNav();
+  await fetchAllData();
+  navigateTo('dashboard');
+}
+
+function buildNav() {
+  const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
+  const host = document.getElementById('navMenu');
+  host.innerHTML = menu.map(item => {
+    if (item.section) return `<div class="nav-section">${item.section}</div>`;
+    return `<div class="nav-item" data-page="${item.id}" onclick="navigateTo('${item.id}')"><i class="fa-solid ${item.icon}"></i><span>${item.label}</span></div>`;
+  }).join('');
+}
+
+function navigateTo(page) {
+  state.currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
+  const item = menu.find(m => m.id === page);
+  document.getElementById('pageTitle').textContent = item ? item.label : 'Dashboard';
+  document.getElementById('pageBreadcrumb').textContent = `Home / ${item ? item.label : 'Dashboard'}`;
+  renderPage();
+  if (window.innerWidth <= 1024) document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+/* ===================== GREETING ===================== */
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Good morning'; if (h >= 12 && h < 17) return 'Good afternoon';
+  if (h >= 17 && h < 21) return 'Good evening'; return 'Good night';
+}
+function formatDate() { return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
+
+/* ===================== PAGE RENDERER ===================== */
+function renderPage() {
+  const page = state.currentPage, host = document.getElementById('pageContent');
+  host.innerHTML = '';
+  if (page === 'dashboard') host.innerHTML = renderDashboard();
+  else if (page === 'teachers') renderTeachers();
+  else if (page === 'students') host.innerHTML = renderStudents();
+  else if (page === 'classes') host.innerHTML = renderClasses();
+  else if (page === 'subjects') host.innerHTML = renderSubjects();
+  else if (page === 'timetable') host.innerHTML = renderTimetable();
+  else if (page === 'results') host.innerHTML = renderResults();
+  else if (page === 'notices') host.innerHTML = renderNotices();
+  else if (page === 'publish') host.innerHTML = renderPublish();
+  else if (page === 'exam-config') host.innerHTML = renderExamConfig();
+  else if (page === 'exam-set') host.innerHTML = renderExamSet();
+  else if (page === 'reports') host.innerHTML = renderReports();
+}
+
+/* ===================== DASHBOARD (ROLE-BASED) ===================== */
+function renderDashboard() {
+  const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
+  const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
+
+  let stats = [], quickLinks = [];
+
+  if (u.role === 'admin') {
+    stats = [
+      { label: 'Total Teachers', value: state.teachers.length, icon: 'fa-chalkboard-user', color: 'emerald' },
+      { label: 'Total Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' },
+      { label: 'Active Classes', value: state.classes.length, icon: 'fa-school', color: 'amber' },
+      { label: 'Subjects Offered', value: state.subjects.length, icon: 'fa-book', color: 'purple' }
+    ];
+    quickLinks = [
+      { page: 'teachers', icon: 'fa-chalkboard-user', color: 'emerald', label: 'Manage Teachers' },
+      { page: 'students', icon: 'fa-user-graduate', color: 'blue', label: 'Manage Students' },
+      { page: 'classes', icon: 'fa-school', color: 'amber', label: 'View Classes' },
+      { page: 'exam-config', icon: 'fa-sliders', color: 'purple', label: 'Exam Config' }
+    ];
+  } else if (u.role === 'headteacher') {
+    stats = [
+      { label: 'Total Staff', value: state.teachers.length, icon: 'fa-chalkboard-user', color: 'emerald' },
+      { label: 'Total Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' },
+      { label: 'Active Classes', value: state.classes.length, icon: 'fa-school', color: 'amber' },
+      { label: 'High Priority Notices', value: state.notices.filter(n => n.priority === 'high').length, icon: 'fa-bullhorn', color: 'purple' }
+    ];
+    quickLinks = [
+      { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'School Timetable' },
+      { page: 'notices', icon: 'fa-bullhorn', color: 'amber', label: 'Post Notice' },
+      { page: 'results', icon: 'fa-chart-line', color: 'blue', label: 'View Results' },
+      { page: 'reports', icon: 'fa-file-lines', color: 'purple', label: 'School Reports' }
+    ];
+  } else if (u.role === 'academic') {
+    stats = [
+      { label: 'Active Classes', value: state.classes.length, icon: 'fa-school', color: 'amber' },
+      { label: 'Subjects Offered', value: state.subjects.length, icon: 'fa-book', color: 'purple' },
+      { label: 'Total Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' },
+      { label: 'Teaching Staff', value: state.teachers.length, icon: 'fa-chalkboard-user', color: 'emerald' }
+    ];
+    quickLinks = [
+      { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'Manage Timetable' },
+      { page: 'exam-set', icon: 'fa-pen-ruler', color: 'amber', label: 'Set Examination' },
+      { page: 'results', icon: 'fa-chart-line', color: 'blue', label: 'Check Results' },
+      { page: 'reports', icon: 'fa-file-lines', color: 'purple', label: 'Academic Reports' }
+    ];
+  } else if (u.role === 'teacher') {
+    stats = [
+      { label: 'My Subjects', value: state.subjects.filter(s => s.profiles && s.profiles.full_name === u.name).length, icon: 'fa-book', color: 'emerald' },
+      { label: 'School Notices', value: state.notices.length, icon: 'fa-bullhorn', color: 'amber' },
+      { label: 'Total Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' },
+      { label: 'Active Classes', value: state.classes.length, icon: 'fa-school', color: 'purple' }
+    ];
+    quickLinks = [
+      { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'My Timetable' },
+      { page: 'exam-set', icon: 'fa-pen-ruler', color: 'amber', label: 'Set Examination' },
+      { page: 'results', icon: 'fa-chart-line', color: 'blue', label: 'Enter Results' },
+      { page: 'reports', icon: 'fa-file-lines', color: 'purple', label: 'My Reports' }
+    ];
+  } else {
+    stats = [
+      { label: 'Notices', value: state.notices.length, icon: 'fa-bullhorn', color: 'amber' },
+      { label: 'Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' }
+    ];
+    quickLinks = [
+      { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'View Timetable' },
+      { page: 'notices', icon: 'fa-bullhorn', color: 'amber', label: 'View Notices' }
+    ];
+  }
+
+  const colorMap = { emerald: { bg: '#ECFDF5', fg: '#047857' }, blue: { bg: '#DBEAFE', fg: '#1E40AF' }, amber: { bg: '#FEF3C7', fg: '#92400E' }, purple: { bg: '#F3E8FF', fg: '#6B21A8' } };
+
+  const statsHtml = stats.map((s, i) => {
+    const c = colorMap[s.color];
+    return `<div class="stat-card fade-up-${i+1}">
+      <div class="flex items-start justify-between mb-4">
+        <div><div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">${s.label}</div><div class="text-3xl font-bold text-slate-900 mt-2">${s.value}</div></div>
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:${c.bg};color:${c.fg};"><i class="fa-solid ${s.icon} text-lg"></i></div>
+      </div>
+      <div class="text-xs text-slate-500 flex items-center gap-1.5"><i class="fa-solid fa-circle text-emerald-600 text-[6px]"></i> Live Data</div>
+    </div>`;
+  }).join('');
+
+  const recentNotices = state.notices.slice(0, 3).map(n => `
+    <div class="notice-card ${n.priority==='high'?'high':''} fade-up-4">
+      <div class="flex items-start justify-between gap-3 mb-1">
+        <h4 class="font-semibold text-sm text-slate-900">${n.title}</h4>
+        ${n.priority==='high'?'<span class="badge badge-red"><i class="fa-solid fa-exclamation"></i> High</span>':'<span class="badge badge-green">Normal</span>'}
+      </div>
+      <p class="text-xs text-slate-500 line-clamp-2">${n.body}</p>
+      <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400"><span><i class="fa-solid fa-user mr-1"></i> ${n.profiles?.full_name || 'Unknown'}</span><span><i class="fa-solid fa-calendar mr-1"></i> ${new Date(n.created_at).toLocaleDateString()}</span></div>
+    </div>
+  `).join('');
+
+  const quickLinksHtml = quickLinks.map((q, i) => {
+    const c = colorMap[q.color];
+    return `<button onclick="navigateTo('${q.page}')" class="p-4 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center">
+      <i class="fa-solid ${q.icon} mb-2" style="color:${c.fg};"></i>
+      <div class="font-semibold text-sm">${q.label}</div>
+    </button>`;
+  }).join('');
+
+  return `
+    <div class="rounded-2xl p-6 mb-6 fade-up-1" style="background: linear-gradient(135deg, #065F46 0%, #047857 50%, #0F172A 100%); position: relative; overflow: hidden;">
+      <div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,#F59E0B,transparent 70%);opacity:0.2;"></div>
+      <div class="relative">
+        <p class="text-emerald-100 text-sm font-medium">${formatDate()}</p>
+        <h1 class="text-white text-3xl sm:text-4xl font-bold mt-1">${greet}, <span style="color:#FCD34D;">${firstName}</span>!</h1>
+        <p class="text-emerald-100/80 text-sm mt-2 max-w-xl">Welcome back to your ${roleLabels[u.role] || 'User'} portal. Here's what's happening at Korosho English Medium School today.</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${statsHtml}</div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card fade-up-3">
+        <div class="section-title"><span><i class="fa-solid fa-bullhorn text-amber-500 mr-2"></i> Recent Notices</span></div>
+        <div class="space-y-3">${recentNotices || '<p class="text-slate-500 text-sm">No notices yet.</p>'}</div>
+      </div>
+      <div class="card fade-up-4">
+        <div class="section-title"><span><i class="fa-solid fa-bolt text-emerald-600 mr-2"></i> Quick Actions</span></div>
+        <div class="grid grid-cols-2 gap-3">${quickLinksHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===================== TEACHERS ===================== */
+async function renderTeachers() {
+  const host = document.getElementById('pageContent');
+  host.innerHTML = `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-spinner fa-spin text-emerald-600 mr-2"></i> Loading Teachers...</span></div></div>`;
+
+  if (!state.isDemo) {
+    try {
+      const { data: teachers, error } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']);
+      if (error) throw error;
+      state.teachers = teachers || [];
+    } catch (error) {
+      host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`;
+      return;
+    }
+  }
+
+  const isAdmin = state.currentUser.role === 'admin';
+  host.innerHTML = `
+    <div class="card fade-up-1">
+      <div class="section-title">
+        <span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>
+        ${isAdmin ? `<button class="btn-primary" onclick="showTeacherHelp()"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr><th>Teacher</th><th>Email</th><th>Role</th><th>Phone</th>${isAdmin ? '<th>Actions</th>' : ''}</tr></thead>
+          <tbody>
+            ${state.teachers.map(t => {
+              const initials = (t.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+              const roleColors = { admin: 'purple', headteacher: 'amber', academic: 'blue', teacher: 'green' };
+              return `<tr>
+                <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div class="font-semibold text-slate-900">${t.full_name}</div></div></td>
+                <td><span class="text-xs text-slate-600">${t.email || 'N/A'}</span></td>
+                <td><span class="badge badge-${roleColors[t.role]} capitalize">${t.role}</span></td>
+                <td><span class="text-xs text-slate-600">${t.phone || 'N/A'}</span></td>
+                ${isAdmin ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteTeacher('${t.id}')"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function showTeacherHelp() {
+  if (state.isDemo) {
+    openConfirmModal('Demo Mode', 'In demo mode, new teachers cannot be added through the UI. Use a real Supabase account or manage teachers in your Supabase Dashboard (Authentication → Users, then set their role in the profiles table).', () => closeModal());
+    return;
+  }
+  openConfirmModal('How to Add a Teacher', 'To add a new teacher who can log in, please go to your Supabase Dashboard -> Authentication -> Users -> Add User. Enter their email and password. Once created, they will appear in this list automatically, and you can assign their role in the Supabase Table Editor (profiles table).', () => closeModal());
+}
+
+async function deleteTeacher(id) {
+  openConfirmModal('Delete Teacher', 'Are you sure you want to remove this teacher?', async () => {
+    if (state.isDemo) {
+      state.teachers = state.teachers.filter(t => t.id !== id);
+      showToast('Teacher removed successfully', 'success');
+      renderTeachers(); closeModal(); return;
+    }
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) showToast(error.message, 'error');
+    else { showToast('Teacher removed successfully', 'success'); renderTeachers(); }
+    closeModal();
+  });
+}
+
+/* ===================== STUDENTS ===================== */
+function renderStudents() {
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title">
+        <span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span>
+        <button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add Student</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${state.students.map(s => {
+              const initials = (s.name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+              return `<tr>
+                <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#D97706,#F59E0B);">${initials}</div><div class="font-semibold text-slate-900">${s.name}</div></div></td>
+                <td><span class="badge badge-blue">${s.classes?.name || 'N/A'}</span></td>
+                <td>${s.gender==='F'?'<span class="badge badge-purple">Female</span>':'<span class="badge badge-blue">Male</span>'}</td>
+                <td>${s.age}</td>
+                <td>${s.parent_name}</td>
+                <td><span class="text-xs text-slate-600">${s.parent_phone}</span></td>
+                <td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteStudent(${s.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+async function deleteStudent(id) {
+  openConfirmModal('Delete Student', 'Are you sure?', async () => {
+    if (state.isDemo) {
+      state.students = state.students.filter(s => s.id !== id);
+      showToast('Student removed', 'success'); renderPage(); closeModal(); return;
+    }
+    const { error } = await supabase.from('students').delete().eq('id', id);
+    if (error) showToast(error.message, 'error');
+    else { showToast('Student removed', 'success'); await fetchAllData(); renderPage(); }
+    closeModal();
+  });
+}
+
+/* ===================== CLASSES ===================== */
+function renderClasses() {
+  return `
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 fade-up-1">
+      ${state.classes.map((c, i) => {
+        const teacher = c.profiles;
+        const initials = teacher ? (teacher.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() : "?";
+        return `<div class="card fade-up-${i+1}" style="padding:0;overflow:hidden;">
+          <div class="p-5" style="background: linear-gradient(135deg, ${['#047857','#D97706','#0EA5E9','#9333EA','#DC2626'][i%5]}, ${['#10B981','#F59E0B','#0284C7','#A855F7','#EF4444'][i%5]});">
+            <div class="flex items-center justify-between text-white">
+              <div><div class="text-xs uppercase tracking-wider opacity-80">Class</div><div class="text-2xl font-bold">${c.name}</div></div>
+              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center"><i class="fa-solid fa-school text-xl"></i></div>
+            </div>
+          </div>
+          <div class="p-5">
+            <div class="flex items-center gap-3 mb-4">
+              ${teacher ? `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold">${teacher.full_name}</div></div>` : `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:#E2E8F0;color:#64748B;"><i class="fa-solid fa-user-slash"></i></div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold text-slate-400">Not assigned</div></div>`}
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Room</div><div class="text-sm font-bold text-slate-900">${c.room || 'N/A'}</div></div>
+              <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Students</div><div class="text-sm font-bold text-slate-900">${state.students.filter(s => s.class_id === c.id).length}</div></div>
+            </div>
+            <button class="btn-ghost w-full" onclick="openModal('assignTeacher', ${c.id})"><i class="fa-solid fa-user-pen mr-1"></i> Assign Teacher</button>
+          </div>
+        </div>`;
+      }).join('')}
+      <div class="card fade-up-5 flex flex-col items-center justify-center text-center" style="border:2px dashed var(--border);cursor:pointer;" onclick="openModal('addClass')">
+        <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><i class="fa-solid fa-plus text-xl"></i></div>
+        <div class="font-semibold text-slate-900">Add New Class</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ===================== SUBJECTS ===================== */
+function renderSubjects() {
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title">
+        <span><i class="fa-solid fa-book text-emerald-600 mr-2"></i> Subjects Offered</span>
+        <button class="btn-primary" onclick="openModal('addSubject')"><i class="fa-solid fa-plus mr-1"></i> Add Subject</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${state.subjects.map((s, i) => {
+          const colors = [
+            {bg:'#ECFDF5', fg:'#047857', border:'#A7F3D0'}, {bg:'#FFFBEB', fg:'#D97706', border:'#FDE68A'},
+            {bg:'#EFF6FF', fg:'#1E40AF', border:'#BFDBFE'}, {bg:'#FAF5FF', fg:'#9333EA', border:'#E9D5FF'}
+          ];
+          const c = colors[i % colors.length];
+          return `<div class="border rounded-xl p-4 hover:shadow-md transition-all fade-up-${(i%6)+1}" style="border-color:${c.border};">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold" style="background:${c.bg};color:${c.fg};">${s.code}</div>
+            </div>
+            <h4 class="font-bold text-slate-900">${s.name}</h4>
+            <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${s.profiles?.full_name || 'Unassigned'}</p>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+/* ===================== TIMETABLE ===================== */
+function generateTimetable() {
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const timeSlots = [
+    { time: '07:30 - 08:10', type: 'lesson' }, { time: '08:10 - 08:50', type: 'lesson' },
+    { time: '08:50 - 09:30', type: 'lesson' }, { time: '09:30 - 10:00', type: 'break', label: 'Short Break' },
+    { time: '10:00 - 10:40', type: 'lesson' }, { time: '10:40 - 11:20', type: 'lesson' },
+    { time: '11:20 - 12:00', type: 'lesson' }, { time: '12:00 - 12:40', type: 'lesson' },
+    { time: '12:40 - 14:00', type: 'break', label: 'Lunch Break' }, { time: '14:00 - 14:40', type: 'lesson' },
+    { time: '14:40 - 15:20', type: 'lesson' }, { time: '15:20 - 16:00', type: 'lesson' }
+  ];
+  const subjectPool = state.subjects.length > 0 ? state.subjects : [{name: 'Free', profiles: {full_name: '-'}}];
+  const timetable = { days, timeSlots, cells: {} };
+  let poolIdx = 0;
+  days.forEach(day => {
+    timeSlots.forEach((slot, sIdx) => {
+      const key = `${day}-${sIdx}`;
+      if (slot.type === 'break') { timetable.cells[key] = { type: 'break', label: slot.label }; }
+      else {
+        const subj = subjectPool[poolIdx % subjectPool.length];
+        timetable.cells[key] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' };
+        poolIdx++;
+      }
+    });
+  });
+  state.timetable = timetable;
+}
+
+function renderTimetable() {
+  const tt = state.timetable, isAdmin = ['admin','academic'].includes(state.currentUser.role);
+  let gridStyle = `grid-template-columns: 110px repeat(${tt.days.length}, 1fr);`;
+  let cells = `<div class="tt-header">Time / Day</div>`;
+  tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
+  tt.timeSlots.forEach((slot, sIdx) => {
+    cells += `<div class="tt-time">${slot.time}</div>`;
+    tt.days.forEach(day => {
+      const key = `${day}-${sIdx}`;
+      const cell = tt.cells[key];
+      if (cell.type === 'break') { cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; }
+      else {
+        cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
+          <div class="tt-class">
+            <div class="subj">${cell.subj}</div>
+            <div class="tea"><i class="fa-solid fa-user mr-1"></i> ${cell.tea.split(' ').slice(-1)[0]}</div>
+          </div>
+        </div>`;
+      }
+    });
+  });
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title">
+        <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
+        ${isAdmin ? `<div class="flex gap-2">
+          <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Session</button>
+          <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
+        </div>` : ''}
+      </div>
+      <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+    </div>
+  `;
+}
+function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
+function addTimetableColumn() {
+  const lastIdx = state.timetable.timeSlots.length - 1;
+  state.timetable.timeSlots.push({ time: '16:00 - 16:40', type: 'lesson' });
+  state.timetable.days.forEach(day => {
+    const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
+    state.timetable.cells[`${day}-${lastIdx+1}`] = { type: 'lesson', subj: subj.name, tea: subj.profiles.full_name };
+  });
+  renderPage(); showToast('New session column added', 'success');
+}
+function regenerateTimetable() {
+  openConfirmModal('Regenerate Timetable', 'This will replace the current timetable. Continue?', () => {
+    generateTimetable(); renderPage(); showToast('Timetable regenerated', 'success');
+  });
+}
+
+/* ===================== RESULTS ===================== */
+function renderResults() {
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Results</span></div>
+      <div class="overflow-x-auto">
+        <table class="data-table">
+          <thead><tr><th>Student</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td colspan="5" class="text-center text-slate-500 py-6">${state.isDemo ? 'Demo results would appear here. In production, results are stored in your Supabase results table.' : 'Results module is connected to Supabase. Add results via Supabase Table Editor.'}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+/* ===================== NOTICES ===================== */
+function renderNotices() {
+  const canPost = ['admin','headteacher','academic'].includes(state.currentUser.role);
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-4 fade-up-1">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-lg font-bold">All Announcements</h3>
+          ${canPost ? `<button class="btn-primary" onclick="openModal('postNotice')"><i class="fa-solid fa-plus mr-1"></i> Post Announcement</button>` : ''}
+        </div>
+        ${state.notices.length === 0 ? '<div class="text-center text-slate-500 py-12">No announcements yet.</div>' : state.notices.map((n, i) => `
+          <div class="notice-card ${n.priority==='high'?'high':''} fade-up-${(i%6)+1}">
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  ${n.priority==='high' ? '<span class="badge badge-red"><i class="fa-solid fa-exclamation"></i> High Priority</span>' : '<span class="badge badge-green">Normal</span>'}
+                  <span class="text-xs text-slate-400">${new Date(n.created_at).toLocaleDateString()}</span>
+                </div>
+                <h4 class="font-bold text-slate-900 text-base">${n.title}</h4>
+              </div>
+              ${canPost ? `<button class="icon-btn" style="width:32px;height:32px;" onclick="deleteNotice(${n.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>` : ''}
+            </div>
+            <p class="text-sm text-slate-600 leading-relaxed">${n.body}</p>
+            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+              <div class="avatar" style="width:26px;height:26px;font-size:10px;background:linear-gradient(135deg,#047857,#10B981);">${n.profiles?.full_name?.split(' ').map(x=>x[0]).join('').slice(0,2) || '??'}</div>
+              <span class="text-xs text-slate-600">Posted by <strong>${n.profiles?.full_name || 'Unknown'}</strong></span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="space-y-4">
+        <div class="card fade-up-2">
+          <h4 class="font-bold mb-3"><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> Notice Statistics</h4>
+          <div class="space-y-3">
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">Total Notices</span><span class="font-bold">${state.notices.length}</span></div><div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div></div>
+            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">High Priority</span><span class="font-bold text-red-600">${state.notices.filter(n=>n.priority==='high').length}</span></div><div class="progress-track"><div class="progress-fill" style="width:${(state.notices.filter(n=>n.priority==='high').length/(state.notices.length||1))*100}%;background:linear-gradient(90deg,#DC2626,#EF4444);"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function deleteNotice(id) {
+  openConfirmModal('Delete Notice', 'Are you sure?', async () => {
+    if (state.isDemo) {
+      state.notices = state.notices.filter(n => n.id !== id);
+      showToast('Announcement deleted', 'success'); renderPage(); closeModal(); return;
+    }
+    const { error } = await supabase.from('notices').delete().eq('id', id);
+    if (error) showToast(error.message, 'error');
+    else { showToast('Announcement deleted', 'success'); await fetchAllData(); renderPage(); }
+    closeModal();
+  });
+}
+
+/* ===================== PUBLISH RESULTS ===================== */
+function renderPublish() {
+  return `<div class="card fade-up-1"><div class="section-title"><span>Publish Results</span></div><p class="text-slate-500">Manage results directly in your Supabase 'results' table.</p></div>`;
+}
+
+/* ===================== EXAM CONFIGURATION ===================== */
+function renderExamConfig() {
+  const c = state.examConfig;
+  return `
+    <div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-sliders text-emerald-600 mr-2"></i> Exam Paper Formatting Rules</span></div>
+      <p class="text-xs text-slate-500 mb-4">These settings define how teachers must format their exams.</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="form-label">Number of Questions</label><input type="number" class="form-input" value="${c.defaultQuestions}" onchange="updateExamConfig('defaultQuestions', this.value)"></div>
+        <div><label class="form-label">Total Marks</label><input type="number" class="form-input" value="${c.totalMarks}" onchange="updateExamConfig('totalMarks', this.value)"></div>
+        <div><label class="form-label">Font Type</label><select class="form-input" onchange="updateExamConfig('fontType', this.value)">${['Times New Roman','Arial','Calibri','Cambria','Georgia'].map(f=>`<option ${f===c.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div><label class="form-label">Font Size</label><select class="form-input" onchange="updateExamConfig('fontSize', this.value)">${[10,11,12,13,14].map(s=>`<option ${s==c.fontSize?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+    </div>
+  `;
+}
+function updateExamConfig(key, val) { state.examConfig[key] = isNaN(val) ? val : Number(val); showToast('Setting saved locally', 'success'); }
+
+/* ===================== EXAM SETTING ===================== */
+function renderExamSet() {
+  return `
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 space-y-5">
+        <div class="card fade-up-1">
+          <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Question</span></div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
+            <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
+            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
+            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Picture</div></div>
+          </div>
+        </div>
+        <div class="card fade-up-2">
+          <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions (${state.examQuestions.length})</span></div>
+          <div class="space-y-3">
+            ${state.examQuestions.length === 0 ? '<div class="text-center text-slate-500 py-8">No questions added yet. Click above to start.</div>' : state.examQuestions.map((q, i) => renderQuestionEditor(q, i)).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="space-y-4">
+        <div class="card fade-up-3">
+          <h4 class="font-bold mb-3"><i class="fa-solid fa-file-pdf text-red-600 mr-2"></i> Export</h4>
+          <button class="btn-primary w-full" onclick="downloadExamPDF()" ${state.examQuestions.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="fa-solid fa-download mr-1"></i> Download as PDF</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function renderQuestionEditor(q, i) {
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', drawing: 'Drawing', picture: 'Picture' };
+  let extraFields = '';
+  if (q.type === 'mcq') {
+    extraFields = `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
+  } else {
+    extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+  }
+  return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
+}
+function addQuestion(type) {
+  const id = Date.now(); const newQ = { id, type, text: '', marks: 5 };
+  if (type === 'mcq') newQ.choices = ['',''];
+  state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success');
+}
+function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) q[field] = val; }
+function updateChoice(qid, idx, val) { const q = state.examQuestions.find(x => x.id === qid); if (q) q.choices[idx] = val; }
+function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
+function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
+function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
+
+function downloadExamPDF() {
+  const c = state.examConfig;
+  const html = `<div style="font-family: '${c.fontType}', serif; font-size: ${c.fontSize}px; padding: 40px; color:#000;">
+    ${c.showSchoolHeader ? `<div style="text-align:center; border-bottom: 3px double #000; padding-bottom: 14px; margin-bottom: 20px;"><div style="font-size: 22px; font-weight: 800;">KOROSHO ENGLISH MEDIUM SCHOOL</div></div>` : ''}
+    ${state.examQuestions.map((q, i) => `<div style="margin-bottom: 20px;"><div style="font-weight:700;">${i+1}. ${q.text || ''} <span style="font-weight:normal; font-size: 11px; color:#555;">(${q.marks||0} marks)</span></div>${q.type === 'mcq' ? q.choices.map((ch, idx) => `<div style="margin: 6px 0 6px 24px; font-size: 13px;">${String.fromCharCode(65+idx)}. ${ch}</div>`).join('') : '<div style="margin: 8px 0 8px 24px; border-bottom: 1px solid #999; height: 30px;"></div>'}</div>`).join('')}
+  </div>`;
+  const wrapper = document.createElement('div'); wrapper.innerHTML = html; document.body.appendChild(wrapper);
+  showToast('Generating PDF...', 'info');
+  html2pdf().set({ filename: 'Korosho_Exam.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'px', format: 'a4', orientation: 'portrait' } }).from(wrapper).save().then(() => { document.body.removeChild(wrapper); showToast('PDF downloaded', 'success'); });
+}
+
+/* ===================== REPORTS ===================== */
+function renderReports() {
+  return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`;
+}
+
+/* ===================== MODALS ===================== */
+function openModal(type, data) {
+  const host = document.getElementById('modalHost'); let content = '';
+  if (type === 'addStudent') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Student</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="s-name" placeholder="Student name"></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">Class</label><select class="form-input" id="s-class">${state.classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+        <div><label class="form-label">Gender</label><select class="form-input" id="s-gender"><option value="M">Male</option><option value="F">Female</option></select></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">Age</label><input type="number" class="form-input" id="s-age" value="14"></div>
+        <div><label class="form-label">Parent Phone</label><input type="text" class="form-input" id="s-phone" placeholder="+255 7XX"></div>
+      </div>
+      <div><label class="form-label">Parent / Guardian Name</label><input type="text" class="form-input" id="s-parent" placeholder="Parent name"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveStudent()">Save Student</button></div>`;
+  } else if (type === 'addClass') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Class</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Class Name</label><input type="text" class="form-input" id="c-name" placeholder="e.g. Form 3A"></div>
+      <div><label class="form-label">Room</label><input type="text" class="form-input" id="c-room" placeholder="e.g. Block B-201"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveClass()">Create Class</button></div>`;
+  } else if (type === 'assignTeacher') {
+    const cls = state.classes.find(c => c.id === data);
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Assign Class Teacher</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><p class="text-sm text-slate-600 mb-4">Assign a teacher for <strong>${cls.name}</strong>.</p><select class="form-input" id="assign-teacher"><option value="">Select Teacher</option>${state.teachers.map(t=>`<option value="${t.id}" ${t.id===cls.class_teacher_id?'selected':''}>${t.full_name}</option>`).join('')}</select></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="assignTeacher(${cls.id})">Assign</button></div>`;
+  } else if (type === 'addSubject') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Subject</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
+      <div><label class="form-label">Subject Code</label><input type="text" class="form-input" id="sub-code" placeholder="e.g. CIV"></div>
+      <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
+  } else if (type === 'postNotice') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Post Announcement</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Title</label><input type="text" class="form-input" id="n-title" placeholder="Title"></div>
+      <div><label class="form-label">Body</label><textarea class="form-input" id="n-body" rows="4" placeholder="Write announcement..."></textarea></div>
+      <div><label class="form-label">Priority</label><select class="form-input" id="n-priority"><option value="normal">Normal</option><option value="high">High Priority</option></select></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveNotice()">Publish</button></div>`;
+  }
+  host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box">${content}</div></div>`;
+}
+function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
+function openConfirmModal(title, message, onConfirm) {
+  const host = document.getElementById('modalHost');
+  host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width:420px;"><div class="modal-header"><h3 class="font-bold text-lg"><i class="fa-solid fa-triangle-exclamation text-amber-500 mr-2"></i> ${title}</h3></div><div class="modal-body"><p class="text-sm text-slate-600">${message}</p></div><div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:linear-gradient(135deg,#DC2626,#EF4444);" id="confirmBtn">Confirm</button></div></div></div>`;
+  document.getElementById('confirmBtn').onclick = onConfirm;
+}
+
+/* ===================== SAVE FUNCTIONS (SUPABASE + DEMO) ===================== */
+async function saveStudent() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) return showToast('Please enter student name', 'error');
+  const classId = document.getElementById('s-class').value;
+  const className = state.classes.find(c => c.id == classId)?.name || 'N/A';
+
+  if (state.isDemo) {
+    state.students.push({
+      id: Date.now(), name, class_id: Number(classId), classes: { name: className },
+      gender: document.getElementById('s-gender').value, age: Number(document.getElementById('s-age').value),
+      parent_name: document.getElementById('s-parent').value, parent_phone: document.getElementById('s-phone').value
+    });
+    closeModal(); renderPage(); showToast(`Student ${name} enrolled`, 'success'); return;
+  }
+
+  const { error } = await supabase.from('students').insert([{
+    name, class_id: classId, gender: document.getElementById('s-gender').value,
+    age: Number(document.getElementById('s-age').value), parent_name: document.getElementById('s-parent').value,
+    parent_phone: document.getElementById('s-phone').value
+  }]);
+  if (error) return showToast(error.message, 'error');
+  closeModal(); await fetchAllData(); renderPage(); showToast(`Student ${name} enrolled`, 'success');
+}
+
+async function saveClass() {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) return showToast('Please enter class name', 'error');
+  const room = document.getElementById('c-room').value;
+
+  if (state.isDemo) {
+    state.classes.push({ id: Date.now(), name, room, class_teacher_id: null, profiles: null });
+    closeModal(); renderPage(); showToast(`Class ${name} created`, 'success'); return;
+  }
+
+  const { error } = await supabase.from('classes').insert([{ name, room }]);
+  if (error) return showToast(error.message, 'error');
+  closeModal(); await fetchAllData(); renderPage(); showToast(`Class ${name} created`, 'success');
+}
+
+async function assignTeacher(clsId) {
+  const teacherId = document.getElementById('assign-teacher').value;
+
+  if (state.isDemo) {
+    const cls = state.classes.find(c => c.id == clsId);
+    if (cls) {
+      cls.class_teacher_id = teacherId || null;
+      const teacher = state.teachers.find(t => t.id == teacherId);
+      cls.profiles = teacher ? { full_name: teacher.full_name } : null;
+    }
+    closeModal(); renderPage(); showToast('Class teacher assigned', 'success'); return;
+  }
+
+  const { error } = await supabase.from('classes').update({ class_teacher_id: teacherId || null }).eq('id', clsId);
+  if (error) return showToast(error.message, 'error');
+  closeModal(); await fetchAllData(); renderPage(); showToast('Class teacher assigned', 'success');
+}
+
+async function saveSubject() {
+  const name = document.getElementById('sub-name').value.trim();
+  if (!name) return showToast('Please enter subject name', 'error');
+  const code = document.getElementById('sub-code').value;
+  const teacherId = document.getElementById('sub-teacher').value;
+
+  if (state.isDemo) {
+    const teacher = state.teachers.find(t => t.id == teacherId);
+    state.subjects.push({ id: Date.now(), name, code, teacher_id: teacherId, profiles: teacher ? { full_name: teacher.full_name } : null });
+    closeModal(); renderPage(); showToast(`Subject ${name} added`, 'success'); return;
+  }
+
+  const { error } = await supabase.from('subjects').insert([{ name, code, teacher_id: teacherId }]);
+  if (error) return showToast(error.message, 'error');
+  closeModal(); await fetchAllData(); renderPage(); showToast(`Subject ${name} added`, 'success');
+}
+
+async function saveNotice() {
+  const title = document.getElementById('n-title').value.trim(), body = document.getElementById('n-body').value.trim();
+  if (!title || !body) return showToast('Please fill all fields', 'error');
+  const priority = document.getElementById('n-priority').value;
+
+  if (state.isDemo) {
+    state.notices.unshift({
+      id: Date.now(), title, body, priority, created_at: new Date().toISOString(),
+      profiles: { full_name: state.currentUser.name }, author_id: state.currentUser.id
+    });
+    closeModal(); renderPage(); showToast('Announcement posted', 'success'); return;
+  }
+
+  const { error } = await supabase.from('notices').insert([{ title, body, priority, author_id: state.currentUser.id }]);
+  if (error) return showToast(error.message, 'error');
+  closeModal(); await fetchAllData(); renderPage(); showToast('Announcement posted', 'success');
+}
+
+/* ===================== TOASTS ===================== */
+function showToast(message, type = 'success') {
+  const host = document.getElementById('toastHost');
+  const icons = { success: 'fa-circle-check text-emerald-500', error: 'fa-circle-xmark text-red-500', info: 'fa-circle-info text-blue-500', warn: 'fa-triangle-exclamation text-amber-500' };
+  const toast = document.createElement('div');
+  toast.className = `toast ${type === 'success' ? '' : type}`;
+  toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.success} text-lg"></i><div class="flex-1 text-sm font-medium text-slate-800">${message}</div><button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark"></i></button>`;
+  host.appendChild(toast);
+  setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease-out reverse'; setTimeout(() => toast.remove(), 280); }, 3000);
+}
+
+// Check session on load
+checkSession();
+</script>
+</body>
+        </html>
