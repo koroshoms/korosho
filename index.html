@@ -952,7 +952,7 @@ function renderExamConfig() {
         <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${c.totalMarks}" required></div>
         <div><label class="form-label">Exam Title</label><input type="text" name="examTitle" class="form-input" value="${c.examTitle}" required></div>
         <div><label class="form-label">Time Allowed</label><input type="text" name="timeAllowed" class="form-input" value="${c.timeAllowed}" required></div>
-        <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Georgia'].map(f=>`<option ${f===c.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+        <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===c.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
         <div><label class="form-label">Font Size</label><select name="fontSize" class="form-input">${[10,11,12,13,14].map(s=>`<option ${s==c.fontSize?'selected':''}>${s}</option>`).join('')}</select></div>
         <div><label class="form-label">Alignment</label><select name="alignment" class="form-input">${['left','center','right','justify'].map(a=>`<option ${a===c.alignment?'selected':''}>${a}</option>`).join('')}</select></div>
         <div><label class="form-label">Line Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(s=>`<option ${s==c.lineSpacing?'selected':''}>${s}</option>`).join('')}</select></div>
@@ -1068,7 +1068,7 @@ function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format: 'a4'});
   
-  const fontMap = { 'Times New Roman':'times', 'Georgia':'times', 'Cambria':'times', 'Arial':'helvetica', 'Verdana':'helvetica', 'Calibri':'helvetica' };
+  const fontMap = { 'Times New Roman':'times', 'Georgia':'times', 'Cambria':'times', 'Arial':'helvetica', 'Century Gothic':'helvetica', 'Verdana':'helvetica', 'Calibri':'helvetica' };
   const font = fontMap[c.fontType] || 'helvetica';
   
   const pageW = doc.internal.pageSize.getWidth();
