@@ -400,6 +400,27 @@ async function initApp() {
   buildNav();
   await fetchAllData();
   navigateTo('dashboard');
+  
+  // --- ADD THIS REALTIME BLOCK ---
+  supabase.channel('public:published_reports')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, payload => {
+      if (state.currentPage === 'results') {
+        checkPublishStatus();
+        loadNectaReport();
+      }
+    })
+    .subscribe();
+
+  supabase.channel('public:results')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, payload => {
+      if (state.currentPage === 'results') {
+        fetchAllData().then(() => {
+          loadNectaReport();
+        });
+      }
+    })
+    .subscribe();
+  // -------------------------------
 }
 
 function buildNav() {
@@ -1045,8 +1066,12 @@ async function checkPublishStatus() {
   const statusEl = document.getElementById('res-status');
   if (state.currentUser.role === 'teacher' && !isResPublished) {
     statusEl.innerText = "⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER";
+    statusEl.style.color = 'red';
+  } else if (isResPublished) {
+    statusEl.innerText = "✅ RESULTS ARE PUBLISHED";
+    statusEl.style.color = 'green';
   } else {
-    statusEl.innerText = isResPublished ? "✅ RESULTS ARE PUBLISHED" : "";
+    statusEl.innerText = "";
   }
 }
 
@@ -1055,6 +1080,9 @@ async function togglePublish() {
   const newState = !isResPublished;
   const { error } = await supabase.from('published_reports').upsert({ class_id: currentResClass, is_published: newState }, { onConflict: 'class_id' });
   if (error) return showToast(error.message, 'error');
+  
+  // The Realtime listener will auto-update all connected teachers and admins.
+  // But we also force update locally for instant feedback.
   await checkPublishStatus();
   await loadNectaReport();
   showToast(newState ? 'Results Published' : 'Results Unpublished', 'success');
@@ -1069,12 +1097,18 @@ function copyViewLink() {
 async function loadNectaReport() {
   const dash = document.getElementById('necta-dashboard');
   if (!dash) return;
-  if (!currentResClass) { dash.innerHTML = ''; return; }
+  if (!currentResClass) { 
+    dash.innerHTML = '<p class="text-slate-500 text-center py-6">Select a class to view results.</p>'; 
+    return; 
+  }
   
   if (state.currentUser.role === 'teacher' && !isResPublished) {
     dash.innerHTML = '<p class="text-red-500 text-center py-6">Results not published yet.</p>';
     return;
   }
+
+  // Ensure we have the latest data before rendering
+  await fetchAllData();
 
   const students = state.students.filter(s => String(s.class_id) === String(currentResClass))
     .sort((a, b) => {
@@ -1114,7 +1148,7 @@ async function loadNectaReport() {
     <tr><td>${k}</td><td>${v.A}</td><td>${v.B}</td><td>${v.C}</td><td>${v.D}</td><td>${v.E}</td></tr>
   `).join("");
 
-  let tbodyHtml = final.map(r => `
+  let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
     <tr><td>${r.adm}</td><td>${r.prem}</td><td>${r.name}</td><td>${r.sex}</td><td>${r.detail}</td></tr>
   `).join("");
 
@@ -1248,22 +1282,20 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
 
   if (existing) {
-    // Update existing result
     const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
     existing.marks = marks;
     existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
-    // Insert new result (Added exam_name to satisfy database constraint)
     const { data, error } = await supabase.from('results').insert([{
       student_id: studentId,
       subject_id: subjectId,
       marks,
       grade,
-      exam_name: 'Mid-term Assessment', // <--- ADDED THIS LINE
-      term: 'Term I',
-      year: '2026',
+      exam_name: 'Term II Assessment',
+      term: 'Term II',
+      year: '2025',
       published: false,
       created_by: state.currentUser.id
     }]).select().single();
@@ -1273,13 +1305,11 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
     showToast('Result saved', 'success');
   }
   
-  // Update just the grade cell without reloading the whole page
   const gradeCell = document.getElementById(gradeCellId);
   if (gradeCell) {
     gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
   }
-}
-
+  }
 function renderNotices() {
   const canPost = ['admin','headteacher','academic'].includes(state.currentUser.role);
   return `
