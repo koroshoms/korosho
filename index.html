@@ -23,124 +23,60 @@
 html, body { margin: 0; padding: 0; }
 body { background: var(--app-bg); color: var(--text); }
 
-/* ===== LOGIN ===== */
-.login-bg {
-  background: linear-gradient(135deg, #0F172A 0%, #065F46 50%, #0F172A 100%);
-  min-height: 100vh; position: relative; overflow: hidden;
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-}
-.blob {
-  position: absolute; border-radius: 50%; filter: blur(80px);
-  opacity: 0.45; pointer-events: none; animation: float 14s ease-in-out infinite;
-}
+.login-bg { background: linear-gradient(135deg, #0F172A 0%, #065F46 50%, #0F172A 100%); min-height: 100vh; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.45; pointer-events: none; animation: float 14s ease-in-out infinite; }
 .blob-1 { width: 520px; height: 520px; background: radial-gradient(circle, #10B981, transparent 70%); top: -160px; left: -120px; }
 .blob-2 { width: 480px; height: 480px; background: radial-gradient(circle, #F59E0B, transparent 70%); bottom: -160px; right: -120px; animation-delay: -7s; }
-@keyframes float {
-  0%,100% { transform: translate(0,0) scale(1); }
-  33% { transform: translate(60px,-50px) scale(1.1); }
-  66% { transform: translate(-40px,40px) scale(0.95); }
-}
-.glass-card {
-  background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
-}
-.glass-input {
-  background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white;
-  padding: 13px 16px 13px 44px; border-radius: 12px; width: 100%; font-size: 14px; transition: all 0.2s;
-}
+@keyframes float { 0%,100% { transform: translate(0,0) scale(1); } 33% { transform: translate(60px,-50px) scale(1.1); } 66% { transform: translate(-40px,40px) scale(0.95); } }
+.glass-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; }
+.glass-input { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: white; padding: 13px 16px 13px 44px; border-radius: 12px; width: 100%; font-size: 14px; transition: all 0.2s; }
 .glass-input::placeholder { color: rgba(255,255,255,0.5); }
 .glass-input:focus { outline: none; border-color: rgba(16,185,129,0.7); background: rgba(255,255,255,0.05); }
 .input-wrap { position: relative; }
 .input-wrap i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.4); }
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white;
-  padding: 13px 24px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 14px;
-}
+.btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; padding: 13px 24px; border-radius: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-size: 14px; }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -6px rgba(4,120,87,0.5); }
-.btn-ghost {
-  background: white; color: var(--text); padding: 10px 18px; border-radius: 10px;
-  font-weight: 500; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; font-size: 14px;
-}
+.btn-ghost { background: white; color: var(--text); padding: 10px 18px; border-radius: 10px; font-weight: 500; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s; font-size: 14px; }
 .btn-ghost:hover { background: #F8FAFC; border-color: #CBD5E1; }
 
-/* ===== SIDEBAR ===== */
-.sidebar {
-  width: 260px; background: var(--sidebar-bg); color: rgba(255,255,255,0.6);
-  position: fixed; left: 0; top: 0; bottom: 0; z-index: 50;
-  display: flex; flex-direction: column; transition: transform 0.3s;
-}
+.sidebar { width: 260px; background: var(--sidebar-bg); color: rgba(255,255,255,0.6); position: fixed; left: 0; top: 0; bottom: 0; z-index: 50; display: flex; flex-direction: column; transition: transform 0.3s; }
 .sidebar-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; gap: 12px; }
-.logo-icon {
-  width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; flex-shrink: 0;
-}
+.logo-icon { width: 42px; height: 42px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 18px; flex-shrink: 0; }
 .nav-scroll { flex: 1; overflow-y: auto; padding: 12px; }
 .nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.3); padding: 12px 16px 6px; font-weight: 600; }
-.nav-item {
-  display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px;
-  color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.2s; font-size: 14px; font-weight: 500; margin-bottom: 2px; border: 1px solid transparent;
-}
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 10px; color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.2s; font-size: 14px; font-weight: 500; margin-bottom: 2px; border: 1px solid transparent; }
 .nav-item:hover { background: var(--sidebar-hover); color: rgba(255,255,255,0.9); }
 .nav-item.active { background: linear-gradient(135deg, rgba(16,185,129,0.18), rgba(4,120,87,0.08)); color: var(--primary-light); border: 1px solid rgba(16,185,129,0.3); }
 .nav-item i { width: 20px; text-align: center; font-size: 15px; }
 .sidebar-footer { padding: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
 .user-chip { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; margin-bottom: 8px; }
-.avatar {
-  width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-light));
-  display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0;
-}
-.signout-btn {
-  width: 100%; padding: 11px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
+.avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-light)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.signout-btn { width: 100%; padding: 11px; background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
 .signout-btn:hover { background: var(--danger); color: white; border-color: var(--danger); }
 
-/* ===== MAIN ===== */
 .main-content { margin-left: 260px; min-height: 100vh; }
-.header-bar {
-  position: sticky; top: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 16px 32px; z-index: 40;
-  display: flex; align-items: center; justify-content: space-between;
-}
+.header-bar { position: sticky; top: 0; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 16px 32px; z-index: 40; display: flex; align-items: center; justify-content: space-between; }
 .page-content { padding: 28px 32px; }
 
-/* ===== CARDS ===== */
-.stat-card {
-  background: white; border-radius: 14px; padding: 22px; border: 1px solid var(--border);
-  position: relative; overflow: hidden; transition: all 0.2s;
-}
+.stat-card { background: white; border-radius: 14px; padding: 22px; border: 1px solid var(--border); position: relative; overflow: hidden; transition: all 0.2s; }
 .stat-card:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(0,0,0,0.08); }
-.stat-card::before {
-  content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px;
-  border-radius: 50%; background: linear-gradient(135deg, var(--primary-light), transparent); opacity: 0.12;
-}
+.stat-card::before { content: ''; position: absolute; top: -30px; right: -30px; width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-light), transparent); opacity: 0.12; }
 .card { background: white; border-radius: 14px; border: 1px solid var(--border); padding: 22px; }
 .section-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
 
-/* ===== BADGES ===== */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
 .badge-green { background: #DCFCE7; color: #166534; } .badge-amber { background: #FEF3C7; color: #92400E; }
 .badge-red { background: #FEE2E2; color: #991B1B; } .badge-blue { background: #DBEAFE; color: #1E40AF; }
 .badge-gray { background: #F1F5F9; color: #475569; } .badge-purple { background: #F3E8FF; color: #6B21A8; }
 
-/* ===== TABLES ===== */
 .data-table { width: 100%; border-collapse: collapse; }
-.data-table thead th {
-  background: #F8FAFC; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.6px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border);
-}
+.data-table thead th { background: #F8FAFC; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
 .data-table tbody td { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .data-table tbody tr { transition: background 0.15s; }
 .data-table tbody tr:hover { background: #F8FAFC; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
-/* ===== MODAL ===== */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px;
-  opacity: 0; pointer-events: none; transition: opacity 0.2s;
-}
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
 .modal-overlay.active { opacity: 1; pointer-events: auto; }
 .modal-box { background: white; border-radius: 16px; max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s; }
 .modal-overlay.active .modal-box { transform: translateY(0); }
@@ -152,13 +88,11 @@ body { background: var(--app-bg); color: var(--text); }
 .form-input:focus { outline: none; border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
 select.form-input { cursor: pointer; }
 
-/* ===== TOAST ===== */
 .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 10px; }
 .toast { background: white; border-left: 4px solid var(--success); padding: 14px 18px; border-radius: 10px; box-shadow: 0 12px 30px -6px rgba(0,0,0,0.18); display: flex; align-items: center; gap: 12px; min-width: 300px; animation: slideIn 0.3s ease-out; }
 .toast.error { border-left-color: var(--danger); } .toast.info { border-left-color: var(--info); } .toast.warn { border-left-color: var(--warning); }
 @keyframes slideIn { from { transform: translateX(420px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
-/* ===== TIMETABLE ===== */
 .timetable-wrapper { overflow-x: auto; }
 .timetable-grid { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; min-width: 800px; }
 .tt-cell { background: white; padding: 10px; min-height: 72px; font-size: 13px; }
@@ -170,25 +104,20 @@ select.form-input { cursor: pointer; }
 .tt-class .tea { color: var(--muted); font-size: 10px; margin-top: 2px; }
 .tt-break { background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; padding: 8px; font-size: 12px; color: #92400E; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; }
 
-/* ===== NOTICE ===== */
 .notice-card { background: white; border-radius: 12px; border-left: 4px solid var(--primary); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 16px 18px; transition: all 0.2s; }
 .notice-card:hover { transform: translateX(2px); box-shadow: 0 8px 20px -8px rgba(0,0,0,0.08); }
 .notice-card.high { border-left-color: var(--danger); }
 
-/* ===== ANIMATIONS ===== */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 .fade-up-1 { animation: fadeUp 0.5s ease-out 0.05s both; } .fade-up-2 { animation: fadeUp 0.5s ease-out 0.1s both; }
 .fade-up-3 { animation: fadeUp 0.5s ease-out 0.15s both; } .fade-up-4 { animation: fadeUp 0.5s ease-out 0.2s both; }
 .fade-up-5 { animation: fadeUp 0.5s ease-out 0.25s both; } .fade-up-6 { animation: fadeUp 0.5s ease-out 0.3s both; }
 
-/* ===== MISC ===== */
 ::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; } ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 .hidden-page { display: none !important; }
 
-@media (max-width: 1024px) {
-  .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; }
-}
+@media (max-width: 1024px) { .sidebar { transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .main-content { margin-left: 0; } }
 @media (max-width: 640px) { .header-bar { padding: 14px 18px; } .page-content { padding: 18px; } }
 .menu-btn { background: white; border: 1px solid var(--border); width: 40px; height: 40px; border-radius: 10px; display: none; align-items: center; justify-content: center; cursor: pointer; }
 @media (max-width: 1024px) { .menu-btn { display: flex; } }
@@ -206,7 +135,6 @@ select.form-input { cursor: pointer; }
 </head>
 <body>
 
-<!-- ===================== LOGIN PAGE ===================== -->
 <div id="loginPage" class="login-bg">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -233,7 +161,6 @@ select.form-input { cursor: pointer; }
   </div>
 </div>
 
-<!-- ===================== APP SHELL ===================== -->
 <div id="appShell" class="hidden-page">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
@@ -297,12 +224,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) throw new Error(authError.message);
 
-    let { data: profile, error: profileError } = await supabase
-      .from('profiles').select('*').eq('id', authData.user.id).single();
-
+    let { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
     if (profileError && profileError.code === 'PGRST116') {
-      const { data: newProfile, error: insertError } = await supabase
-        .from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
+      const { data: newProfile, error: insertError } = await supabase.from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
       if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
       profile = newProfile;
     } else if (profileError) {
@@ -348,12 +272,54 @@ async function logout() {
   showToast('Signed out successfully', 'info');
 }
 
+// --- FIXED DATA FETCHING LOGIC ---
 async function fetchAllData() {
-  try { const { data: teachers } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']); state.teachers = teachers || []; } catch (e) { console.warn("Teachers fetch failed:", e.message); state.teachers = []; }
-  try { const { data: students } = await supabase.from('students').select('*, classes(name)'); state.students = students || []; } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
-  try { const { data: classes } = await supabase.from('classes').select('*, profiles(full_name)'); state.classes = classes || []; } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
-  try { const { data: subjects } = await supabase.from('subjects').select('*, profiles(full_name)'); state.subjects = subjects || []; } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
-  try { const { data: notices } = await supabase.from('notices').select('*, profiles(full_name)').order('created_at', { ascending: false }); state.notices = notices || []; } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
+  let profilesMap = {};
+  try {
+    const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
+    if (pErr) throw pErr;
+    state.teachers = profiles.filter(p => ['teacher', 'academic', 'headteacher', 'admin'].includes(p.role)) || [];
+    profiles.forEach(p => { profilesMap[p.id] = p; });
+  } catch (e) { console.warn("Profiles fetch failed:", e.message); state.teachers = []; }
+
+  try {
+    const { data: classes, error: cErr } = await supabase.from('classes').select('*');
+    if (cErr) throw cErr;
+    state.classes = (classes || []).map(c => ({
+      ...c,
+      profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null
+    }));
+  } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
+
+  try {
+    const { data: subjects, error: sErr } = await supabase.from('subjects').select('*');
+    if (sErr) throw sErr;
+    state.subjects = (subjects || []).map(s => ({
+      ...s,
+      profiles: s.teacher_id ? profilesMap[s.teacher_id] : null
+    }));
+  } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
+
+  try {
+    const { data: students, error: stErr } = await supabase.from('students').select('*');
+    if (stErr) throw stErr;
+    const classesMap = {};
+    state.classes.forEach(c => classesMap[c.id] = c);
+    state.students = (students || []).map(st => ({
+      ...st,
+      classes: st.class_id ? classesMap[st.class_id] : null
+    }));
+  } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
+
+  try {
+    const { data: notices, error: nErr } = await supabase.from('notices').select('*').order('created_at', { ascending: false });
+    if (nErr) throw nErr;
+    state.notices = (notices || []).map(n => ({
+      ...n,
+      profiles: n.author_id ? profilesMap[n.author_id] : null
+    }));
+  } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
+
   if (!state.timetable) generateTimetable();
 }
 
@@ -719,23 +685,64 @@ function renderSubjects() {
 function generateTimetable() {
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const timeSlots = [
-    { time: '07:30 - 08:10', type: 'lesson' }, { time: '08:10 - 08:50', type: 'lesson' },
-    { time: '08:50 - 09:30', type: 'lesson' }, { time: '09:30 - 10:00', type: 'break', label: 'Short Break' },
-    { time: '10:00 - 10:40', type: 'lesson' }, { time: '10:40 - 11:20', type: 'lesson' },
-    { time: '11:20 - 12:00', type: 'lesson' }, { time: '12:00 - 12:40', type: 'lesson' },
-    { time: '12:40 - 14:00', type: 'break', label: 'Lunch Break' }, { time: '14:00 - 14:40', type: 'lesson' },
-    { time: '14:40 - 15:20', type: 'lesson' }, { time: '15:20 - 16:00', type: 'lesson' }
+    { time: '08:00 - 08:40', type: 'lesson' }, { time: '08:40 - 09:20', type: 'lesson' },
+    { time: '09:20 - 10:00', type: 'lesson' }, { time: '10:00 - 10:40', type: 'lesson' },
+    { time: '10:40 - 11:00', type: 'break', label: 'Short Break' },
+    { time: '11:00 - 11:40', type: 'lesson' }, { time: '11:40 - 12:20', type: 'lesson' },
+    { time: '12:20 - 13:00', type: 'lesson' },
+    { time: '13:00 - 14:00', type: 'break', label: 'Lunch Break' },
+    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
-  const subjectPool = state.subjects.length > 0 ? state.subjects : [{name: 'Free', profiles: {full_name: '-'}}];
+  
+  const subjectPool = state.subjects.length > 0 ? state.subjects : [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
+  const teachers = state.teachers || [];
+
+  // Calculate even distribution of subjects
+  const lessonSlots = timeSlots.filter(s => s.type === 'lesson').length;
+  const totalPeriods = lessonSlots * days.length;
+  const pool = [];
+  const baseCount = Math.floor(totalPeriods / subjectPool.length);
+  const remainder = totalPeriods % subjectPool.length;
+
+  subjectPool.forEach((subj, idx) => {
+    let count = baseCount + (idx < remainder ? 1 : 0);
+    for(let i=0; i<count; i++) pool.push(subj);
+  });
+
+  // Shuffle pool
+  for(let i=pool.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [pool[i],pool[j]] = [pool[j],pool[i]];
+  }
+
   const timetable = { days, timeSlots, cells: {} };
   let poolIdx = 0;
+
   days.forEach(day => {
+    let prevSubjectId = null;
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
-      if (slot.type === 'break') { timetable.cells[key] = { type: 'break', label: slot.label }; }
-      else {
-        const subj = subjectPool[poolIdx % subjectPool.length];
-        timetable.cells[key] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' };
+      if (slot.type === 'break') {
+        timetable.cells[key] = { type: 'break', label: slot.label };
+      } else {
+        // Avoid same subject twice in a row
+        let attempts = 0;
+        let chosenSubj = pool[poolIdx % pool.length];
+        while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) {
+          poolIdx++;
+          chosenSubj = pool[poolIdx % pool.length];
+          attempts++;
+        }
+        
+        const teacher = teachers.find(t => t.id === chosenSubj.teacher_id);
+        timetable.cells[key] = { 
+          type: 'lesson', 
+          subj: chosenSubj.name, 
+          subjId: chosenSubj.id,
+          tea: teacher ? teacher.full_name : '—',
+          teaId: teacher ? teacher.id : null
+        };
+        prevSubjectId = chosenSubj.id;
         poolIdx++;
       }
     });
@@ -748,13 +755,15 @@ function renderTimetable() {
   let gridStyle = `grid-template-columns: 110px repeat(${tt.days.length}, 1fr);`;
   let cells = `<div class="tt-header">Time / Day</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
+  
   tt.timeSlots.forEach((slot, sIdx) => {
     cells += `<div class="tt-time">${slot.time}</div>`;
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
       const cell = tt.cells[key];
-      if (cell.type === 'break') { cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; }
-      else {
+      if (cell.type === 'break') { 
+        cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; 
+      } else {
         cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
           <div class="tt-class">
             <div class="subj">${cell.subj}</div>
@@ -764,33 +773,95 @@ function renderTimetable() {
       }
     });
   });
+  
   return `
     <div class="card fade-up-1">
       <div class="section-title">
         <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
-        ${isAdmin ? `<div class="flex gap-2">
-          <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Session</button>
+        ${isAdmin ? `<div class="flex flex-wrap gap-2">
+          <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
+          <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
           <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
         </div>` : ''}
       </div>
       <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
     </div>
   `;
+  }
+function editTimetableCell(day, sIdx) { 
+  openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); 
 }
-function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
+
 function addTimetableColumn() {
   const lastIdx = state.timetable.timeSlots.length - 1;
-  state.timetable.timeSlots.push({ time: '16:00 - 16:40', type: 'lesson' });
+  const lastTime = state.timetable.timeSlots[lastIdx].time.split(' - ')[1];
+  // Add 40 mins to last time
+  let [h, m] = lastTime.split(':').map(Number);
+  m += 40;
+  if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
+  const newTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  
+  state.timetable.timeSlots.push({ time: `${lastTime} - ${newTime}`, type: 'lesson' });
+  
+  const newPeriodIdx = state.timetable.timeSlots.length - 1;
   state.timetable.days.forEach(day => {
     const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
-    state.timetable.cells[`${day}-${lastIdx+1}`] = { type: 'lesson', subj: subj.name, tea: subj.profiles.full_name };
+    state.timetable.cells[`${day}-${newPeriodIdx}`] = { 
+      type: 'lesson', 
+      subj: subj.name, 
+      tea: subj.profiles?.full_name || '-' 
+    };
   });
-  renderPage(); showToast('New session column added', 'success');
+  renderPage(); 
+  showToast('New period column added', 'success');
 }
+
+function addTimetableRow() {
+  const nextDay = state.timetable.days.length;
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  if (nextDay >= days.length) return showToast('No more days to add', 'error');
+  
+  const dayName = days[nextDay];
+  state.timetable.days.push(dayName);
+  
+  state.timetable.timeSlots.forEach((slot, sIdx) => {
+    const key = `${dayName}-${sIdx}`;
+    if (slot.type === 'break') {
+      state.timetable.cells[key] = { type: 'break', label: slot.label };
+    } else {
+      const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
+      state.timetable.cells[key] = { 
+        type: 'lesson', 
+        subj: subj.name, 
+        tea: subj.profiles?.full_name || '-' 
+      };
+    }
+  });
+  renderPage(); 
+  showToast(`${dayName} added to timetable`, 'success');
+}
+
 function regenerateTimetable() {
-  openConfirmModal('Regenerate Timetable', 'This will replace the current timetable. Continue?', () => {
+  openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable. Continue?', () => {
     generateTimetable(); renderPage(); showToast('Timetable regenerated', 'success');
   });
+}
+
+function saveTimetableCell(day, sIdx, subjId, teaId) {
+  const key = `${day}-${sIdx}`;
+  const subj = state.subjects.find(s => s.id == subjId);
+  const teacher = state.teachers.find(t => t.id == teaId);
+  
+  state.timetable.cells[key] = {
+    type: 'lesson',
+    subj: subj ? subj.name : 'Free',
+    subjId: subj ? subj.id : null,
+    tea: teacher ? teacher.full_name : '—',
+    teaId: teacher ? teacher.id : null
+  };
+  closeModal();
+  renderPage();
+  showToast('Session updated', 'success');
 }
 
 function renderResults() {
@@ -975,6 +1046,31 @@ function openModal(type, data) {
       <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
+  } else if (type === 'editTimetable') {
+    const { day, sIdx, cell } = data;
+    const slot = state.timetable.timeSlots[sIdx];
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Session</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <p class="text-sm text-slate-600 mb-4">${day} at ${slot.time}</p>
+      <div class="space-y-3">
+        <div><label class="form-label">Subject</label>
+          <select class="form-input" id="tt-subject">
+            <option value="">— Free Period —</option>
+            ${state.subjects.map(s => `<option value="${s.id}" ${cell.subjId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div><label class="form-label">Teacher</label>
+          <select class="form-input" id="tt-teacher">
+            <option value="">— None —</option>
+            ${state.teachers.map(t => `<option value="${t.id}" ${cell.teaId === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTimetableCell('${day}', ${sIdx}, document.getElementById('tt-subject').value, document.getElementById('tt-teacher').value)">Save Session</button>
+    </div>`;
   } else if (type === 'postNotice') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Post Announcement</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body"><div class="space-y-3">
@@ -1049,4 +1145,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-        </html>
+</html>
