@@ -271,19 +271,10 @@ select.form-input { cursor: pointer; }
 <div class="toast-container" id="toastHost"></div>
 
 <script>
-/* ===================== INITIALIZE SUPABASE ===================== */
-// DEBUG: Alert if Supabase loads
-if (!window.supabase) {
-  alert('ERROR: Supabase library failed to load. Please check your internet connection.');
-} else {
-  console.log("Supabase library loaded successfully.");
-}
-
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ===================== STATE ===================== */
 const state = {
   currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [],
@@ -291,42 +282,25 @@ const state = {
   examQuestions: [], timetable: null
 };
 
-/* ===================== AUTH & SESSION ===================== */
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  
-  // DEBUG: Test if button click registers
-  alert('Login button clicked! Attempting to connect to Supabase...');
-  console.log("Login form submitted.");
-
   const email = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
-
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const errorBox = document.getElementById('loginErrorBox');
 
   if (errorBox) { errorBox.classList.add('hidden'); errorBox.innerText = ''; }
-
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In...';
   submitBtn.disabled = true;
 
   try {
-    console.log("Attempting supabase.auth.signInWithPassword...");
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (authError) {
-      console.error("Auth Error:", authError);
-      throw new Error(authError.message);
-    }
-    
-    console.log("Auth Success:", authData);
-    alert('Supabase login successful! Fetching profile...');
+    if (authError) throw new Error(authError.message);
 
     let { data: profile, error: profileError } = await supabase
       .from('profiles').select('*').eq('id', authData.user.id).single();
 
     if (profileError && profileError.code === 'PGRST116') {
-      console.log("Profile not found, creating one...");
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
       if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
@@ -336,13 +310,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 
     state.currentUser = { id: authData.user.id, username: email, name: profile.full_name || email.split('@')[0], role: profile.role || 'admin' };
-    
     document.getElementById('loginPage').classList.add('hidden-page');
     document.getElementById('appShell').classList.remove('hidden-page');
     await initApp();
     showToast(`Welcome back, ${state.currentUser.name.split(' ')[0]}!`, 'success');
   } catch (err) {
-    console.error("LOGIN FAILED:", err);
     document.getElementById('loginPage').classList.remove('hidden-page');
     document.getElementById('appShell').classList.add('hidden-page');
     if (errorBox) { errorBox.innerText = "Login Failed: " + err.message; errorBox.classList.remove('hidden'); }
@@ -376,18 +348,15 @@ async function logout() {
   showToast('Signed out successfully', 'info');
 }
 
-/* ===================== DATA FETCHING ===================== */
 async function fetchAllData() {
   try { const { data: teachers } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']); state.teachers = teachers || []; } catch (e) { console.warn("Teachers fetch failed:", e.message); state.teachers = []; }
   try { const { data: students } = await supabase.from('students').select('*, classes(name)'); state.students = students || []; } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
   try { const { data: classes } = await supabase.from('classes').select('*, profiles(full_name)'); state.classes = classes || []; } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
   try { const { data: subjects } = await supabase.from('subjects').select('*, profiles(full_name)'); state.subjects = subjects || []; } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
   try { const { data: notices } = await supabase.from('notices').select('*, profiles(full_name)').order('created_at', { ascending: false }); state.notices = notices || []; } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
-
   if (!state.timetable) generateTimetable();
 }
 
-/* ===================== NAVIGATION ===================== */
 const NAV_MENUS = {
   admin: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
@@ -454,16 +423,9 @@ function navigateTo(page) {
 }
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-
-/* ===================== GREETING ===================== */
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good morning'; if (h >= 12 && h < 17) return 'Good afternoon';
-  if (h >= 17 && h < 21) return 'Good evening'; return 'Good night';
-}
+function getGreeting() { const h = new Date().getHours(); if (h >= 5 && h < 12) return 'Good morning'; if (h >= 12 && h < 17) return 'Good afternoon'; if (h >= 17 && h < 21) return 'Good evening'; return 'Good night'; }
 function formatDate() { return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
 
-/* ===================== PAGE RENDERER ===================== */
 function renderPage() {
   const page = state.currentPage, host = document.getElementById('pageContent');
   host.innerHTML = '';
@@ -481,11 +443,9 @@ function renderPage() {
   else if (page === 'reports') host.innerHTML = renderReports();
 }
 
-/* ===================== DASHBOARD ===================== */
 function renderDashboard() {
   const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
   const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
-
   let stats = [], quickLinks = [];
 
   if (u.role === 'admin') {
@@ -552,7 +512,6 @@ function renderDashboard() {
   }
 
   const colorMap = { emerald: { bg: '#ECFDF5', fg: '#047857' }, blue: { bg: '#DBEAFE', fg: '#1E40AF' }, amber: { bg: '#FEF3C7', fg: '#92400E' }, purple: { bg: '#F3E8FF', fg: '#6B21A8' } };
-
   const statsHtml = stats.map((s, i) => {
     const c = colorMap[s.color];
     return `<div class="stat-card fade-up-${i+1}">
@@ -606,16 +565,13 @@ function renderDashboard() {
   `;
 }
 
-/* ===================== TEACHERS ===================== */
 async function renderTeachers() {
   const host = document.getElementById('pageContent');
   host.innerHTML = `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-spinner fa-spin text-emerald-600 mr-2"></i> Loading Teachers...</span></div></div>`;
-
   try {
     const { data: teachers, error } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']);
     if (error) throw error;
     state.teachers = teachers || [];
-
     const isAdmin = state.currentUser.role === 'admin';
     host.innerHTML = `
       <div class="card fade-up-1">
@@ -661,7 +617,6 @@ async function deleteTeacher(id) {
   });
 }
 
-/* ===================== STUDENTS ===================== */
 function renderStudents() {
   return `
     <div class="card fade-up-1">
@@ -701,7 +656,6 @@ async function deleteStudent(id) {
   });
 }
 
-/* ===================== CLASSES ===================== */
 function renderClasses() {
   return `
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 fade-up-1">
@@ -735,7 +689,6 @@ function renderClasses() {
   `;
 }
 
-/* ===================== SUBJECTS ===================== */
 function renderSubjects() {
   return `
     <div class="card fade-up-1">
@@ -763,7 +716,6 @@ function renderSubjects() {
   `;
 }
 
-/* ===================== TIMETABLE ===================== */
 function generateTimetable() {
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const timeSlots = [
@@ -841,7 +793,6 @@ function regenerateTimetable() {
   });
 }
 
-/* ===================== RESULTS ===================== */
 function renderResults() {
   return `
     <div class="card fade-up-1">
@@ -858,7 +809,6 @@ function renderResults() {
   `;
 }
 
-/* ===================== NOTICES ===================== */
 function renderNotices() {
   const canPost = ['admin','headteacher','academic'].includes(state.currentUser.role);
   return `
@@ -910,12 +860,8 @@ async function deleteNotice(id) {
   });
 }
 
-/* ===================== PUBLISH RESULTS ===================== */
-function renderPublish() {
-  return `<div class="card fade-up-1"><div class="section-title"><span>Publish Results</span></div><p class="text-slate-500">Manage results directly in your Supabase 'results' table.</p></div>`;
-}
+function renderPublish() { return `<div class="card fade-up-1"><div class="section-title"><span>Publish Results</span></div><p class="text-slate-500">Manage results directly in your Supabase 'results' table.</p></div>`; }
 
-/* ===================== EXAM CONFIGURATION ===================== */
 function renderExamConfig() {
   const c = state.examConfig;
   return `
@@ -933,7 +879,6 @@ function renderExamConfig() {
 }
 function updateExamConfig(key, val) { state.examConfig[key] = isNaN(val) ? val : Number(val); showToast('Setting saved locally', 'success'); }
 
-/* ===================== EXAM SETTING ===================== */
 function renderExamSet() {
   return `
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -973,11 +918,7 @@ function renderQuestionEditor(q, i) {
   }
   return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
 }
-function addQuestion(type) {
-  const id = Date.now(); const newQ = { id, type, text: '', marks: 5 };
-  if (type === 'mcq') newQ.choices = ['',''];
-  state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success');
-}
+function addQuestion(type) { const id = Date.now(); const newQ = { id, type, text: '', marks: 5 }; if (type === 'mcq') newQ.choices = ['','']; state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success'); }
 function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) q[field] = val; }
 function updateChoice(qid, idx, val) { const q = state.examQuestions.find(x => x.id === qid); if (q) q.choices[idx] = val; }
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
@@ -995,12 +936,8 @@ function downloadExamPDF() {
   html2pdf().set({ filename: 'Korosho_Exam.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'px', format: 'a4', orientation: 'portrait' } }).from(wrapper).save().then(() => { document.body.removeChild(wrapper); showToast('PDF downloaded', 'success'); });
 }
 
-/* ===================== REPORTS ===================== */
-function renderReports() {
-  return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`;
-}
+function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
-/* ===================== MODALS ===================== */
 function openModal(type, data) {
   const host = document.getElementById('modalHost'); let content = '';
   if (type === 'addStudent') {
@@ -1056,7 +993,6 @@ function openConfirmModal(title, message, onConfirm) {
   document.getElementById('confirmBtn').onclick = onConfirm;
 }
 
-/* ===================== SAVE FUNCTIONS (SUPABASE) ===================== */
 async function saveStudent() {
   const name = document.getElementById('s-name').value.trim();
   if (!name) return showToast('Please enter student name', 'error');
@@ -1100,7 +1036,6 @@ async function saveNotice() {
   closeModal(); await fetchAllData(); renderPage(); showToast('Announcement posted', 'success');
 }
 
-/* ===================== TOASTS ===================== */
 function showToast(message, type = 'success') {
   const host = document.getElementById('toastHost');
   const icons = { success: 'fa-circle-check text-emerald-500', error: 'fa-circle-xmark text-red-500', info: 'fa-circle-info text-blue-500', warn: 'fa-triangle-exclamation text-amber-500' };
@@ -1111,7 +1046,6 @@ function showToast(message, type = 'success') {
   setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease-out reverse'; setTimeout(() => toast.remove(), 280); }, 3000);
 }
 
-// Check session on load
 checkSession();
 </script>
 </body>
