@@ -1248,12 +1248,14 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
 
   if (existing) {
+    // Update existing result
     const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
     existing.marks = marks;
     existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
+    // Insert new result with all tracking columns
     const { data, error } = await supabase.from('results').insert([{
       student_id: studentId,
       subject_id: subjectId,
@@ -1261,7 +1263,8 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
       grade,
       term: 'Term II',
       year: '2025',
-      published: false
+      published: false,
+      created_by: state.currentUser.id
     }]).select().single();
     
     if (error) return showToast(error.message, 'error');
