@@ -63,16 +63,6 @@ body { background: var(--app-bg); color: var(--text); }
 }
 .btn-ghost:hover { background: #F8FAFC; border-color: #CBD5E1; }
 
-/* ===== DEMO ACCOUNT BUTTONS ===== */
-.demo-btn {
-  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px; color: rgba(255,255,255,0.8); cursor: pointer;
-  transition: all 0.2s; text-align: left; width: 100%;
-}
-.demo-btn:hover { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); color: white; transform: translateY(-1px); }
-.demo-btn i { font-size: 16px; flex-shrink: 0; }
-
 /* ===== SIDEBAR ===== */
 .sidebar {
   width: 260px; background: var(--sidebar-bg); color: rgba(255,255,255,0.6);
@@ -114,13 +104,6 @@ body { background: var(--app-bg); color: var(--text); }
   display: flex; align-items: center; justify-content: space-between;
 }
 .page-content { padding: 28px 32px; }
-
-/* ===== DEMO BANNER ===== */
-.demo-banner {
-  background: linear-gradient(90deg, #F59E0B, #D97706); color: white;
-  padding: 7px 24px; text-align: center; font-size: 12px; font-weight: 600;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
 
 /* ===== CARDS ===== */
 .stat-card {
@@ -247,30 +230,6 @@ select.form-input { cursor: pointer; }
       <div id="loginErrorBox" class="hidden bg-red-500/20 border border-red-500/40 text-red-200 text-sm rounded-xl px-4 py-3 text-center"></div>
       <button type="submit" class="btn-primary w-full mt-4 flex items-center justify-center gap-2"><i class="fa-solid fa-right-to-bracket"></i> Sign In to Portal</button>
     </form>
-
-    <!-- ===== DEMO ACCOUNTS SECTION ===== -->
-    <div class="relative my-6">
-      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div>
-      <div class="relative flex justify-center"><span class="px-4 text-[11px] text-white/40 uppercase tracking-widest font-semibold">Or Try Demo Accounts</span></div>
-    </div>
-    <div class="grid grid-cols-2 gap-2.5">
-      <button onclick="loginAsDemo('admin')" class="demo-btn">
-        <i class="fa-solid fa-user-shield text-emerald-400"></i>
-        <div><div class="text-sm font-semibold text-white">Admin</div><div class="text-[10px] text-white/40">Full Access</div></div>
-      </button>
-      <button onclick="loginAsDemo('headteacher')" class="demo-btn">
-        <i class="fa-solid fa-user-tie text-amber-400"></i>
-        <div><div class="text-sm font-semibold text-white">Headteacher</div><div class="text-[10px] text-white/40">Oversight</div></div>
-      </button>
-      <button onclick="loginAsDemo('academic')" class="demo-btn">
-        <i class="fa-solid fa-clipboard-user text-blue-400"></i>
-        <div><div class="text-sm font-semibold text-white">Academic</div><div class="text-[10px] text-white/40">Academics</div></div>
-      </button>
-      <button onclick="loginAsDemo('teacher')" class="demo-btn">
-        <i class="fa-solid fa-chalkboard-user text-purple-400"></i>
-        <div><div class="text-sm font-semibold text-white">Teacher</div><div class="text-[10px] text-white/40">Class View</div></div>
-      </button>
-    </div>
   </div>
 </div>
 
@@ -291,10 +250,6 @@ select.form-input { cursor: pointer; }
     </div>
   </aside>
   <div class="main-content">
-    <!-- DEMO BANNER -->
-    <div id="demoBanner" class="demo-banner hidden">
-      <i class="fa-solid fa-flask"></i> Demo Mode — Changes are stored locally only and will be lost on refresh. Sign out to switch accounts.
-    </div>
     <header class="header-bar">
       <div class="flex items-center gap-3">
         <button class="menu-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
@@ -323,95 +278,11 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ===================== STATE ===================== */
 const state = {
-  currentUser: null, currentPage: 'dashboard', isDemo: false,
+  currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [],
   examConfig: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.5, showSchoolHeader: true, showInstructions: true, totalMarks: 50 },
   examQuestions: [], timetable: null
 };
-
-/* ===================== DEMO ACCOUNTS ===================== */
-const DEMO_ACCOUNTS = {
-  admin:       { name: 'Administrative User',  email: 'admin@korosho.ac.tz',       role: 'admin' },
-  headteacher: { name: 'Sarah Kimaro',          email: 'headteacher@korosho.ac.tz', role: 'headteacher' },
-  academic:    { name: 'Joseph Mushi',          email: 'academic@korosho.ac.tz',    role: 'academic' },
-  teacher:     { name: 'Grace Mollel',          email: 'grace.mollel@korosho.ac.tz',role: 'teacher' }
-};
-
-function loginAsDemo(role) {
-  const acc = DEMO_ACCOUNTS[role];
-  state.currentUser = { id: 'demo-' + role, username: acc.email, name: acc.name, role: acc.role };
-  state.isDemo = true;
-  generateMockData();
-  document.getElementById('loginPage').classList.add('hidden-page');
-  document.getElementById('appShell').classList.remove('hidden-page');
-  initApp();
-  showToast(`Welcome, ${acc.name}! (Demo — ${acc.role})`, 'success');
-}
-
-function generateMockData() {
-  state.teachers = [
-    { id: 't1', full_name: 'Sarah Kimaro',    email: 'headteacher@korosho.ac.tz',  role: 'headteacher', phone: '+255 754 111 222' },
-    { id: 't2', full_name: 'Joseph Mushi',     email: 'academic@korosho.ac.tz',     role: 'academic',    phone: '+255 754 333 444' },
-    { id: 't3', full_name: 'Grace Mollel',     email: 'grace.mollel@korosho.ac.tz', role: 'teacher',     phone: '+255 754 555 666' },
-    { id: 't4', full_name: 'Hassan Juma',      email: 'hassan.juma@korosho.ac.tz',  role: 'teacher',     phone: '+255 754 777 888' },
-    { id: 't5', full_name: 'Steven Nyerere',   email: 'steven.n@korosho.ac.tz',     role: 'teacher',     phone: '+255 754 999 000' },
-    { id: 't6', full_name: 'Mary Laurent',     email: 'mary.l@korosho.ac.tz',       role: 'teacher',     phone: '+255 753 222 333' },
-    { id: 't7', full_name: 'Peter Shayo',      email: 'peter.shayo@korosho.ac.tz',  role: 'teacher',     phone: '+255 753 444 555' },
-    { id: 't8', full_name: 'Aisha Hassan',     email: 'aisha.h@korosho.ac.tz',      role: 'teacher',     phone: '+255 753 666 777' }
-  ];
-
-  state.classes = [
-    { id: 1, name: 'Form 1A',    room: 'Block A-101', class_teacher_id: 't3', profiles: { full_name: 'Grace Mollel' } },
-    { id: 2, name: 'Form 2A',    room: 'Block A-102', class_teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
-    { id: 3, name: 'Form 3A',    room: 'Block B-201', class_teacher_id: 't5', profiles: { full_name: 'Steven Nyerere' } },
-    { id: 4, name: 'Standard 7', room: 'Block B-202', class_teacher_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
-    { id: 5, name: 'Standard 5', room: 'Block C-101', class_teacher_id: 't6', profiles: { full_name: 'Mary Laurent' } }
-  ];
-
-  state.subjects = [
-    { id: 1, name: 'Mathematics',    code: 'MATH', teacher_id: 't5', profiles: { full_name: 'Steven Nyerere' } },
-    { id: 2, name: 'English',        code: 'ENG',  teacher_id: 't3', profiles: { full_name: 'Grace Mollel' } },
-    { id: 3, name: 'Kiswahili',      code: 'KIS',  teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
-    { id: 4, name: 'Science',        code: 'SCI',  teacher_id: 't7', profiles: { full_name: 'Peter Shayo' } },
-    { id: 5, name: 'Social Studies', code: 'SST',  teacher_id: 't6', profiles: { full_name: 'Mary Laurent' } },
-    { id: 6, name: 'Civics',         code: 'CIV',  teacher_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
-    { id: 7, name: 'Geography',      code: 'GEO',  teacher_id: 't4', profiles: { full_name: 'Hassan Juma' } },
-    { id: 8, name: 'History',        code: 'HIS',  teacher_id: 't8', profiles: { full_name: 'Aisha Hassan' } }
-  ];
-
-  state.students = [
-    { id: 1,  name: 'Aisha Mohamed',  class_id: 1, classes: { name: 'Form 1A' },    gender: 'F', age: 14, parent_name: 'Mohamed Ali',     parent_phone: '+255 712 100 200' },
-    { id: 2,  name: 'Baraka John',    class_id: 1, classes: { name: 'Form 1A' },    gender: 'M', age: 13, parent_name: 'John Peter',      parent_phone: '+255 712 300 400' },
-    { id: 3,  name: 'Neema Peter',    class_id: 1, classes: { name: 'Form 1A' },    gender: 'F', age: 14, parent_name: 'Peter James',     parent_phone: '+255 712 500 600' },
-    { id: 4,  name: 'David Said',     class_id: 1, classes: { name: 'Form 1A' },    gender: 'M', age: 13, parent_name: 'Said Hassan',     parent_phone: '+255 712 700 800' },
-    { id: 5,  name: 'Zainab Ali',     class_id: 2, classes: { name: 'Form 2A' },    gender: 'F', age: 15, parent_name: 'Ali Hassan',      parent_phone: '+255 713 100 200' },
-    { id: 6,  name: 'Josephat Lucas', class_id: 2, classes: { name: 'Form 2A' },    gender: 'M', age: 15, parent_name: 'Lucas Michael',   parent_phone: '+255 713 300 400' },
-    { id: 7,  name: 'Happy Robert',   class_id: 2, classes: { name: 'Form 2A' },    gender: 'F', age: 14, parent_name: 'Robert William',  parent_phone: '+255 713 500 600' },
-    { id: 8,  name: 'Erick James',    class_id: 2, classes: { name: 'Form 2A' },    gender: 'M', age: 15, parent_name: 'James Thomas',    parent_phone: '+255 713 700 800' },
-    { id: 9,  name: 'Rehema Juma',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'F', age: 16, parent_name: 'Juma Aboud',     parent_phone: '+255 714 100 200' },
-    { id: 10, name: 'Kelvin Mark',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'M', age: 16, parent_name: 'Mark Joseph',     parent_phone: '+255 714 300 400' },
-    { id: 11, name: 'Sophia Anna',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'F', age: 15, parent_name: 'Anna Simon',      parent_phone: '+255 714 500 600' },
-    { id: 12, name: 'Brian Chris',    class_id: 3, classes: { name: 'Form 3A' },    gender: 'M', age: 16, parent_name: 'Chris Daniel',    parent_phone: '+255 714 700 800' },
-    { id: 13, name: 'Upendo William', class_id: 4, classes: { name: 'Standard 7' }, gender: 'F', age: 13, parent_name: 'William John',    parent_phone: '+255 715 100 200' },
-    { id: 14, name: 'Festo Daniel',   class_id: 4, classes: { name: 'Standard 7' }, gender: 'M', age: 13, parent_name: 'Daniel Paul',     parent_phone: '+255 715 300 400' },
-    { id: 15, name: 'Tuma Emmanuel',  class_id: 4, classes: { name: 'Standard 7' }, gender: 'F', age: 12, parent_name: 'Emmanuel Kay',    parent_phone: '+255 715 500 600' },
-    { id: 16, name: 'Gift Alex',      class_id: 4, classes: { name: 'Standard 7' }, gender: 'M', age: 13, parent_name: 'Alex Moses',      parent_phone: '+255 715 700 800' },
-    { id: 17, name: 'Lucy Patrick',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'F', age: 11, parent_name: 'Patrick Sanga',   parent_phone: '+255 716 100 200' },
-    { id: 18, name: 'Nelson Frank',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'M', age: 10, parent_name: 'Frank Mwita',     parent_phone: '+255 716 300 400' },
-    { id: 19, name: 'Dorice Samuel',  class_id: 5, classes: { name: 'Standard 5' }, gender: 'F', age: 11, parent_name: 'Samuel Kileo',    parent_phone: '+255 716 500 600' },
-    { id: 20, name: 'Isaac Thomas',   class_id: 5, classes: { name: 'Standard 5' }, gender: 'M', age: 10, parent_name: 'Thomas Mori',     parent_phone: '+255 716 700 800' }
-  ];
-
-  state.notices = [
-    { id: 1, title: 'Term 2 Opening Date Announced', body: 'School reopens on Monday, 8th January 2024 for Term 2. All students must report by 8:00 AM sharp in full uniform. Late arrivals will be penalized.', priority: 'high', created_at: '2024-12-28T10:00:00', author_id: 't1', profiles: { full_name: 'Sarah Kimaro' } },
-    { id: 2, title: 'Parent-Teacher Meeting', body: 'PTM is scheduled for Friday, 15th December at 2:00 PM in the main hall. All parents are strongly encouraged to attend to discuss student progress.', priority: 'normal', created_at: '2024-12-20T14:00:00', author_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
-    { id: 3, title: 'Annual Sports Day', body: 'Annual sports day will be held on 20th January 2024. Students should wear their sports uniform and bring a water bottle. Events include athletics, football, and netball.', priority: 'normal', created_at: '2024-12-15T09:00:00', author_id: 't3', profiles: { full_name: 'Grace Mollel' } },
-    { id: 4, title: 'Mid-Term Examination Schedule', body: 'Mid-term exams begin Monday, 5th February 2024. Timetables have been posted on the notice board. All students must arrive 15 minutes before each exam.', priority: 'high', created_at: '2024-12-10T11:00:00', author_id: 't2', profiles: { full_name: 'Joseph Mushi' } },
-    { id: 5, title: 'Library Extended Hours', body: 'The school library will now remain open until 5:30 PM on weekdays to support exam preparation. Librarian Mr. Shayo will be available for assistance.', priority: 'normal', created_at: '2024-12-05T13:00:00', author_id: 't7', profiles: { full_name: 'Peter Shayo' } }
-  ];
-
-  generateTimetable();
-}
 
 /* ===================== AUTH & SESSION ===================== */
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -435,6 +306,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
       .from('profiles').select('*').eq('id', authData.user.id).single();
 
     if (profileError && profileError.code === 'PGRST116') {
+      // Fallback if trigger didn't work
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
       if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
@@ -444,7 +316,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 
     state.currentUser = { id: authData.user.id, username: email, name: profile.full_name || email.split('@')[0], role: profile.role || 'admin' };
-    state.isDemo = false;
+    
     document.getElementById('loginPage').classList.add('hidden-page');
     document.getElementById('appShell').classList.remove('hidden-page');
     await initApp();
@@ -466,7 +338,6 @@ async function checkSession() {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) {
         state.currentUser = { id: session.user.id, username: session.user.email, name: profile.full_name, role: profile.role };
-        state.isDemo = false;
         document.getElementById('loginPage').classList.add('hidden-page');
         document.getElementById('appShell').classList.remove('hidden-page');
         await initApp();
@@ -476,16 +347,6 @@ async function checkSession() {
 }
 
 async function logout() {
-  if (state.isDemo) {
-    state.currentUser = null; state.isDemo = false;
-    state.teachers = []; state.students = []; state.classes = [];
-    state.subjects = []; state.notices = []; state.timetable = null;
-    document.getElementById('appShell').classList.add('hidden-page');
-    document.getElementById('loginPage').classList.remove('hidden-page');
-    document.getElementById('loginForm').reset();
-    showToast('Signed out of demo mode', 'info');
-    return;
-  }
   await supabase.auth.signOut();
   state.currentUser = null;
   document.getElementById('appShell').classList.add('hidden-page');
@@ -494,10 +355,8 @@ async function logout() {
   showToast('Signed out successfully', 'info');
 }
 
-/* ===================== DATA FETCHING (SAFE) ===================== */
+/* ===================== DATA FETCHING ===================== */
 async function fetchAllData() {
-  if (state.isDemo) return;
-
   try { const { data: teachers } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']); state.teachers = teachers || []; } catch (e) { console.warn("Teachers fetch failed:", e.message); state.teachers = []; }
   try { const { data: students } = await supabase.from('students').select('*, classes(name)'); state.students = students || []; } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
   try { const { data: classes } = await supabase.from('classes').select('*, profiles(full_name)'); state.classes = classes || []; } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
@@ -547,7 +406,6 @@ async function initApp() {
   document.getElementById('headerAvatar').textContent = initials;
   document.getElementById('headerName').textContent = u.name;
   document.getElementById('headerRole').textContent = u.role;
-  document.getElementById('demoBanner').classList.toggle('hidden', !state.isDemo);
   buildNav();
   await fetchAllData();
   navigateTo('dashboard');
@@ -602,7 +460,7 @@ function renderPage() {
   else if (page === 'reports') host.innerHTML = renderReports();
 }
 
-/* ===================== DASHBOARD (ROLE-BASED) ===================== */
+/* ===================== DASHBOARD ===================== */
 function renderDashboard() {
   const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
   const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
@@ -732,61 +590,49 @@ async function renderTeachers() {
   const host = document.getElementById('pageContent');
   host.innerHTML = `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-spinner fa-spin text-emerald-600 mr-2"></i> Loading Teachers...</span></div></div>`;
 
-  if (!state.isDemo) {
-    try {
-      const { data: teachers, error } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']);
-      if (error) throw error;
-      state.teachers = teachers || [];
-    } catch (error) {
-      host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`;
-      return;
-    }
-  }
+  try {
+    const { data: teachers, error } = await supabase.from('profiles').select('*').in('role', ['teacher', 'academic', 'headteacher', 'admin']);
+    if (error) throw error;
+    state.teachers = teachers || [];
 
-  const isAdmin = state.currentUser.role === 'admin';
-  host.innerHTML = `
-    <div class="card fade-up-1">
-      <div class="section-title">
-        <span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>
-        ${isAdmin ? `<button class="btn-primary" onclick="showTeacherHelp()"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
+    const isAdmin = state.currentUser.role === 'admin';
+    host.innerHTML = `
+      <div class="card fade-up-1">
+        <div class="section-title">
+          <span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>
+          ${isAdmin ? `<button class="btn-primary" onclick="showTeacherHelp()"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
+        </div>
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead><tr><th>Teacher</th><th>Email</th><th>Role</th><th>Phone</th>${isAdmin ? '<th>Actions</th>' : ''}</tr></thead>
+            <tbody>
+              ${state.teachers.map(t => {
+                const initials = (t.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+                const roleColors = { admin: 'purple', headteacher: 'amber', academic: 'blue', teacher: 'green' };
+                return `<tr>
+                  <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div class="font-semibold text-slate-900">${t.full_name}</div></div></td>
+                  <td><span class="text-xs text-slate-600">${t.email || 'N/A'}</span></td>
+                  <td><span class="badge badge-${roleColors[t.role]} capitalize">${t.role}</span></td>
+                  <td><span class="text-xs text-slate-600">${t.phone || 'N/A'}</span></td>
+                  ${isAdmin ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteTeacher('${t.id}')"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>Teacher</th><th>Email</th><th>Role</th><th>Phone</th>${isAdmin ? '<th>Actions</th>' : ''}</tr></thead>
-          <tbody>
-            ${state.teachers.map(t => {
-              const initials = (t.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-              const roleColors = { admin: 'purple', headteacher: 'amber', academic: 'blue', teacher: 'green' };
-              return `<tr>
-                <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div class="font-semibold text-slate-900">${t.full_name}</div></div></td>
-                <td><span class="text-xs text-slate-600">${t.email || 'N/A'}</span></td>
-                <td><span class="badge badge-${roleColors[t.role]} capitalize">${t.role}</span></td>
-                <td><span class="text-xs text-slate-600">${t.phone || 'N/A'}</span></td>
-                ${isAdmin ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteTeacher('${t.id}')"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+    `;
+  } catch (error) {
+    host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`;
+  }
 }
 
 function showTeacherHelp() {
-  if (state.isDemo) {
-    openConfirmModal('Demo Mode', 'In demo mode, new teachers cannot be added through the UI. Use a real Supabase account or manage teachers in your Supabase Dashboard (Authentication → Users, then set their role in the profiles table).', () => closeModal());
-    return;
-  }
   openConfirmModal('How to Add a Teacher', 'To add a new teacher who can log in, please go to your Supabase Dashboard -> Authentication -> Users -> Add User. Enter their email and password. Once created, they will appear in this list automatically, and you can assign their role in the Supabase Table Editor (profiles table).', () => closeModal());
 }
 
 async function deleteTeacher(id) {
   openConfirmModal('Delete Teacher', 'Are you sure you want to remove this teacher?', async () => {
-    if (state.isDemo) {
-      state.teachers = state.teachers.filter(t => t.id !== id);
-      showToast('Teacher removed successfully', 'success');
-      renderTeachers(); closeModal(); return;
-    }
     const { error } = await supabase.from('profiles').delete().eq('id', id);
     if (error) showToast(error.message, 'error');
     else { showToast('Teacher removed successfully', 'success'); renderTeachers(); }
@@ -827,10 +673,6 @@ function renderStudents() {
 
 async function deleteStudent(id) {
   openConfirmModal('Delete Student', 'Are you sure?', async () => {
-    if (state.isDemo) {
-      state.students = state.students.filter(s => s.id !== id);
-      showToast('Student removed', 'success'); renderPage(); closeModal(); return;
-    }
     const { error } = await supabase.from('students').delete().eq('id', id);
     if (error) showToast(error.message, 'error');
     else { showToast('Student removed', 'success'); await fetchAllData(); renderPage(); }
@@ -987,7 +829,7 @@ function renderResults() {
         <table class="data-table">
           <thead><tr><th>Student</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Status</th></tr></thead>
           <tbody>
-            <tr><td colspan="5" class="text-center text-slate-500 py-6">${state.isDemo ? 'Demo results would appear here. In production, results are stored in your Supabase results table.' : 'Results module is connected to Supabase. Add results via Supabase Table Editor.'}</td></tr>
+            <tr><td colspan="5" class="text-center text-slate-500 py-6">Results module is connected to Supabase. Add results via Supabase Table Editor.</td></tr>
           </tbody>
         </table>
       </div>
@@ -1040,10 +882,6 @@ function renderNotices() {
 
 async function deleteNotice(id) {
   openConfirmModal('Delete Notice', 'Are you sure?', async () => {
-    if (state.isDemo) {
-      state.notices = state.notices.filter(n => n.id !== id);
-      showToast('Announcement deleted', 'success'); renderPage(); closeModal(); return;
-    }
     const { error } = await supabase.from('notices').delete().eq('id', id);
     if (error) showToast(error.message, 'error');
     else { showToast('Announcement deleted', 'success'); await fetchAllData(); renderPage(); }
@@ -1197,24 +1035,12 @@ function openConfirmModal(title, message, onConfirm) {
   document.getElementById('confirmBtn').onclick = onConfirm;
 }
 
-/* ===================== SAVE FUNCTIONS (SUPABASE + DEMO) ===================== */
+/* ===================== SAVE FUNCTIONS (SUPABASE) ===================== */
 async function saveStudent() {
   const name = document.getElementById('s-name').value.trim();
   if (!name) return showToast('Please enter student name', 'error');
-  const classId = document.getElementById('s-class').value;
-  const className = state.classes.find(c => c.id == classId)?.name || 'N/A';
-
-  if (state.isDemo) {
-    state.students.push({
-      id: Date.now(), name, class_id: Number(classId), classes: { name: className },
-      gender: document.getElementById('s-gender').value, age: Number(document.getElementById('s-age').value),
-      parent_name: document.getElementById('s-parent').value, parent_phone: document.getElementById('s-phone').value
-    });
-    closeModal(); renderPage(); showToast(`Student ${name} enrolled`, 'success'); return;
-  }
-
   const { error } = await supabase.from('students').insert([{
-    name, class_id: classId, gender: document.getElementById('s-gender').value,
+    name, class_id: document.getElementById('s-class').value, gender: document.getElementById('s-gender').value,
     age: Number(document.getElementById('s-age').value), parent_name: document.getElementById('s-parent').value,
     parent_phone: document.getElementById('s-phone').value
   }]);
@@ -1225,31 +1051,13 @@ async function saveStudent() {
 async function saveClass() {
   const name = document.getElementById('c-name').value.trim();
   if (!name) return showToast('Please enter class name', 'error');
-  const room = document.getElementById('c-room').value;
-
-  if (state.isDemo) {
-    state.classes.push({ id: Date.now(), name, room, class_teacher_id: null, profiles: null });
-    closeModal(); renderPage(); showToast(`Class ${name} created`, 'success'); return;
-  }
-
-  const { error } = await supabase.from('classes').insert([{ name, room }]);
+  const { error } = await supabase.from('classes').insert([{ name, room: document.getElementById('c-room').value }]);
   if (error) return showToast(error.message, 'error');
   closeModal(); await fetchAllData(); renderPage(); showToast(`Class ${name} created`, 'success');
 }
 
 async function assignTeacher(clsId) {
   const teacherId = document.getElementById('assign-teacher').value;
-
-  if (state.isDemo) {
-    const cls = state.classes.find(c => c.id == clsId);
-    if (cls) {
-      cls.class_teacher_id = teacherId || null;
-      const teacher = state.teachers.find(t => t.id == teacherId);
-      cls.profiles = teacher ? { full_name: teacher.full_name } : null;
-    }
-    closeModal(); renderPage(); showToast('Class teacher assigned', 'success'); return;
-  }
-
   const { error } = await supabase.from('classes').update({ class_teacher_id: teacherId || null }).eq('id', clsId);
   if (error) return showToast(error.message, 'error');
   closeModal(); await fetchAllData(); renderPage(); showToast('Class teacher assigned', 'success');
@@ -1258,16 +1066,7 @@ async function assignTeacher(clsId) {
 async function saveSubject() {
   const name = document.getElementById('sub-name').value.trim();
   if (!name) return showToast('Please enter subject name', 'error');
-  const code = document.getElementById('sub-code').value;
-  const teacherId = document.getElementById('sub-teacher').value;
-
-  if (state.isDemo) {
-    const teacher = state.teachers.find(t => t.id == teacherId);
-    state.subjects.push({ id: Date.now(), name, code, teacher_id: teacherId, profiles: teacher ? { full_name: teacher.full_name } : null });
-    closeModal(); renderPage(); showToast(`Subject ${name} added`, 'success'); return;
-  }
-
-  const { error } = await supabase.from('subjects').insert([{ name, code, teacher_id: teacherId }]);
+  const { error } = await supabase.from('subjects').insert([{ name, code: document.getElementById('sub-code').value, teacher_id: document.getElementById('sub-teacher').value }]);
   if (error) return showToast(error.message, 'error');
   closeModal(); await fetchAllData(); renderPage(); showToast(`Subject ${name} added`, 'success');
 }
@@ -1275,17 +1074,7 @@ async function saveSubject() {
 async function saveNotice() {
   const title = document.getElementById('n-title').value.trim(), body = document.getElementById('n-body').value.trim();
   if (!title || !body) return showToast('Please fill all fields', 'error');
-  const priority = document.getElementById('n-priority').value;
-
-  if (state.isDemo) {
-    state.notices.unshift({
-      id: Date.now(), title, body, priority, created_at: new Date().toISOString(),
-      profiles: { full_name: state.currentUser.name }, author_id: state.currentUser.id
-    });
-    closeModal(); renderPage(); showToast('Announcement posted', 'success'); return;
-  }
-
-  const { error } = await supabase.from('notices').insert([{ title, body, priority, author_id: state.currentUser.id }]);
+  const { error } = await supabase.from('notices').insert([{ title, body, priority: document.getElementById('n-priority').value, author_id: state.currentUser.id }]);
   if (error) return showToast(error.message, 'error');
   closeModal(); await fetchAllData(); renderPage(); showToast('Announcement posted', 'success');
 }
@@ -1305,4 +1094,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-        </html>
+  </html>
