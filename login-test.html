@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Login Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h2>Login Test</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="pass" placeholder="Password">
+    <button onclick="doLogin()">Login</button>
+    <p id="status"></p>
+
+    <script>
+        const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function doLogin() {
+            document.getElementById('status').innerText = 'Attempting login...';
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('pass').value;
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                document.getElementById('status').innerText = 'SUCCESS! User ID: ' + data.user.id;
+            } catch (err) {
+                document.getElementById('status').innerText = 'FAILED: ' + err.message;
+            }
+        }
+    </script>
+</body>
+</html>
