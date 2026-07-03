@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
@@ -206,7 +207,8 @@ const state = {
   currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [],
   examConfig: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:00 HOUR', instructions: 'Answer ALL questions.' },
-  examQuestions: [], timetable: null
+  examQuestions: [], timetable: null,
+  examDraft: { classId: null, subjectId: null, title: '' }
 };
 
 // Load saved exam config from local storage
@@ -976,9 +978,38 @@ function saveExamConfig(e) {
 }
 
 function renderExamSet() {
+  // Initialize draft defaults if empty
+  if (!state.examDraft.classId && state.classes.length > 0) state.examDraft.classId = state.classes[0].id;
+  if (!state.examDraft.subjectId && state.subjects.length > 0) state.examDraft.subjectId = state.subjects[0].id;
+  if (!state.examDraft.title) state.examDraft.title = state.examConfig.examTitle;
+
   return `
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="lg:col-span-2 space-y-5">
+        
+        <!-- Exam Details -->
+        <div class="card fade-up-1">
+          <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
+          <div class="grid md:grid-cols-3 gap-3">
+            <div>
+              <label class="form-label">Class</label>
+              <select class="form-input" onchange="state.examDraft.classId = this.value;">
+                ${state.classes.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Subject</label>
+              <select class="form-input" onchange="state.examDraft.subjectId = this.value;">
+                ${state.subjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="form-label">Exam Title</label>
+              <input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value" placeholder="e.g. MAY MONTHLY TEST - 2026">
+            </div>
+          </div>
+        </div>
+
         <div class="card fade-up-1">
           <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Question</span></div>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1003,7 +1034,7 @@ function renderExamSet() {
       </div>
     </div>
   `;
-}
+  }
 
 function renderQuestionEditor(q, i) {
   const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing' };
@@ -1022,8 +1053,18 @@ function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid);
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
 
-function downloadExamPDF() {
+  function downloadExamPDF() {
   const c = state.examConfig;
+  const draft = state.examDraft;
+  
+  // Find the actual names from the database
+  const selectedClass = state.classes.find(cls => cls.id == draft.classId);
+  const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
+  
+  const className = selectedClass ? selectedClass.name.toUpperCase() : 'N/A';
+  const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
+  const examTitle = (draft.title || c.examTitle).toUpperCase();
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format: 'a4'});
   
@@ -1039,28 +1080,26 @@ function downloadExamPDF() {
   
   let y = margin;
   
-  // Header
-  doc.setFont(font, 'bold');
-  doc.setFontSize(fontSize + 4);
-  doc.text("KOROSHO ENGLISH MEDIUM SCHOOL", pageW/2, y, {align:'center'});
-  y += lineHeight + 4;
+  // --- Static Header ---
+  doc.setFont(font, 'bold'); doc.setFontSize(fontSize + 4);
+  doc.text("KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL", pageW/2, y, {align:'center'}); y += lineHeight;
   
-  doc.setFont(font, 'normal');
-  doc.setFontSize(fontSize - 2);
-  doc.text("Knowledge • Discipline • Integrity", pageW/2, y, {align:'center'});
-  y += 10;
+  doc.setFont(font, 'normal'); doc.setFontSize(fontSize - 2);
+  doc.text("P.O. Box 03 – TANDAHIMBA - MTWARA", pageW/2, y, {align:'center'}); y += lineHeight - 2;
+  doc.text("TEL: +255715976760/+255623638683/+255655481995", pageW/2, y, {align:'center'}); y += lineHeight - 2;
+  doc.text("EMAIL: koroshoschool@gmail.com", pageW/2, y, {align:'center'}); y += 10;
   
   // Lines
   doc.setLineWidth(2); doc.line(margin, y, pageW - margin, y); y += 4;
   doc.setLineWidth(0.5); doc.line(margin, y, pageW - margin, y); y += 12;
   
-  // Exam Info
+  // --- Dynamic Header ---
   doc.setFont(font, 'bold'); doc.setFontSize(fontSize + 2);
-  doc.text(c.examTitle, pageW/2, y, {align:'center'}); y += lineHeight + 2;
+  doc.text(examTitle, pageW/2, y, {align:'center'}); y += lineHeight + 2;
   
-  doc.setFont(font, 'normal'); doc.setFontSize(fontSize);
-  doc.text(`Time: ${c.timeAllowed}   •   Total Marks: ${c.totalMarks}`, pageW/2, y, {align:'center'});
-  y += 14;
+  doc.setFontSize(fontSize);
+  doc.text(subjectName, pageW/2, y, {align:'center'}); y += lineHeight;
+  doc.text(className, pageW/2, y, {align:'center'}); y += 14;
   
   // Instructions
   doc.setFont(font, 'italic'); doc.setFontSize(fontSize - 1);
@@ -1117,9 +1156,9 @@ function downloadExamPDF() {
   doc.setFont(font, 'italic'); doc.setFontSize(fontSize - 2);
   doc.text('— End of Examination —', pageW/2, pageH - 30, {align:'center'});
   
-  doc.save('Korosho_Exam.pdf');
+  doc.save(`${examTitle.replace(/\s/g,'_')}_${subjectName}_${className}.pdf`);
   showToast('PDF downloaded', 'success');
- }
+  }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
