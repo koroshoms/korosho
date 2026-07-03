@@ -401,28 +401,26 @@ async function initApp() {
   await fetchAllData();
   navigateTo('dashboard');
   
-  // --- ADD THIS REALTIME BLOCK ---
+    // --- ADD THIS REALTIME BLOCK ---
   supabase.channel('public:published_reports')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
       if (state.currentPage === 'results') {
-        checkPublishStatus();
-        loadNectaReport();
+        await checkPublishStatus(); // Wait for status to update
+        await loadNectaReport();    // Then load the tables
       }
     })
     .subscribe();
 
   supabase.channel('public:results')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, payload => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, async payload => {
       if (state.currentPage === 'results') {
-        fetchAllData().then(() => {
-          loadNectaReport();
-        });
+        await fetchAllData();       // Wait for fresh data
+        await loadNectaReport();    // Then load the tables
       }
     })
     .subscribe();
   // -------------------------------
 }
-
 function buildNav() {
   const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
   const host = document.getElementById('navMenu');
