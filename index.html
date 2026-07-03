@@ -272,6 +272,13 @@ select.form-input { cursor: pointer; }
 
 <script>
 /* ===================== INITIALIZE SUPABASE ===================== */
+// DEBUG: Alert if Supabase loads
+if (!window.supabase) {
+  alert('ERROR: Supabase library failed to load. Please check your internet connection.');
+} else {
+  console.log("Supabase library loaded successfully.");
+}
+
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -287,6 +294,11 @@ const state = {
 /* ===================== AUTH & SESSION ===================== */
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  
+  // DEBUG: Test if button click registers
+  alert('Login button clicked! Attempting to connect to Supabase...');
+  console.log("Login form submitted.");
+
   const email = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
 
@@ -299,14 +311,22 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
 
   try {
+    console.log("Attempting supabase.auth.signInWithPassword...");
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError) throw new Error(authError.message);
+    
+    if (authError) {
+      console.error("Auth Error:", authError);
+      throw new Error(authError.message);
+    }
+    
+    console.log("Auth Success:", authData);
+    alert('Supabase login successful! Fetching profile...');
 
     let { data: profile, error: profileError } = await supabase
       .from('profiles').select('*').eq('id', authData.user.id).single();
 
     if (profileError && profileError.code === 'PGRST116') {
-      // Fallback if trigger didn't work
+      console.log("Profile not found, creating one...");
       const { data: newProfile, error: insertError } = await supabase
         .from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
       if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
@@ -322,6 +342,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     await initApp();
     showToast(`Welcome back, ${state.currentUser.name.split(' ')[0]}!`, 'success');
   } catch (err) {
+    console.error("LOGIN FAILED:", err);
     document.getElementById('loginPage').classList.remove('hidden-page');
     document.getElementById('appShell').classList.add('hidden-page');
     if (errorBox) { errorBox.innerText = "Login Failed: " + err.message; errorBox.classList.remove('hidden'); }
@@ -1094,4 +1115,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-  </html>
+        </html>
