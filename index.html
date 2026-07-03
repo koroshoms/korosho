@@ -1255,14 +1255,15 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
     existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
-    // Insert new result with all tracking columns
+    // Insert new result (Added exam_name to satisfy database constraint)
     const { data, error } = await supabase.from('results').insert([{
       student_id: studentId,
       subject_id: subjectId,
       marks,
       grade,
-      term: 'Term II',
-      year: '2025',
+      exam_name: 'Mid-term Assessment', // <--- ADDED THIS LINE
+      term: 'Term I',
+      year: '2026',
       published: false,
       created_by: state.currentUser.id
     }]).select().single();
