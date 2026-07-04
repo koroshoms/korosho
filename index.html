@@ -198,7 +198,6 @@ select.form-input { cursor: pointer; }
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
 <div id="pdf-render-area" style="position: fixed; left: -10000px; top: 0; width: 210mm; background: #fff;"></div>
-
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
@@ -459,11 +458,13 @@ function renderPage() {
   else if (page === 'notices') host.innerHTML = renderNotices();
   else if (page === 'publish') host.innerHTML = renderPublish();
   else if (page === 'exam-config') host.innerHTML = renderExamConfig();
-  else if (page === 'exam-set') host.innerHTML = renderExamSet();
+  else if (page === 'exam-set') {
+    host.innerHTML = renderExamSet();
+    updateExamPreview(); // Load the preview immediately
+  }
   else if (page === 'exam-review') host.innerHTML = renderExamReview();
   else if (page === 'reports') host.innerHTML = renderReports();
 }
-
 function renderDashboard() {
   const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
   const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
@@ -1547,7 +1548,16 @@ function renderExamSet() {
           </div>
         </div>
       </div>
-      <div class="space-y-4">
+            <div class="space-y-4">
+        
+        <!-- LIVE PREVIEW BOX -->
+        <div class="card fade-up-3">
+          <h4 class="font-bold mb-3"><i class="fa-solid fa-eye text-blue-600 mr-2"></i> Live Preview</h4>
+          <div style="height: 500px; overflow-y: auto; overflow-x: hidden; background: #e2e8f0; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+            <div id="exam-live-preview" style="transform-origin: top left; transform: scale(0.45); width: 210mm; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-height: 297mm;"></div>
+          </div>
+        </div>
+        
         <div class="card fade-up-3">
           <h4 class="font-bold mb-3"><i class="fa-solid fa-file-pdf text-red-600 mr-2"></i> Export & Submit</h4>
           <button class="btn-primary w-full" onclick="downloadExamPDF()" ${state.examQuestions.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
@@ -1558,6 +1568,110 @@ function renderExamSet() {
       </div>
     </div>
   `;
+}
+
+// NEW FUNCTION: Generates the HTML for both the Preview and the PDF
+function getExamPreviewHTML(draft, c, questions) {
+  const selectedClass = state.classes.find(cls => cls.id == draft.classId);
+  const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
+  
+  const className = selectedClass ? selectedClass.name.toUpperCase() : 'N/A';
+  const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
+  const examTitle = (draft.title || c.examTitle).toUpperCase();
+  const timeAllowed = c.timeAllowed.toUpperCase();
+  const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+  
+  let questionsHtml = '';
+  let qCount = 0;
+
+  questions.forEach((q, i) => {
+    qCount++;
+    questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid;"><div style="font-weight:bold;">${qCount}. ${q.text || 'Untitled question'} <span style="float:right;font-weight:normal;font-size: 11px;color:#555;">(${q.marks||0} marks)</span></div>`;
+    
+    if(q.type === 'mcq'){
+      (q.choices||[]).forEach((opt, idx) => {
+        if(opt) questionsHtml += `<div style="margin: 4px 0 4px 24px;font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
+      });
+    } else if (q.type === 'picture') {
+      if (q.picture) {
+        questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
+      } else {
+        questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
+      }
+      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
+    } else if (q.type === 'short') {
+      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
+    } else if (q.type === 'long') {
+      for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
+    } else if (q.type === 'drawing') {
+      questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
+    }
+    questionsHtml += `</div>`;
+  });
+
+  return `
+    <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box; position: relative;">
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
+      
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <div style="width: 100px; height: 100px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-align: center; background: #f9f9f9; flex-shrink: 0; overflow: hidden;">
+          <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        <div style="flex: 1; text-align: center; padding: 0 20px;">
+          <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+          <div style="font-size: 14px; line-height: 1.6;">
+            P.O. Box 03 – TANDAHIMBA – MTWARA<br>
+            TEL: +255715976760 / +255623638683 / +255655481995<br>
+            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
+          </div>
+          <div style="margin-top: 15px;">
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
+          <span>TIME: ${timeAllowed}</span>
+          <span>${dateStr}</span>
+        </div>
+        <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
+        <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
+          PUPIL'S NAME ________________________________________________
+        </div>
+      </div>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+        <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">This paper consists of sections A and B with a total of five (5) questions.</li>
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
+        </ul>
+      </div>
+
+      <div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline;">SECTION A (20 Marks)</div>
+      
+      <div style="font-size: 14px; margin-bottom: 20px;">
+        ${questionsHtml}
+      </div>
+
+      <div style="position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px;">1</div>
+    </div>
+  `;
+}
+
+// NEW FUNCTION: Updates the Live Preview box
+function updateExamPreview() {
+  const previewDiv = document.getElementById('exam-live-preview');
+  if (previewDiv) {
+    const draft = state.examDraft;
+    const c = getExamSettings(draft.classId);
+    const questions = state.examQuestions;
+    previewDiv.innerHTML = getExamPreviewHTML(draft, c, questions);
+  }
 }
 
 function renderQuestionEditor(q, i) {
@@ -1596,8 +1710,20 @@ function uploadPicture(qId, input) {
 }
 
 function addQuestion(type) { const id = Date.now(); const newQ = { id, type, text: '', marks: 5 }; if (type === 'mcq') newQ.choices = ['','']; state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success'); }
-function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) q[field] = val; }
-function updateChoice(qid, idx, val) { const q = state.examQuestions.find(x => x.id === qid); if (q) q.choices[idx] = val; }
+function updateQuestionField(id, field, val) { 
+  const q = state.examQuestions.find(x => x.id === id); 
+  if (q) {
+    q[field] = val; 
+    updateExamPreview(); // Update preview instantly
+  } 
+}
+function updateChoice(qid, idx, val) { 
+  const q = state.examQuestions.find(x => x.id === qid); 
+  if (q) {
+    q.choices[idx] = val; 
+    updateExamPreview(); // Update preview instantly
+  } 
+}
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
@@ -1666,100 +1792,19 @@ async function downloadExamPDF(exam = null) {
     }
   }
 
-  const selectedClass = state.classes.find(cls => cls.id == draft.classId);
-  const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
-  
-  const className = selectedClass ? selectedClass.name.toUpperCase() : 'N/A';
-  const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
-  const examTitle = (draft.title || c.examTitle).toUpperCase();
-  const timeAllowed = c.timeAllowed.toUpperCase();
-  const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
-  
-  let questionsHtml = '';
-  let qCount = 0;
-
-  questions.forEach((q, i) => {
-    qCount++;
-    questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid;"><div style="font-weight:bold;">${qCount}. ${q.text || 'Untitled question'} <span style="float:right;font-weight:normal;font-size: 11px;color:#555;">(${q.marks||0} marks)</span></div>`;
-    
-    if(q.type === 'mcq'){
-      (q.choices||[]).forEach((opt, idx) => {
-        if(opt) questionsHtml += `<div style="margin: 4px 0 4px 24px;font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
-      });
-    } else if (q.type === 'picture') {
-      if (q.picture) {
-        questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
-      } else {
-        questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
-      }
-      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'short') {
-      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'long') {
-      for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'drawing') {
-      questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
-    }
-    questionsHtml += `</div>`;
-  });
-
-  const html = `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box; position: relative;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
-      
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <div style="width: 100px; height: 100px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-align: center; background: #f9f9f9; flex-shrink: 0; overflow: hidden;">
-          <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
-        </div>
-        <div style="flex: 1; text-align: center; padding: 0 20px;">
-          <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-          <div style="font-size: 14px; line-height: 1.6;">
-            P.O. Box 03 – TANDAHIMBA – MTWARA<br>
-            TEL: +255715976760 / +255623638683 / +255655481995<br>
-            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
-          </div>
-          <div style="margin-top: 15px;">
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
-          </div>
-        </div>
-      </div>
-
-      <div style="margin-top: 20px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
-          <span>TIME: ${timeAllowed}</span>
-          <span>${dateStr}</span>
-        </div>
-        <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
-        <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
-          PUPIL'S NAME ________________________________________________
-        </div>
-      </div>
-
-      <div style="margin-bottom: 30px;">
-        <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-        <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">This paper consists of sections A and B with a total of five (5) questions.</li>
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
-        </ul>
-      </div>
-
-      <div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline;">SECTION A (20 Marks)</div>
-      
-      <div style="font-size: 14px; margin-bottom: 20px;">
-        ${questionsHtml}
-      </div>
-
-      <div style="position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px;">1</div>
-    </div>
-  `;
+  // Generate the HTML using the shared function
+  const html = getExamPreviewHTML(draft, c, questions);
 
   const renderArea = document.getElementById('pdf-render-area');
   renderArea.innerHTML = html;
 
   if (!exam) showToast('Generating PDF...', 'info');
+
+  const selectedClass = state.classes.find(cls => cls.id == draft.classId);
+  const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
+  const className = selectedClass ? selectedClass.name.toUpperCase() : 'N/A';
+  const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
+  const examTitle = (draft.title || c.examTitle).toUpperCase();
 
   html2pdf().set({
     filename: `${examTitle.replace(/\s/g,'_')}_${subjectName}_${className}.pdf`,
