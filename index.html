@@ -213,7 +213,7 @@ const state = {
     overrides: {}
   },
   examQuestions: [], timetable: null,
-  examDraft: { classId: null, subjectId: null, title: '' },
+  examDraft: { classId: null, subjectId: null, title: '', customInstruction: '' }, // <-- Added customInstruction
   resultsDraft: { subjectId: null, classId: null }
 };
 
@@ -1511,7 +1511,7 @@ function renderExamSet() {
 
         <div class="card fade-up-1">
           <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
-          <div class="grid md:grid-cols-3 gap-3">
+          <div class="grid md:grid-cols-3 gap-3 mb-4">
             <div>
               <label class="form-label">Class</label>
               <select class="form-input" onchange="state.examDraft.classId = this.value; renderPage();">
@@ -1520,37 +1520,42 @@ function renderExamSet() {
             </div>
             <div>
               <label class="form-label">Subject</label>
-              <select class="form-input" onchange="state.examDraft.subjectId = this.value;">
+              <select class="form-input" onchange="state.examDraft.subjectId = this.value; updateExamPreview();">
                 ${state.subjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
               </select>
             </div>
             <div>
               <label class="form-label">Exam Title</label>
-              <input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value" placeholder="e.g. MAY MONTHLY TEST - 2026">
+              <input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value; updateExamPreview();" placeholder="e.g. MAY MONTHLY TEST - 2026">
             </div>
+          </div>
+          <div>
+            <label class="form-label">Paper Structure Instruction (First Instruction)</label>
+            <textarea class="form-input" rows="2" placeholder="e.g. This paper consists of sections A and B with a total of five (5) questions." oninput="state.examDraft.customInstruction = this.value; updateExamPreview();">${state.examDraft.customInstruction || ''}</textarea>
           </div>
         </div>
 
         <div class="card fade-up-1">
-          <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Question</span></div>
-                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Element</span></div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
             <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
             <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
             <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
+          </div>
         </div>
-        </div>
+        
         <div class="card fade-up-2">
-          <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions (${state.examQuestions.length})</span></div>
+          <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span></div>
           <div class="space-y-3">
             ${state.examQuestions.length === 0 ? '<div class="text-center text-slate-500 py-8">No questions added yet. Click above to start.</div>' : state.examQuestions.map((q, i) => renderQuestionEditor(q, i)).join('')}
           </div>
         </div>
       </div>
-            <div class="space-y-4">
+      <div class="space-y-4">
         
-        <!-- LIVE PREVIEW BOX -->
         <div class="card fade-up-3">
           <h4 class="font-bold mb-3"><i class="fa-solid fa-eye text-blue-600 mr-2"></i> Live Preview</h4>
           <div style="height: 500px; overflow-y: auto; overflow-x: hidden; background: #e2e8f0; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
@@ -1580,33 +1585,46 @@ function getExamPreviewHTML(draft, c, questions) {
   const examTitle = (draft.title || c.examTitle).toUpperCase();
   const timeAllowed = c.timeAllowed.toUpperCase();
   const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
+  const customInstr = draft.customInstruction || 'Please write the paper structure instruction in the Exam Details section.';
   
   let questionsHtml = '';
   let qCount = 0;
 
   questions.forEach((q, i) => {
-    qCount++;
-    questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid;"><div style="font-weight:bold;">${qCount}. ${q.text || 'Untitled question'} <span style="float:right;font-weight:normal;font-size: 11px;color:#555;">(${q.marks||0} marks)</span></div>`;
-    
-    if(q.type === 'mcq'){
-      (q.choices||[]).forEach((opt, idx) => {
-        if(opt) questionsHtml += `<div style="margin: 4px 0 4px 24px;font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
-      });
-    } else if (q.type === 'picture') {
-      if (q.picture) {
-        questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
-      } else {
-        questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
+    if (q.type === 'section') {
+      questionsHtml += `<div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
+    } else {
+      qCount++;
+      // MS Word style indent using Flexbox
+      questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid; display: flex;">
+        <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
+        <div style="flex: 1;">
+          <div style="font-weight: bold;">
+            ${q.text || 'Untitled question'} 
+            <span style="float: right; font-weight: normal; font-size: 11px; color: #555;">(${q.marks||0} marks)</span>
+          </div>`;
+      
+      if(q.type === 'mcq'){
+        (q.choices||[]).forEach((opt, idx) => {
+          if(opt) questionsHtml += `<div style="margin: 4px 0; font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
+        });
+      } else if (q.type === 'picture') {
+        if (q.picture) {
+          questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
+        } else {
+          questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
+        }
+        questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
+      } else if (q.type === 'short') {
+        questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
+      } else if (q.type === 'long') {
+        for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
+      } else if (q.type === 'drawing') {
+        questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
       }
-      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'short') {
-      questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'long') {
-      for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0 8px 24px;border-bottom: 1px solid #000;height: 20px;"></div>`;
-    } else if (q.type === 'drawing') {
-      questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
+      
+      questionsHtml += `</div></div>`; // Close flex div
     }
-    questionsHtml += `</div>`;
   });
 
   return `
@@ -1614,11 +1632,11 @@ function getExamPreviewHTML(draft, c, questions) {
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
       
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <div style="width: 100px; height: 100px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-align: center; background: #f9f9f9; flex-shrink: 0; overflow: hidden;">
-          <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
+        <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <img src="${LOGO_URL}" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
         </div>
         <div style="flex: 1; text-align: center; padding: 0 20px;">
-          <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+          <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
           <div style="font-size: 14px; line-height: 1.6;">
             P.O. Box 03 – TANDAHIMBA – MTWARA<br>
             TEL: +255715976760 / +255623638683 / +255655481995<br>
@@ -1646,14 +1664,12 @@ function getExamPreviewHTML(draft, c, questions) {
       <div style="margin-bottom: 30px;">
         <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
         <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">This paper consists of sections A and B with a total of five (5) questions.</li>
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
           <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
           <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
         </ul>
       </div>
 
-      <div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; text-decoration: underline;">SECTION A (20 Marks)</div>
-      
       <div style="font-size: 14px; margin-bottom: 20px;">
         ${questionsHtml}
       </div>
@@ -1662,7 +1678,6 @@ function getExamPreviewHTML(draft, c, questions) {
     </div>
   `;
 }
-
 // NEW FUNCTION: Updates the Live Preview box
 function updateExamPreview() {
   const previewDiv = document.getElementById('exam-live-preview');
@@ -1675,7 +1690,21 @@ function updateExamPreview() {
 }
 
 function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question' };
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header' };
+  
+  if (q.type === 'section') {
+    return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
+      <div class="flex items-start justify-between mb-3">
+        <span class="badge badge-gray">${typeLabels[q.type]}</span>
+        <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+      </div>
+      <div class="mt-3">
+        <label class="form-label">Section Title (Will be centered and bold)</label>
+        <input type="text" class="form-input" style="text-align:center; font-weight:bold; text-transform:uppercase;" value="${q.text||''}" placeholder="e.g. SECTION A (20 Marks)" onchange="updateQuestionField(${q.id}, 'text', this.value)">
+      </div>
+    </div>`;
+  }
+
   let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
   
   if (q.type === 'mcq') {
