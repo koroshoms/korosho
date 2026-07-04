@@ -130,6 +130,21 @@ select.form-input { cursor: pointer; }
 .question-block { background: #F8FAFC; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
 .progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
+
+/* ===== 100% FOOLPROOF PRINT CSS ===== */
+@media print {
+  body { background: white !important; }
+  #appShell, #loginPage, #modalHost, .toast-container, .sidebar, .header-bar, .page-content { 
+    display: none !important; 
+  }
+  #print-area { 
+    display: block !important; 
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
 </style>
 </head>
 <body>
@@ -196,25 +211,6 @@ select.form-input { cursor: pointer; }
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
 <div id="print-area" style="display: none;"></div>
-
-<style>
-  @media print {
-    body * {
-      visibility: hidden;
-    }
-    #print-area, #print-area * {
-      visibility: visible;
-    }
-    #print-area {
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      display: block !important;
-    }
-  }
-</style>
-<div class="toast-container" id="toastHost"></div>
 
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
@@ -2028,16 +2024,39 @@ async function printExamPaper(exam = null) {
   printArea.innerHTML = htmlContent;
   printArea.style.display = 'block';
 
-  // Wait a tiny bit for the DOM to render the images in the print area
-  setTimeout(() => {
+  // Wait for all images (like the logo) to load before printing
+  const images = printArea.getElementsByTagName('img');
+  let loadedImages = 0;
+  const totalImages = images.length;
+  
+  const triggerPrint = () => {
     window.print();
-    
     // Clean up after print dialog is closed
     setTimeout(() => {
       printArea.innerHTML = '';
       printArea.style.display = 'none';
     }, 500);
-  }, 500);
+  };
+
+  if (totalImages === 0) {
+    triggerPrint();
+  } else {
+    for (let img of images) {
+      if (img.complete) {
+        loadedImages++;
+        if (loadedImages === totalImages) triggerPrint();
+      } else {
+        img.onload = () => {
+          loadedImages++;
+          if (loadedImages === totalImages) triggerPrint();
+        };
+        img.onerror = () => {
+          loadedImages++;
+          if (loadedImages === totalImages) triggerPrint();
+        };
+      }
+    }
+  }
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
