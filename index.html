@@ -1062,14 +1062,14 @@ async function checkPublishStatus() {
   if (pubBtn) pubBtn.innerText = isResPublished ? 'UNPUBLISH' : 'PUBLISH';
   
   const statusEl = document.getElementById('res-status');
+  if (!statusEl) return;
+  
   if (state.currentUser.role === 'teacher' && !isResPublished) {
-    statusEl.innerText = "⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER";
-    statusEl.style.color = 'red';
+    statusEl.innerHTML = '<span style="color:red; font-weight:bold;">⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER</span>';
   } else if (isResPublished) {
-    statusEl.innerText = "✅ RESULTS ARE PUBLISHED";
-    statusEl.style.color = 'green';
+    statusEl.innerHTML = '<span style="color:green; font-weight:bold;">✅ RESULTS ARE PUBLISHED</span>';
   } else {
-    statusEl.innerText = "";
+    statusEl.innerHTML = '';
   }
 }
 
@@ -1142,12 +1142,16 @@ async function loadNectaReport() {
     });
   });
 
+  // INLINE STYLES TO GUARANTEE VISIBILITY
+  const thStyle = 'border:1px solid #999; padding:4px 6px; background:#e6e6e6; text-align:left; white-space:nowrap;';
+  const tdStyle = 'border:1px solid #ccc; padding:4px 6px; white-space:nowrap;';
+  
   let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `
-    <tr><td>${k}</td><td>${v.A}</td><td>${v.B}</td><td>${v.C}</td><td>${v.D}</td><td>${v.E}</td></tr>
+    <tr><td style="${tdStyle}">${k}</td><td style="${tdStyle}">${v.A}</td><td style="${tdStyle}">${v.B}</td><td style="${tdStyle}">${v.C}</td><td style="${tdStyle}">${v.D}</td><td style="${tdStyle}">${v.E}</td></tr>
   `).join("");
 
-  let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
-    <tr><td>${r.adm}</td><td>${r.prem}</td><td>${r.name}</td><td>${r.sex}</td><td>${r.detail}</td></tr>
+  let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="${tdStyle} text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
+    <tr><td style="${tdStyle}">${r.adm}</td><td style="${tdStyle}">${r.prem}</td><td style="${tdStyle}">${r.name}</td><td style="${tdStyle}">${r.sex}</td><td style="${tdStyle}">${r.detail}</td></tr>
   `).join("");
 
   let subjectStats = state.subjects.map(sub => {
@@ -1162,46 +1166,47 @@ async function loadNectaReport() {
   }).filter(Boolean);
 
   let subtbodyHtml = subjectStats.length === 0 ? 
-    `<tr><td colspan="7" style="text-align:center;">NO SUBJECT PERFORMANCE DATA AVAILABLE</td></tr>` :
+    `<tr><td colspan="7" style="${tdStyle} text-align:center;">NO SUBJECT PERFORMANCE DATA AVAILABLE</td></tr>` :
     subjectStats.map((sub, i) => {
       let g = getGrade(sub.avg);
+      let bgColor = "#fff", color = "#000";
+      if(g==="A"){bgColor="#006400";color="#fff";} 
+      else if(g==="B"){bgColor="#90EE90";color="#000";} 
+      else if(g==="C"){bgColor="#FFFF66";color="#000";} 
+      else if(g==="D"){bgColor="#FFB6B6";color="#000";} 
+      else if(g==="E"){bgColor="#FF0000";color="#fff";}
+      
+      let gpaStyle = `border:1px solid #ccc; padding:4px 6px; background:${bgColor}; color:${color}; text-align:center; font-weight:bold;`;
+      
       return `
         <tr>
-          <td>${i+1}</td><td>${sub.name}</td><td>${sub.sat}</td><td>${sub.sat}</td><td>${sub.passed}</td>
-          <td>${sub.avg.toFixed(1)}</td><td class="grade-${g}">${g} (${
-            g==="A" ? "Excellent" : g==="B" ? "Very Good" : g==="C" ? "Good" : g==="D" ? "Satisfactory" : "Unsatisfactory"
-          })</td>
+          <td style="${tdStyle}">${i+1}</td>
+          <td style="${tdStyle}">${sub.name}</td>
+          <td style="${tdStyle}">${sub.sat}</td>
+          <td style="${tdStyle}">${sub.sat}</td>
+          <td style="${tdStyle}">${sub.passed}</td>
+          <td style="${tdStyle}">${sub.avg.toFixed(1)}</td>
+          <td style="${gpaStyle}">${g}</td>
         </tr>
       `;
     }).join("");
 
   dash.innerHTML = `
-    <style>
-      .res-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; background: #fff; }
-      .res-table th { background: #e6e6e6; border: 1px solid #999; padding: 4px 6px; text-align: left; white-space: nowrap; }
-      .res-table td { border: 1px solid #ccc; padding: 4px 6px; white-space: nowrap; }
-      .res-table tr:hover td { background: #f3f8ff; }
-      .grade-A { background: #006400; color: white; font-weight: bold; text-align: center; }
-      .grade-B { background: #90EE90; color: black; font-weight: bold; text-align: center; }
-      .grade-C { background: #FFFF66; color: black; font-weight: bold; text-align: center; }
-      .grade-D { background: #FFB6B6; color: black; font-weight: bold; text-align: center; }
-      .grade-E { background: #FF0000; color: white; font-weight: bold; text-align: center; }
-    </style>
     <div class="overflow-x-auto mb-4">
-      <table class="res-table">
-        <thead><tr><th>SEX</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr></thead>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; margin-bottom:20px;">
+        <thead><tr><th style="${thStyle}">SEX</th><th style="${thStyle}">A</th><th style="${thStyle}">B</th><th style="${thStyle}">C</th><th style="${thStyle}">D</th><th style="${thStyle}">E</th></tr></thead>
         <tbody>${gradePerfHtml}</tbody>
       </table>
     </div>
     <div class="overflow-x-auto mb-4">
-      <table class="res-table">
-        <thead><tr><th>CAND NO</th><th>PREM NO</th><th>NAME</th><th>SEX</th><th>SUBJECTS</th></tr></thead>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; margin-bottom:20px;">
+        <thead><tr><th style="${thStyle}">CAND NO</th><th style="${thStyle}">PREM NO</th><th style="${thStyle}">NAME</th><th style="${thStyle}">SEX</th><th style="${thStyle}">SUBJECTS</th></tr></thead>
         <tbody>${tbodyHtml}</tbody>
       </table>
     </div>
     <div class="overflow-x-auto">
-      <table class="res-table">
-        <thead><tr><th>NO</th><th>SUBJECT</th><th>REGISTERED</th><th>SAT</th><th>PASSED</th><th>AVERAGE</th><th>GPA</th></tr></thead>
+      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff;">
+        <thead><tr><th style="${thStyle}">NO</th><th style="${thStyle}">SUBJECT</th><th style="${thStyle}">REGISTERED</th><th style="${thStyle}">SAT</th><th style="${thStyle}">PASSED</th><th style="${thStyle}">AVERAGE</th><th style="${thStyle}">GPA</th></tr></thead>
         <tbody>${subtbodyHtml}</tbody>
       </table>
     </div>
