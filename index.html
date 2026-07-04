@@ -1608,9 +1608,16 @@ function getExamPreviewHTML(draft, c, questions) {
       }
 
       if(q.type === 'mcq'){
-        (q.choices||[]).forEach((opt, idx) => {
-          if(opt) questionsHtml += `<div style="margin: 4px 0; font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
+        questionsHtml += `<div style="margin-top: 10px;">`;
+        (q.items||[]).forEach((item, idx) => {
+          questionsHtml += `<div style="margin-bottom: 10px;">
+            <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-left: 20px; font-size: 13px;">
+              ${item.choices.map((opt, cIdx) => `<div>${String.fromCharCode(65+cIdx)}) ${opt}</div>`).join('')}
+            </div>
+          </div>`;
         });
+        questionsHtml += `</div>`;
       } else if (q.type === 'matching') {
         questionsHtml += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
           <thead><tr><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column B</th></tr></thead>
@@ -1725,10 +1732,30 @@ function renderQuestionEditor(q, i) {
     </div>`;
   }
 
-  let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+  let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter main question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
   
   if (q.type === 'mcq') {
-    extraFields += `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
+    extraFields += `<div class="mt-4 border-t pt-3">
+      <label class="form-label">Multiple Choice Items</label>
+      ${(q.items||[]).map((item, idx) => `
+        <div class="p-3 bg-slate-50 rounded-lg mb-3 border">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-600">Item (${toRoman(idx+1)})</span>
+            <button class="icon-btn" style="width:28px;height:28px;" onclick="removeMcqItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+          </div>
+          <input type="text" class="form-input mb-2" style="padding:8px;font-size:13px;" value="${item.text}" placeholder="Item question..." onchange="updateMcqItem(${q.id}, ${item.id}, 'text', this.value)">
+          <div class="grid grid-cols-2 gap-2">
+            ${item.choices.map((ch, cIdx) => `
+              <div class="flex items-center gap-1">
+                <span class="text-xs font-bold w-4">${String.fromCharCode(65+cIdx)}.</span>
+                <input type="text" class="form-input flex-1" style="padding:6px;font-size:12px;" value="${ch}" placeholder="Choice ${cIdx+1}" onchange="updateMcqChoice(${q.id}, ${item.id}, ${cIdx}, this.value)">
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+      <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMcqItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
+    </div>`;
   } else if (q.type === 'matching') {
     extraFields += `
       <div class="mt-3 grid grid-cols-2 gap-4">
@@ -1790,7 +1817,7 @@ function renderQuestionEditor(q, i) {
 function addQuestion(type) { 
   const id = Date.now(); 
   const newQ = { id, type, text: '', marks: 5 }; 
-  if (type === 'mcq') newQ.choices = ['','']; 
+  if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', '', '', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
   if (type === 'picture') newQ.pictures = [];
   if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
@@ -1799,6 +1826,30 @@ function addQuestion(type) {
   renderPage(); 
   showToast('Question added', 'success'); 
 }
+
+// --- NEW MCQ HELPERS ---
+function addMcqItem(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', '', '', ''] }); renderPage(); }
+}
+function removeMcqItem(qId, itemId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); renderPage(); }
+}
+function updateMcqItem(qId, itemId, field, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item[field] = val; updateExamPreview(); }
+  }
+}
+function updateMcqChoice(qId, itemId, cIdx, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item.choices[cIdx] = val; updateExamPreview(); }
+  }
+      }
 
 function updateQuestionField(id, field, val) { 
   const q = state.examQuestions.find(x => x.id === id); 
@@ -1923,8 +1974,15 @@ async function downloadExamPDF(exam = null) {
 
   const html = getExamPreviewHTML(draft, c, questions);
 
-  const renderArea = document.getElementById('pdf-render-area');
-  renderArea.innerHTML = html;
+  // Dynamically create a wrapper to ensure it's fully visible to html2canvas
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'absolute';
+  wrapper.style.left = '-9999px';
+  wrapper.style.top = '0';
+  wrapper.style.width = '210mm';
+  wrapper.style.background = '#ffffff';
+  wrapper.innerHTML = html;
+  document.body.appendChild(wrapper);
 
   if (!exam) showToast('Generating PDF...', 'info');
 
@@ -1940,17 +1998,17 @@ async function downloadExamPDF(exam = null) {
     html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-  }).from(renderArea).save().then(() => {
-    renderArea.innerHTML = '';
+  }).from(wrapper).save().then(() => {
+    document.body.removeChild(wrapper);
     if (exam) showToast('PDF downloaded', 'success');
     else showToast('Download started!', 'success');
   }).catch(err => {
     console.error("PDF Generation Error:", err);
     showToast('Failed to generate PDF', 'error');
-    renderArea.innerHTML = '';
+    if (document.body.contains(wrapper)) document.body.removeChild(wrapper);
   });
 }
-
+  
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
