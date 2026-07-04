@@ -508,11 +508,13 @@ function renderDashboard() {
       { page: 'reports', icon: 'fa-file-lines', color: 'purple', label: 'Academic Reports' }
     ];
   } else if (u.role === 'teacher') {
+    const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+    const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
     stats = [
-      { label: 'My Subjects', value: state.subjects.filter(s => s.profiles && s.profiles.full_name === u.name).length, icon: 'fa-book', color: 'emerald' },
+      { label: 'My Subjects', value: mySubjects.length, icon: 'fa-book', color: 'emerald' },
       { label: 'School Notices', value: state.notices.length, icon: 'fa-bullhorn', color: 'amber' },
-      { label: 'Total Students', value: state.students.length, icon: 'fa-user-graduate', color: 'blue' },
-      { label: 'Active Classes', value: state.classes.length, icon: 'fa-school', color: 'purple' }
+      { label: 'My Students', value: state.students.filter(s => myClasses.some(c => c.id === s.class_id)).length, icon: 'fa-user-graduate', color: 'blue' },
+      { label: 'My Classes', value: myClasses.length, icon: 'fa-school', color: 'purple' }
     ];
     quickLinks = [
       { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'My Timetable' },
@@ -760,7 +762,7 @@ function renderClasses() {
         </div>`;
       }).join('')}
       <div class="card fade-up-5 flex flex-col items-center justify-center text-center" style="border:2px dashed var(--border);cursor:pointer;" onclick="openModal('addClass')">
-        <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><i class="fa-solid fa-plus text-xl"></i></div>
+        <div class="w-14 h-14 rounded-circle bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><i class="fa-solid fa-plus text-xl"></i></div>
         <div class="font-semibold text-slate-900">Add New Class</div>
       </div>
     </div>
@@ -1223,13 +1225,15 @@ async function loadNectaReport() {
 }
 
 function renderResultsEntry() {
+  const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
-  if (mySubjects.length === 0) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have no subjects assigned to you yet.</p></div>`;
+  
+  if (myClasses.length === 0 || mySubjects.length === 0) {
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
   }
 
   if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
-  if (!state.resultsDraft.classId) state.resultsDraft.classId = state.classes[0]?.id;
+  if (!state.resultsDraft.classId) state.resultsDraft.classId = myClasses[0].id;
 
   const selectedSubjectId = state.resultsDraft.subjectId;
   const selectedClassId = state.resultsDraft.classId;
@@ -1251,7 +1255,7 @@ function renderResultsEntry() {
         <div>
           <label class="form-label">Select Class</label>
           <select class="form-input" onchange="state.resultsDraft.classId = this.value; renderPage();">
-            ${state.classes.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}
+            ${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}
           </select>
         </div>
       </div>
@@ -1486,8 +1490,18 @@ function saveExamConfig(e) {
 }
 
 function renderExamSet() {
-  if (!state.examDraft.classId && state.classes.length > 0) state.examDraft.classId = state.classes[0].id;
-  if (!state.examDraft.subjectId && state.subjects.length > 0) state.examDraft.subjectId = state.subjects[0].id;
+  const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
+  const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+
+  if (state.currentUser.role === 'teacher' && (myClasses.length === 0 || mySubjects.length === 0)) {
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
+  }
+
+  const availableClasses = state.currentUser.role === 'teacher' ? myClasses : state.classes;
+  const availableSubjects = state.currentUser.role === 'teacher' ? mySubjects : state.subjects;
+
+  if (!state.examDraft.classId && availableClasses.length > 0) state.examDraft.classId = availableClasses[0].id;
+  if (!state.examDraft.subjectId && availableSubjects.length > 0) state.examDraft.subjectId = availableSubjects[0].id;
   if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
 
   const settings = getExamSettings(state.examDraft.classId);
@@ -1512,13 +1526,13 @@ function renderExamSet() {
             <div>
               <label class="form-label">Class</label>
               <select class="form-input" onchange="state.examDraft.classId = this.value; renderPage();">
-                ${state.classes.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+                ${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
               </select>
             </div>
             <div>
               <label class="form-label">Subject</label>
               <select class="form-input" onchange="state.examDraft.subjectId = this.value; updateExamPreview();">
-                ${state.subjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+                ${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
               </select>
             </div>
             <div>
@@ -1651,27 +1665,23 @@ function getExamPreviewHTML(draft, c, questions) {
 
   return `
     <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box;">
-      <div style="border: 3px double #000; padding: 15px; margin-bottom: 20px;">
-        <table style="width: 100%; border-collapse: collapse;">
-          <tr>
-            <td style="width: 100px; vertical-align: middle; text-align: center;">
-              <img src="${LOGO_URL}" alt="Logo" style="width: 90px; height: 90px; object-fit: contain;">
-            </td>
-            <td style="text-align: center; vertical-align: middle;">
-              <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-              <div style="font-size: 13px; line-height: 1.5;">
-                P.O. Box 03 – TANDAHIMBA – MTWARA<br>
-                TEL: +255715976760 / +255623638683 / +255655481995<br>
-                EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
-              </div>
-              <div style="margin-top: 10px;">
-                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
-                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
-                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
-              </div>
-            </td>
-          </tr>
-        </table>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border: 3px double #000; padding: 15px;">
+        <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <img src="${LOGO_URL}" alt="Logo" style="width: 100px; height: 100px; object-fit: contain;">
+        </div>
+        <div style="flex: 1; text-align: center; padding: 0 20px;">
+          <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+          <div style="font-size: 13px; line-height: 1.5;">
+            P.O. Box 03 – TANDAHIMBA – MTWARA<br>
+            TEL: +255715976760 / +255623638683 / +255655481995<br>
+            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
+          </div>
+          <div style="margin-top: 10px;">
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
+          </div>
+        </div>
       </div>
 
       <div style="margin-bottom: 20px;">
@@ -1744,14 +1754,16 @@ function renderQuestionEditor(q, i) {
             <button class="icon-btn" style="width:28px;height:28px;" onclick="removeMcqItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
           </div>
           <input type="text" class="form-input mb-2" style="padding:8px;font-size:13px;" value="${item.text}" placeholder="Item question..." onchange="updateMcqItem(${q.id}, ${item.id}, 'text', this.value)">
-          <div class="grid grid-cols-1 gap-2">
+          <div class="space-y-2">
             ${item.choices.map((ch, cIdx) => `
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold w-4">${String.fromCharCode(65+cIdx)}.</span>
                 <input type="text" class="form-input flex-1" style="padding:6px;font-size:12px;" value="${ch}" placeholder="Choice ${cIdx+1}" onchange="updateMcqChoice(${q.id}, ${item.id}, ${cIdx}, this.value)">
+                <button class="icon-btn" style="width:28px;height:28px;" onclick="removeMcqChoice(${q.id}, ${item.id}, ${cIdx})"><i class="fa-solid fa-xmark text-xs text-red-500"></i></button>
               </div>
             `).join('')}
           </div>
+          <button class="btn-ghost" style="padding:4px 10px;font-size:11px;margin-top:4px;" onclick="addMcqChoice(${q.id}, ${item.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button>
         </div>
       `).join('')}
       <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMcqItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
@@ -1817,7 +1829,7 @@ function renderQuestionEditor(q, i) {
 function addQuestion(type) { 
   const id = Date.now(); 
   const newQ = { id, type, text: '', marks: 5 }; 
-  if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', '', '', ''] }]; 
+  if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
   if (type === 'picture') newQ.pictures = [];
   if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
@@ -1838,7 +1850,7 @@ function updateQuestionField(id, field, val) {
 // --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', '', '', ''] }); renderPage(); }
+  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); renderPage(); }
 }
 function removeMcqItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
@@ -1856,6 +1868,20 @@ function updateMcqChoice(qId, itemId, cIdx, val) {
   if (q && q.type === 'mcq') {
     const item = q.items.find(it => it.id === itemId);
     if (item) { item.choices[cIdx] = val; updateExamPreview(); }
+  }
+}
+function addMcqChoice(qId, itemId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item.choices.push(''); renderPage(); }
+  }
+}
+function removeMcqChoice(qId, itemId, cIdx) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mcq') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); renderPage(); }
   }
 }
 
@@ -1977,40 +2003,53 @@ async function printExamPaper(exam = null) {
   // 2. Generate HTML
   const htmlContent = getExamPreviewHTML(draft, c, questions);
 
-  // 3. Open Print Window
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    showToast('Please allow pop-ups to print the exam', 'error');
-    return;
-  }
+  // 3. Setup Hidden Iframe for Printing
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'absolute';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
 
-  printWindow.document.write(`
-    <html>
-    <head>
-      <title>Exam Paper</title>
-      <style>
-        @page { size: A4; margin: 0; }
-        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      </style>
-    </head>
-    <body>${htmlContent}</body>
-    </html>
-  `);
-  printWindow.document.close();
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<html><head><title>Print Exam</title><style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>${htmlContent}</body></html>`);
+  doc.close();
 
-  // Wait for images to load before printing
-  const images = printWindow.document.getElementsByTagName('img');
-  for (let img of images) {
-    if (!img.complete) {
-      await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+  // 4. Wait for images to load before triggering print
+  const images = doc.getElementsByTagName('img');
+  let loadedImages = 0;
+  const totalImages = images.length;
+  
+  const triggerPrint = () => {
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 500);
+  };
+
+  if (totalImages === 0) {
+    triggerPrint();
+  } else {
+    for (let img of images) {
+      if (img.complete) {
+        loadedImages++;
+        if (loadedImages === totalImages) triggerPrint();
+      } else {
+        img.onload = () => {
+          loadedImages++;
+          if (loadedImages === totalImages) triggerPrint();
+        };
+        img.onerror = () => {
+          loadedImages++;
+          if (loadedImages === totalImages) triggerPrint();
+        };
+      }
     }
   }
-
-  printWindow.focus();
-  printWindow.print();
-  printWindow.onafterprint = () => {
-    printWindow.close();
-  };
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
