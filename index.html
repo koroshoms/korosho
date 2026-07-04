@@ -198,6 +198,7 @@ select.form-input { cursor: pointer; }
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
 <div id="pdf-render-area" style="position: fixed; left: -10000px; top: 0; width: 210mm; background: #fff;"></div>
+
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN2bGN3ZHh3bnJyd29lc2pua2xqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI5NTY1NjUsImV4cCI6MjA5ODUzMjU2NX0.5AawITGCbHFuZFGMOsLocgPL3IZoZRtKpcNOtRhcLtY';
@@ -213,7 +214,7 @@ const state = {
     overrides: {}
   },
   examQuestions: [], timetable: null,
-  examDraft: { classId: null, subjectId: null, title: '', customInstruction: '' }, // <-- Added customInstruction
+  examDraft: { classId: null, subjectId: null, title: '', customInstruction: '' },
   resultsDraft: { subjectId: null, classId: null }
 };
 
@@ -400,12 +401,11 @@ async function initApp() {
   await fetchAllData();
   navigateTo('dashboard');
   
-    // --- ADD THIS REALTIME BLOCK ---
   supabase.channel('public:published_reports')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
       if (state.currentPage === 'results') {
-        await checkPublishStatus(); // Wait for status to update
-        await loadNectaReport();    // Then load the tables
+        await checkPublishStatus();
+        await loadNectaReport();
       }
     })
     .subscribe();
@@ -413,13 +413,13 @@ async function initApp() {
   supabase.channel('public:results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, async payload => {
       if (state.currentPage === 'results') {
-        await fetchAllData();       // Wait for fresh data
-        await loadNectaReport();    // Then load the tables
+        await fetchAllData();
+        await loadNectaReport();
       }
     })
     .subscribe();
-  // -------------------------------
 }
+
 function buildNav() {
   const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
   const host = document.getElementById('navMenu');
@@ -460,11 +460,12 @@ function renderPage() {
   else if (page === 'exam-config') host.innerHTML = renderExamConfig();
   else if (page === 'exam-set') {
     host.innerHTML = renderExamSet();
-    updateExamPreview(); // Load the preview immediately
+    updateExamPreview();
   }
   else if (page === 'exam-review') host.innerHTML = renderExamReview();
   else if (page === 'reports') host.innerHTML = renderReports();
 }
+
 function renderDashboard() {
   const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
   const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
@@ -1080,8 +1081,6 @@ async function togglePublish() {
   const { error } = await supabase.from('published_reports').upsert({ class_id: currentResClass, is_published: newState }, { onConflict: 'class_id' });
   if (error) return showToast(error.message, 'error');
   
-  // The Realtime listener will auto-update all connected teachers and admins.
-  // But we also force update locally for instant feedback.
   await checkPublishStatus();
   await loadNectaReport();
   showToast(newState ? 'Results Published' : 'Results Unpublished', 'success');
@@ -1127,24 +1126,24 @@ async function loadNectaReport() {
         detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
       });
 
-          if (count === 0) return;
-    let avg = total / count;
-    let g = getGrade(avg);
-    detail.push("Average - " + g);
-    
-    let genderKey = "Male";
-    if (stu.gender === "F" || stu.gender === "Female") {
-      genderKey = "Female";
-    }
-    gradePerf[genderKey][g]++;
+      if (count === 0) return;
+      let avg = total / count;
+      let g = getGrade(avg);
+      detail.push("Average - " + g);
+      
+      let genderKey = "Male";
+      if (stu.gender === "F" || stu.gender === "Female") {
+        genderKey = "Female";
+      }
+      gradePerf[genderKey][g]++;
 
-    final.push({
-      adm: stu.admission_no || 'N/A',
-      prem: stu.prem_no || 'N/A',
-      name: stu.name || "-",
-      sex: (stu.gender === "F" || stu.gender === "Female") ? "F" : "M",
-      detail: detail.join(", ")
-    });
+      final.push({
+        adm: stu.admission_no || 'N/A',
+        prem: stu.prem_no || 'N/A',
+        name: stu.name || "-",
+        sex: (stu.gender === "F" || stu.gender === "Female") ? "F" : "M",
+        detail: detail.join(", ")
+      });
     });
 
     const thStyle = 'border:2px solid #000; padding:5px; background:#e6e6e6; text-align:left;';
@@ -1224,7 +1223,7 @@ async function loadNectaReport() {
     console.error("Error drawing NECTA report:", err);
     dash.innerHTML = `<p class="text-red-500 text-center py-6">Error loading tables: ${err.message}</p>`;
   }
-  }
+}
 
 function renderResultsEntry() {
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
@@ -1325,7 +1324,8 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   if (gradeCell) {
     gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
   }
-  }
+}
+
 function renderNotices() {
   const canPost = ['admin','headteacher','academic'].includes(state.currentUser.role);
   return `
@@ -1576,187 +1576,6 @@ function renderExamSet() {
   `;
 }
 
-// NEW FUNCTION: Generates the HTML for both the Preview and the PDF
-To implement all these advanced features (multiple images with custom sizes, customizable drawing boxes, sub-items with roman numerals, and matching questions), we need to update the Question Editor, add new helper functions, and update the HTML generator.
-
-Here are the exact replacements:
-
-### Step 1: Update the "Add Element" Buttons
-Find the `renderExamSet()` function. Look for the grid of question types and replace that grid with this updated version (which includes the Matching button):
-
-```javascript
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
-            <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
-            <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
-            <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
-            <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
-            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
-            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
-          </div>
-```
-
-### Step 2: Replace the Question Editor
-Find the `renderQuestionEditor(q, i)` function and replace the **entire function** with this version. It handles all the new customizable fields for pictures, drawings, and matching.
-
-```javascript
-function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items' };
-  
-  if (q.type === 'section') {
-    return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
-      <div class="flex items-start justify-between mb-3">
-        <span class="badge badge-gray">${typeLabels[q.type]}</span>
-        <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
-      </div>
-      <div class="mt-3">
-        <label class="form-label">Section Title (Will be centered and bold)</label>
-        <input type="text" class="form-input" style="text-align:center; font-weight:bold; text-transform:uppercase;" value="${q.text||''}" placeholder="e.g. SECTION A (20 Marks)" onchange="updateQuestionField(${q.id}, 'text', this.value)">
-      </div>
-    </div>`;
-  }
-
-  let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
-  
-  if (q.type === 'mcq') {
-    extraFields += `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
-  } else if (q.type === 'matching') {
-    extraFields += `
-      <div class="mt-3 grid grid-cols-2 gap-4">
-        <div>
-          <label class="form-label">Column A (Items)</label>
-          ${q.colA.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Item ${idx+1}" onchange="updateMatchingCol(${q.id}, 'A', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
-          <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMatchingRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row</button>
-        </div>
-        <div>
-          <label class="form-label">Column B (Answers)</label>
-          ${q.colB.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Match ${idx+1}" onchange="updateMatchingCol(${q.id}, 'B', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
-        </div>
-      </div>
-    `;
-  } else if (q.type === 'picture') {
-    extraFields += `
-      <div class="space-y-2 mt-3">
-        <label class="form-label">Sub-items (e.g., (i) What is this? (ii) Name the part)</label>
-        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
-        
-        <label class="form-label">Attached Pictures</label>
-        ${(q.pictures||[]).map((pic, idx) => `
-          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
-            <div class="flex items-center gap-2 mb-2">
-              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${idx}, this)">
-              <button class="icon-btn" style="width:32px;height:32px;" onclick="removePictureImage(${q.id}, ${idx})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
-            </div>
-            ${pic.url ? `<img src="${pic.url}" style="max-height:80px;border:1px solid var(--border);border-radius:4px;">` : ''}
-            <div class="grid grid-cols-3 gap-2 mt-2">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.width}" placeholder="W (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'width', this.value)">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.height}" placeholder="H (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'height', this.value)">
-              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureSetting(${q.id}, ${idx}, 'align', this.value)">
-                <option value="left" ${pic.align==='left'?'selected':''}>Left</option>
-                <option value="center" ${pic.align==='center'?'selected':''}>Center</option>
-                <option value="right" ${pic.align==='right'?'selected':''}>Right</option>
-              </select>
-            </div>
-          </div>
-        `).join('')}
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureImage(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Image Slot</button>
-      </div>
-    `;
-  } else if (q.type === 'drawing') {
-    extraFields += `
-      <div class="space-y-2 mt-3">
-        <label class="form-label">Sub-items (e.g., (i) Draw the map (ii) Label it)</label>
-        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${q.boxHeight||100}" onchange="updateQuestionField(${q.id}, 'boxHeight', this.value)"></div>
-          <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${q.boxWidth||100}" onchange="updateQuestionField(${q.id}, 'boxWidth', this.value)"></div>
-        </div>
-      </div>
-    `;
-  }
-  
-  return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
-}
-```
-
-### Step 3: Add New Helper Functions
-Find the `addQuestion(type)` function and replace it, then add the new helper functions right below it:
-
-```javascript
-function addQuestion(type) { 
-  const id = Date.now(); 
-  const newQ = { id, type, text: '', marks: 5 }; 
-  if (type === 'mcq') newQ.choices = ['','']; 
-  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
-  if (type === 'picture') newQ.pictures = [];
-  if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
-  
-  state.examQuestions.push(newQ); 
-  renderPage(); 
-  showToast('Question added', 'success'); 
-}
-
-function updateQuestionField(id, field, val) { 
-  const q = state.examQuestions.find(x => x.id === id); 
-  if (q) {
-    q[field] = val; 
-    updateExamPreview();
-  } 
-}
-
-// --- MATCHING HELPERS ---
-function addMatchingRow(qId) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.push(''); q.colB.push(''); renderPage(); } 
-}
-function removeMatchingRow(qId, idx) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); renderPage(); } 
-}
-function updateMatchingCol(qId, col, idx, val) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) {
-    if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val;
-    updateExamPreview();
-  } 
-}
-
-// --- PICTURE HELPERS ---
-function addPictureImage(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); renderPage(); }
-}
-function removePictureImage(qId, idx) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.splice(idx, 1); renderPage(); }
-}
-function updatePictureSetting(qId, idx, key, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.pictures[idx]) {
-    q.pictures[idx][key] = val;
-    updateExamPreview();
-  }
-}
-function uploadPictureImage(qId, idx, input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const q = state.examQuestions.find(x => x.id === qId);
-    if (q && q.pictures[idx]) {
-      q.pictures[idx].url = e.target.result;
-      renderPage();
-      showToast('Picture attached', 'success');
-    }
-  };
-  reader.readAsDataURL(file);
-}
-```
-
-### Step 4: Update the Preview HTML Generator
-Find the `getExamPreviewHTML(draft, c, questions)` function and replace the entire thing. This fixes the logo overlapping the text (wrapping it behind), and renders all the new question types perfectly in the PDF/Preview.
-
-```javascript
 function getExamPreviewHTML(draft, c, questions) {
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
@@ -1875,13 +1694,11 @@ function getExamPreviewHTML(draft, c, questions) {
   `;
 }
 
-// Helper for Roman Numerals
 function toRoman(num) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
   return romans[num - 1] || num;
 }
-  
-// NEW FUNCTION: Updates the Live Preview box
+
 function updateExamPreview() {
   const previewDiv = document.getElementById('exam-live-preview');
   if (previewDiv) {
@@ -1970,21 +1787,6 @@ function renderQuestionEditor(q, i) {
   return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
 }
 
-function uploadPicture(qId, input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const q = state.examQuestions.find(x => x.id === qId);
-    if (q) {
-      q.picture = e.target.result;
-      renderPage();
-      showToast('Picture attached', 'success');
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
 function addQuestion(type) { 
   const id = Date.now(); 
   const newQ = { id, type, text: '', marks: 5 }; 
@@ -2006,7 +1808,6 @@ function updateQuestionField(id, field, val) {
   } 
 }
 
-// --- MATCHING HELPERS ---
 function addMatchingRow(qId) { 
   const q = state.examQuestions.find(x => x.id === qId); 
   if (q) { q.colA.push(''); q.colB.push(''); renderPage(); } 
@@ -2023,7 +1824,6 @@ function updateMatchingCol(qId, col, idx, val) {
   } 
 }
 
-// --- PICTURE HELPERS ---
 function addPictureImage(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); renderPage(); }
@@ -2053,6 +1853,7 @@ function uploadPictureImage(qId, idx, input) {
   };
   reader.readAsDataURL(file);
 }
+
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
@@ -2098,9 +1899,8 @@ async function downloadExamPDF(exam = null) {
     
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
-      if (cleanQ.type === 'picture' && cleanQ.picture) {
-        delete cleanQ.picture;
-        cleanQ.pictureNote = '[Picture was attached during creation]';
+      if (cleanQ.type === 'picture' && cleanQ.pictures) {
+        cleanQ.pictures.forEach(pic => pic.url = '');
       }
       return cleanQ;
     });
@@ -2121,7 +1921,6 @@ async function downloadExamPDF(exam = null) {
     }
   }
 
-  // Generate the HTML using the shared function
   const html = getExamPreviewHTML(draft, c, questions);
 
   const renderArea = document.getElementById('pdf-render-area');
@@ -2151,6 +1950,7 @@ async function downloadExamPDF(exam = null) {
     renderArea.innerHTML = '';
   });
 }
+
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
@@ -2341,4 +2141,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-</html>
+  </html>
