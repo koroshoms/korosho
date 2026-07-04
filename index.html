@@ -197,7 +197,7 @@ select.form-input { cursor: pointer; }
 
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
-<div id="pdf-render-area" style="position: absolute; left: 0; top: 0; z-index: -100; width: 210mm; background: #fff;"></div>
+<div id="pdf-render-area" style="position: fixed; left: -10000px; top: 0; width: 210mm; background: #fff;"></div>
 
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
@@ -1705,64 +1705,44 @@ async function downloadExamPDF(exam = null) {
 
   const html = `
     <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box; position: relative;">
-      <style>
-        .exam-border { position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10; }
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .logo-box { width: 100px; height: 100px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-align: center; background: #f9f9f9; flex-shrink: 0; overflow: hidden; }
-        .logo-box img { width: 100%; height: 100%; object-fit: cover; }
-        .school-info { flex: 1; text-align: center; padding: 0 20px; }
-        .school-name { font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; }
-        .school-details { font-size: 14px; line-height: 1.6; }
-        .email-link { color: #0000EE; text-decoration: underline; }
-        .exam-titles { margin-top: 15px; }
-        .exam-title { font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4; }
-        .exam-info { margin-top: 20px; margin-bottom: 20px; }
-        .info-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase; }
-        hr { border: 0; border-top: 1px solid #000; margin: 5px 0; }
-        .student-name { font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 20px; }
-        .instructions { margin-bottom: 30px; }
-        .instructions h3 { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
-        .instructions ul { list-style-type: disc; padding-left: 25px; }
-        .instructions li { font-size: 14px; margin-bottom: 5px; line-height: 1.5; }
-        .footer { position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px; }
-      </style>
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
       
-      <div class="exam-border"></div>
-      
-      <div class="header">
-        <div class="logo-box"><img src="${LOGO_URL}" alt="Logo"></div>
-        <div class="school-info">
-          <div class="school-name">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-          <div class="school-details">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <div style="width: 100px; height: 100px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; text-align: center; background: #f9f9f9; flex-shrink: 0; overflow: hidden;">
+          <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;">
+        </div>
+        <div style="flex: 1; text-align: center; padding: 0 20px;">
+          <div style="font-size: 22px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+          <div style="font-size: 14px; line-height: 1.6;">
             P.O. Box 03 – TANDAHIMBA – MTWARA<br>
             TEL: +255715976760 / +255623638683 / +255655481995<br>
-            EMAIL: <span class="email-link">koroshoschool@gmail.com</span>
+            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
           </div>
-          <div class="exam-titles">
-            <div class="exam-title">${examTitle}</div>
-            <div class="exam-title">${subjectName}</div>
-            <div class="exam-title">${className}</div>
+          <div style="margin-top: 15px;">
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
+            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
           </div>
         </div>
       </div>
 
-      <div class="exam-info">
-        <div class="info-row">
+      <div style="margin-top: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
           <span>TIME: ${timeAllowed}</span>
           <span>${dateStr}</span>
         </div>
-        <hr>
-        <div class="student-name">
+        <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
+        <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
           PUPIL'S NAME ________________________________________________
         </div>
       </div>
 
-      <div class="instructions">
-        <h3>Instructions:</h3>
-        <ul>
-          <li>This paper consists of sections A and B with a total of five (5) questions.</li>
-          <li>Answer all questions as per instructions in each section.</li>
-          <li>Observe neatness in your work.</li>
+      <div style="margin-bottom: 30px;">
+        <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+        <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">This paper consists of sections A and B with a total of five (5) questions.</li>
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
+          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
         </ul>
       </div>
 
@@ -1772,7 +1752,7 @@ async function downloadExamPDF(exam = null) {
         ${questionsHtml}
       </div>
 
-      <div class="footer">1</div>
+      <div style="position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px;">1</div>
     </div>
   `;
 
@@ -1797,7 +1777,6 @@ async function downloadExamPDF(exam = null) {
     renderArea.innerHTML = '';
   });
 }
-
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
