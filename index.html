@@ -1537,9 +1537,10 @@ function renderExamSet() {
 
         <div class="card fade-up-1">
           <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Element</span></div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
             <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
+            <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
             <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
@@ -1576,6 +1577,186 @@ function renderExamSet() {
 }
 
 // NEW FUNCTION: Generates the HTML for both the Preview and the PDF
+To implement all these advanced features (multiple images with custom sizes, customizable drawing boxes, sub-items with roman numerals, and matching questions), we need to update the Question Editor, add new helper functions, and update the HTML generator.
+
+Here are the exact replacements:
+
+### Step 1: Update the "Add Element" Buttons
+Find the `renderExamSet()` function. Look for the grid of question types and replace that grid with this updated version (which includes the Matching button):
+
+```javascript
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
+            <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
+            <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
+            <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
+            <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
+            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
+            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
+          </div>
+```
+
+### Step 2: Replace the Question Editor
+Find the `renderQuestionEditor(q, i)` function and replace the **entire function** with this version. It handles all the new customizable fields for pictures, drawings, and matching.
+
+```javascript
+function renderQuestionEditor(q, i) {
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items' };
+  
+  if (q.type === 'section') {
+    return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
+      <div class="flex items-start justify-between mb-3">
+        <span class="badge badge-gray">${typeLabels[q.type]}</span>
+        <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+      </div>
+      <div class="mt-3">
+        <label class="form-label">Section Title (Will be centered and bold)</label>
+        <input type="text" class="form-input" style="text-align:center; font-weight:bold; text-transform:uppercase;" value="${q.text||''}" placeholder="e.g. SECTION A (20 Marks)" onchange="updateQuestionField(${q.id}, 'text', this.value)">
+      </div>
+    </div>`;
+  }
+
+  let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+  
+  if (q.type === 'mcq') {
+    extraFields += `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
+  } else if (q.type === 'matching') {
+    extraFields += `
+      <div class="mt-3 grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Column A (Items)</label>
+          ${q.colA.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Item ${idx+1}" onchange="updateMatchingCol(${q.id}, 'A', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
+          <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMatchingRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row</button>
+        </div>
+        <div>
+          <label class="form-label">Column B (Answers)</label>
+          ${q.colB.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Match ${idx+1}" onchange="updateMatchingCol(${q.id}, 'B', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
+        </div>
+      </div>
+    `;
+  } else if (q.type === 'picture') {
+    extraFields += `
+      <div class="space-y-2 mt-3">
+        <label class="form-label">Sub-items (e.g., (i) What is this? (ii) Name the part)</label>
+        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
+        
+        <label class="form-label">Attached Pictures</label>
+        ${(q.pictures||[]).map((pic, idx) => `
+          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
+            <div class="flex items-center gap-2 mb-2">
+              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${idx}, this)">
+              <button class="icon-btn" style="width:32px;height:32px;" onclick="removePictureImage(${q.id}, ${idx})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+            </div>
+            ${pic.url ? `<img src="${pic.url}" style="max-height:80px;border:1px solid var(--border);border-radius:4px;">` : ''}
+            <div class="grid grid-cols-3 gap-2 mt-2">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.width}" placeholder="W (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'width', this.value)">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.height}" placeholder="H (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'height', this.value)">
+              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureSetting(${q.id}, ${idx}, 'align', this.value)">
+                <option value="left" ${pic.align==='left'?'selected':''}>Left</option>
+                <option value="center" ${pic.align==='center'?'selected':''}>Center</option>
+                <option value="right" ${pic.align==='right'?'selected':''}>Right</option>
+              </select>
+            </div>
+          </div>
+        `).join('')}
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureImage(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Image Slot</button>
+      </div>
+    `;
+  } else if (q.type === 'drawing') {
+    extraFields += `
+      <div class="space-y-2 mt-3">
+        <label class="form-label">Sub-items (e.g., (i) Draw the map (ii) Label it)</label>
+        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${q.boxHeight||100}" onchange="updateQuestionField(${q.id}, 'boxHeight', this.value)"></div>
+          <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${q.boxWidth||100}" onchange="updateQuestionField(${q.id}, 'boxWidth', this.value)"></div>
+        </div>
+      </div>
+    `;
+  }
+  
+  return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
+}
+```
+
+### Step 3: Add New Helper Functions
+Find the `addQuestion(type)` function and replace it, then add the new helper functions right below it:
+
+```javascript
+function addQuestion(type) { 
+  const id = Date.now(); 
+  const newQ = { id, type, text: '', marks: 5 }; 
+  if (type === 'mcq') newQ.choices = ['','']; 
+  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
+  if (type === 'picture') newQ.pictures = [];
+  if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
+  
+  state.examQuestions.push(newQ); 
+  renderPage(); 
+  showToast('Question added', 'success'); 
+}
+
+function updateQuestionField(id, field, val) { 
+  const q = state.examQuestions.find(x => x.id === id); 
+  if (q) {
+    q[field] = val; 
+    updateExamPreview();
+  } 
+}
+
+// --- MATCHING HELPERS ---
+function addMatchingRow(qId) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
+  if (q) { q.colA.push(''); q.colB.push(''); renderPage(); } 
+}
+function removeMatchingRow(qId, idx) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
+  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); renderPage(); } 
+}
+function updateMatchingCol(qId, col, idx, val) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
+  if (q) {
+    if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val;
+    updateExamPreview();
+  } 
+}
+
+// --- PICTURE HELPERS ---
+function addPictureImage(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); renderPage(); }
+}
+function removePictureImage(qId, idx) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) { q.pictures.splice(idx, 1); renderPage(); }
+}
+function updatePictureSetting(qId, idx, key, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.pictures[idx]) {
+    q.pictures[idx][key] = val;
+    updateExamPreview();
+  }
+}
+function uploadPictureImage(qId, idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const q = state.examQuestions.find(x => x.id === qId);
+    if (q && q.pictures[idx]) {
+      q.pictures[idx].url = e.target.result;
+      renderPage();
+      showToast('Picture attached', 'success');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+```
+
+### Step 4: Update the Preview HTML Generator
+Find the `getExamPreviewHTML(draft, c, questions)` function and replace the entire thing. This fixes the logo overlapping the text (wrapping it behind), and renders all the new question types perfectly in the PDF/Preview.
+
+```javascript
 function getExamPreviewHTML(draft, c, questions) {
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
@@ -1595,7 +1776,6 @@ function getExamPreviewHTML(draft, c, questions) {
       questionsHtml += `<div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
-      // MS Word style indent using Flexbox
       questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid; display: flex;">
         <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
         <div style="flex: 1;">
@@ -1604,26 +1784,44 @@ function getExamPreviewHTML(draft, c, questions) {
             <span style="float: right; font-weight: normal; font-size: 11px; color: #555;">(${q.marks||0} marks)</span>
           </div>`;
       
+      if (q.subItems) {
+        questionsHtml += `<div style="margin-top: 5px; font-size: 14px; white-space: pre-wrap;">${q.subItems}</div>`;
+      }
+
       if(q.type === 'mcq'){
         (q.choices||[]).forEach((opt, idx) => {
           if(opt) questionsHtml += `<div style="margin: 4px 0; font-size: 13px;">${String.fromCharCode(65+idx)}) ${opt}</div>`;
         });
+      } else if (q.type === 'matching') {
+        questionsHtml += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
+          <thead><tr><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column B</th></tr></thead>
+          <tbody>
+            ${(q.colA||[]).map((item, idx) => `
+              <tr>
+                <td style="border: 1px solid #000; padding: 5px;">(${toRoman(idx+1)}) ${item}</td>
+                <td style="border: 1px solid #000; padding: 5px;">${String.fromCharCode(65+idx)}. ${q.colB[idx] || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
       } else if (q.type === 'picture') {
-        if (q.picture) {
-          questionsHtml += `<div style="text-align:center;margin:10px 0;"><img src="${q.picture}" style="max-height:200px;max-width:80%;border:1px solid #ccc;padding:4px;"/></div>`;
-        } else {
-          questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">${q.pictureNote || '[No picture attached]'}</div>`;
-        }
+        (q.pictures||[]).forEach(pic => {
+          if (pic.url) {
+            questionsHtml += `<div style="text-align:${pic.align}; margin: 10px 0;"><img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/></div>`;
+          } else {
+            questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">[No picture attached]</div>`;
+          }
+        });
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'short') {
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'long') {
         for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'drawing') {
-        questionsHtml += `<div style="margin:6px 0;border:1px solid #000;min-height:100px;background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
+        questionsHtml += `<div style="margin:6px 0; border:1px solid #000; height: ${q.boxHeight||100}px; width: ${q.boxWidth||100}%; background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
       }
       
-      questionsHtml += `</div></div>`; // Close flex div
+      questionsHtml += `</div></div>`; 
     }
   });
 
@@ -1631,11 +1829,9 @@ function getExamPreviewHTML(draft, c, questions) {
     <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box; position: relative;">
       <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
       
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-          <img src="${LOGO_URL}" alt="Logo" style="max-width: 100%; max-height: 100%; object-fit: contain;">
-        </div>
-        <div style="flex: 1; text-align: center; padding: 0 20px;">
+      <div style="position: relative; min-height: 100px; margin-bottom: 20px; text-align: center;">
+        <img src="${LOGO_URL}" alt="Logo" style="position: absolute; top: 0; left: 0; width: 100px; height: 100px; object-fit: contain; z-index: 0;">
+        <div style="position: relative; z-index: 1; width: 100%;">
           <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
           <div style="font-size: 14px; line-height: 1.6;">
             P.O. Box 03 – TANDAHIMBA – MTWARA<br>
@@ -1678,6 +1874,13 @@ function getExamPreviewHTML(draft, c, questions) {
     </div>
   `;
 }
+
+// Helper for Roman Numerals
+function toRoman(num) {
+  const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
+  return romans[num - 1] || num;
+}
+  
 // NEW FUNCTION: Updates the Live Preview box
 function updateExamPreview() {
   const previewDiv = document.getElementById('exam-live-preview');
@@ -1690,7 +1893,7 @@ function updateExamPreview() {
 }
 
 function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header' };
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items' };
   
   if (q.type === 'section') {
     return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
@@ -1709,13 +1912,57 @@ function renderQuestionEditor(q, i) {
   
   if (q.type === 'mcq') {
     extraFields += `<div class="space-y-2 mt-3"><label class="form-label">Choices</label>${q.choices.map((ch, idx) => `<div class="flex items-center gap-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${ch}" placeholder="Choice ${idx+1}" onchange="updateChoice(${q.id}, ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeChoice(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addChoice(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button></div>`;
+  } else if (q.type === 'matching') {
+    extraFields += `
+      <div class="mt-3 grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Column A (Items)</label>
+          ${q.colA.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Item ${idx+1}" onchange="updateMatchingCol(${q.id}, 'A', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
+          <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMatchingRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row</button>
+        </div>
+        <div>
+          <label class="form-label">Column B (Answers)</label>
+          ${q.colB.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Match ${idx+1}" onchange="updateMatchingCol(${q.id}, 'B', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
+        </div>
+      </div>
+    `;
   } else if (q.type === 'picture') {
     extraFields += `
       <div class="space-y-2 mt-3">
-        <label class="form-label">Attach Picture (From Device)</label>
-        <input type="file" accept="image/*" class="text-xs" onchange="uploadPicture(${q.id}, this)">
-        <p class="text-[10px] text-slate-500 mt-1">Note: This image will print in the PDF but will NOT be saved in the database to save space.</p>
-        ${q.picture ? `<img src="${q.picture}" style="max-height:100px;margin-top:.5rem;border-radius:6px;border:1px solid var(--border)">` : ''}
+        <label class="form-label">Sub-items (e.g., (i) What is this? (ii) Name the part)</label>
+        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
+        
+        <label class="form-label">Attached Pictures</label>
+        ${(q.pictures||[]).map((pic, idx) => `
+          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
+            <div class="flex items-center gap-2 mb-2">
+              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${idx}, this)">
+              <button class="icon-btn" style="width:32px;height:32px;" onclick="removePictureImage(${q.id}, ${idx})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+            </div>
+            ${pic.url ? `<img src="${pic.url}" style="max-height:80px;border:1px solid var(--border);border-radius:4px;">` : ''}
+            <div class="grid grid-cols-3 gap-2 mt-2">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.width}" placeholder="W (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'width', this.value)">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.height}" placeholder="H (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'height', this.value)">
+              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureSetting(${q.id}, ${idx}, 'align', this.value)">
+                <option value="left" ${pic.align==='left'?'selected':''}>Left</option>
+                <option value="center" ${pic.align==='center'?'selected':''}>Center</option>
+                <option value="right" ${pic.align==='right'?'selected':''}>Right</option>
+              </select>
+            </div>
+          </div>
+        `).join('')}
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureImage(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Image Slot</button>
+      </div>
+    `;
+  } else if (q.type === 'drawing') {
+    extraFields += `
+      <div class="space-y-2 mt-3">
+        <label class="form-label">Sub-items (e.g., (i) Draw the map (ii) Label it)</label>
+        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${q.boxHeight||100}" onchange="updateQuestionField(${q.id}, 'boxHeight', this.value)"></div>
+          <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${q.boxWidth||100}" onchange="updateQuestionField(${q.id}, 'boxWidth', this.value)"></div>
+        </div>
       </div>
     `;
   }
@@ -1738,20 +1985,73 @@ function uploadPicture(qId, input) {
   reader.readAsDataURL(file);
 }
 
-function addQuestion(type) { const id = Date.now(); const newQ = { id, type, text: '', marks: 5 }; if (type === 'mcq') newQ.choices = ['','']; state.examQuestions.push(newQ); renderPage(); showToast('Question added', 'success'); }
+function addQuestion(type) { 
+  const id = Date.now(); 
+  const newQ = { id, type, text: '', marks: 5 }; 
+  if (type === 'mcq') newQ.choices = ['','']; 
+  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
+  if (type === 'picture') newQ.pictures = [];
+  if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
+  
+  state.examQuestions.push(newQ); 
+  renderPage(); 
+  showToast('Question added', 'success'); 
+}
+
 function updateQuestionField(id, field, val) { 
   const q = state.examQuestions.find(x => x.id === id); 
   if (q) {
     q[field] = val; 
-    updateExamPreview(); // Update preview instantly
+    updateExamPreview();
   } 
 }
-function updateChoice(qid, idx, val) { 
-  const q = state.examQuestions.find(x => x.id === qid); 
+
+// --- MATCHING HELPERS ---
+function addMatchingRow(qId) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
+  if (q) { q.colA.push(''); q.colB.push(''); renderPage(); } 
+}
+function removeMatchingRow(qId, idx) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
+  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); renderPage(); } 
+}
+function updateMatchingCol(qId, col, idx, val) { 
+  const q = state.examQuestions.find(x => x.id === qId); 
   if (q) {
-    q.choices[idx] = val; 
-    updateExamPreview(); // Update preview instantly
+    if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val;
+    updateExamPreview();
   } 
+}
+
+// --- PICTURE HELPERS ---
+function addPictureImage(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); renderPage(); }
+}
+function removePictureImage(qId, idx) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) { q.pictures.splice(idx, 1); renderPage(); }
+}
+function updatePictureSetting(qId, idx, key, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.pictures[idx]) {
+    q.pictures[idx][key] = val;
+    updateExamPreview();
+  }
+}
+function uploadPictureImage(qId, idx, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const q = state.examQuestions.find(x => x.id === qId);
+    if (q && q.pictures[idx]) {
+      q.pictures[idx].url = e.target.result;
+      renderPage();
+      showToast('Picture attached', 'success');
+    }
+  };
+  reader.readAsDataURL(file);
 }
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
