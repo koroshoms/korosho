@@ -197,7 +197,6 @@ select.form-input { cursor: pointer; }
 
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
-<div id="pdf-render-area" style="position: fixed; left: -10000px; top: 0; width: 210mm; background: #fff;"></div>
 
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
@@ -1612,7 +1611,7 @@ function getExamPreviewHTML(draft, c, questions) {
         (q.items||[]).forEach((item, idx) => {
           questionsHtml += `<div style="margin-bottom: 10px;">
             <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
-            <div style="margin-left: 20px; font-size: 13px;">`;
+            <div style="padding-left: 20px; font-size: 13px;">`;
           item.choices.forEach((opt, cIdx) => {
             if(opt) questionsHtml += `<div style="margin-bottom: 2px;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
           });
@@ -1652,28 +1651,33 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
+  // Using a table for the header guarantees html2canvas will not render blank
   return `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box; position: relative;">
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 3px double #000; pointer-events: none; z-index: 10;"></div>
-      
-      <div style="position: relative; min-height: 100px; margin-bottom: 20px; text-align: center;">
-        <img src="${LOGO_URL}" alt="Logo" style="position: absolute; top: 0; left: 0; width: 100px; height: 100px; object-fit: contain; z-index: 0;">
-        <div style="position: relative; z-index: 1; width: 100%;">
-          <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-          <div style="font-size: 14px; line-height: 1.6;">
-            P.O. Box 03 – TANDAHIMBA – MTWARA<br>
-            TEL: +255715976760 / +255623638683 / +255655481995<br>
-            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
-          </div>
-          <div style="margin-top: 15px;">
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
-          </div>
-        </div>
+    <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box;">
+      <div style="border: 3px double #000; padding: 15px; margin-bottom: 20px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 100px; vertical-align: middle; text-align: center;">
+              <img src="${LOGO_URL}" alt="Logo" style="width: 90px; height: 90px; object-fit: contain;">
+            </td>
+            <td style="text-align: center; vertical-align: middle;">
+              <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+              <div style="font-size: 13px; line-height: 1.5;">
+                P.O. Box 03 – TANDAHIMBA – MTWARA<br>
+                TEL: +255715976760 / +255623638683 / +255655481995<br>
+                EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
+              </div>
+              <div style="margin-top: 10px;">
+                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
+                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
+                <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
+              </div>
+            </td>
+          </tr>
+        </table>
       </div>
 
-      <div style="margin-top: 20px; margin-bottom: 20px;">
+      <div style="margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
           <span>TIME: ${timeAllowed}</span>
           <span>${dateStr}</span>
@@ -1696,8 +1700,6 @@ function getExamPreviewHTML(draft, c, questions) {
       <div style="font-size: 14px; margin-bottom: 20px;">
         ${questionsHtml}
       </div>
-
-      <div style="position: absolute; bottom: 25mm; width: 100%; text-align: center; font-size: 14px;">1</div>
     </div>
   `;
 }
@@ -1828,6 +1830,14 @@ function addQuestion(type) {
   showToast('Question added', 'success'); 
 }
 
+function updateQuestionField(id, field, val) { 
+  const q = state.examQuestions.find(x => x.id === id); 
+  if (q) {
+    q[field] = val; 
+    updateExamPreview();
+  } 
+}
+
 // --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
@@ -1903,7 +1913,7 @@ function uploadPictureImage(qId, idx, input) {
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
-  
+
 function renderExamReview() {
   return `
     <div class="card fade-up-1">
@@ -1969,34 +1979,25 @@ async function downloadExamPDF(exam = null) {
 
   const htmlContent = getExamPreviewHTML(draft, c, questions);
 
-  // 100% FOOLPROOF RENDERING: Append to the top of the screen, but cover it with an overlay
+  // Create a container that is technically on-screen so html2canvas can read it
   const printContainer = document.createElement('div');
-  printContainer.style.position = 'fixed';
+  printContainer.style.position = 'absolute';
+  printContainer.style.left = '-9999px';
   printContainer.style.top = '0';
-  printContainer.style.left = '0';
   printContainer.style.width = '210mm';
   printContainer.style.backgroundColor = '#ffffff';
-  printContainer.style.zIndex = '9999';
   printContainer.innerHTML = htmlContent;
-
-  // Create a white overlay so the user doesn't see the HTML flashing on their screen
-  const overlay = document.createElement('div');
-  overlay.style.position = 'fixed';
-  overlay.style.top = '0';
-  overlay.style.left = '0';
-  overlay.style.width = '100vw';
-  overlay.style.height = '100vh';
-  overlay.style.backgroundColor = 'rgba(255,255,255,0.95)';
-  overlay.style.zIndex = '10000';
-  overlay.style.display = 'flex';
-  overlay.style.alignItems = 'center';
-  overlay.style.justifyContent = 'center';
-  overlay.innerHTML = '<div style="font-family:Outfit,Arial; font-size:20px; color:#047857; font-weight:bold;">Generating PDF, please wait...</div>';
-
-  document.body.appendChild(overlay);
   document.body.appendChild(printContainer);
 
   if (!exam) showToast('Generating PDF...', 'info');
+
+  // Wait for any images (like the logo) to fully load before rendering
+  const images = printContainer.getElementsByTagName('img');
+  for (let img of images) {
+    if (!img.complete) {
+      await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+    }
+  }
 
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
@@ -2004,27 +2005,22 @@ async function downloadExamPDF(exam = null) {
   const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
   const examTitle = (draft.title || c.examTitle).toUpperCase();
 
-  // Wait 300ms to ensure the DOM paints the container completely before html2canvas runs
-  setTimeout(() => {
-    html2pdf().set({
-      filename: `${examTitle.replace(/\s/g,'_')}_${subjectName}_${className}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    }).from(printContainer).save().then(() => {
-      document.body.removeChild(printContainer);
-      document.body.removeChild(overlay);
-      showToast('Download started!', 'success');
-    }).catch(err => {
-      console.error("PDF Generation Error:", err);
-      showToast('Failed to generate PDF', 'error');
-      if (document.body.contains(printContainer)) document.body.removeChild(printContainer);
-      if (document.body.contains(overlay)) document.body.removeChild(overlay);
-    });
-  }, 300);
+  html2pdf().set({
+    filename: `${examTitle.replace(/\s/g,'_')}_${subjectName}_${className}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  }).from(printContainer).save().then(() => {
+    document.body.removeChild(printContainer);
+    showToast('Download started!', 'success');
+  }).catch(err => {
+    console.error("PDF Generation Error:", err);
+    showToast('Failed to generate PDF', 'error');
+    if (document.body.contains(printContainer)) document.body.removeChild(printContainer);
+  });
 }
-  
+
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
