@@ -1095,123 +1095,130 @@ function copyViewLink() {
 async function loadNectaReport() {
   const dash = document.getElementById('necta-dashboard');
   if (!dash) return;
+  
   if (!currentResClass) { 
     dash.innerHTML = '<p class="text-slate-500 text-center py-6">Select a class to view results.</p>'; 
     return; 
   }
   
   if (state.currentUser.role === 'teacher' && !isResPublished) {
-    dash.innerHTML = '<p class="text-red-500 text-center py-6">Results not published yet.</p>';
+    dash.innerHTML = '<p class="text-red-500 text-center py-6 font-bold">Results not published yet.</p>';
     return;
   }
 
-  // Ensure we have the latest data before rendering
-  await fetchAllData();
+  try {
+    const students = state.students.filter(s => String(s.class_id) === String(currentResClass))
+      .sort((a, b) => {
+        if ((a.gender || "Male") !== (b.gender || "Male")) return (a.gender === "Female") ? 1 : -1;
+        return (a.admission_no || a.name || "").localeCompare(b.admission_no || b.name || "");
+      });
 
-  const students = state.students.filter(s => String(s.class_id) === String(currentResClass))
-    .sort((a, b) => {
-      if ((a.gender || "Male") !== (b.gender || "Male")) return (a.gender === "Female") ? 1 : -1;
-      return (a.admission_no || a.name || "").localeCompare(b.admission_no || b.name || "");
+    let final = [];
+    let gradePerf = { Male:{A:0,B:0,C:0,D:0,E:0}, Female:{A:0,B:0,C:0,D:0,E:0} };
+
+    students.forEach(stu => {
+      let total = 0, count = 0, detail = [];
+      state.subjects.forEach(sub => {
+        let r = state.results.find(x => String(x.student_id) === String(stu.id) && String(x.subject_id) === String(sub.id));
+        if (!r) return;
+        let m = Number(r.marks);
+        total += m; count++;
+        detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
+      });
+
+      if (count === 0) return;
+      let avg = total / count;
+      let g = getGrade(avg);
+      detail.push("Average - " + g);
+      gradePerf[stu.gender || "Male"][g]++;
+
+      final.push({
+        adm: stu.admission_no || 'N/A',
+        prem: stu.prem_no || 'N/A',
+        name: stu.name || "-",
+        sex: stu.gender === "Female" ? "F" : "M",
+        detail: detail.join(", ")
+      });
     });
 
-  let final = [];
-  let gradePerf = { Male:{A:0,B:0,C:0,D:0,E:0}, Female:{A:0,B:0,C:0,D:0,E:0} };
+    const thStyle = 'border:2px solid #000; padding:5px; background:#e6e6e6; text-align:left;';
+    const tdStyle = 'border:2px solid #000; padding:5px;';
+    
+    let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `
+      <tr><td style="${tdStyle}">${k}</td><td style="${tdStyle}">${v.A}</td><td style="${tdStyle}">${v.B}</td><td style="${tdStyle}">${v.C}</td><td style="${tdStyle}">${v.D}</td><td style="${tdStyle}">${v.E}</td></tr>
+    `).join("");
 
-  students.forEach(stu => {
-    let total = 0, count = 0, detail = [];
-    state.subjects.forEach(sub => {
-      let r = state.results.find(x => String(x.student_id) === String(stu.id) && String(x.subject_id) === String(sub.id));
-      if (!r) return;
-      let m = Number(r.marks);
-      total += m; count++;
-      detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
-    });
+    let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="${tdStyle} text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
+      <tr><td style="${tdStyle}">${r.adm}</td><td style="${tdStyle}">${r.prem}</td><td style="${tdStyle}">${r.name}</td><td style="${tdStyle}">${r.sex}</td><td style="${tdStyle}">${r.detail}</td></tr>
+    `).join("");
 
-    if (count === 0) return;
-    let avg = total / count;
-    let g = getGrade(avg);
-    detail.push("Average - " + g);
-    gradePerf[stu.gender || "Male"][g]++;
+    let subjectStats = state.subjects.map(sub => {
+      let st = state.results.filter(r => {
+        if (String(r.subject_id) !== String(sub.id)) return false;
+        return students.some(s => String(s.id) === String(r.student_id));
+      });
+      if (st.length === 0) return null;
+      let total = st.reduce((a,b) => a + Number(b.marks), 0);
+      let avg = total / st.length;
+      return { name: sub.name, sat: st.length, passed: st.filter(x => x.marks >= 41).length, avg };
+    }).filter(Boolean);
 
-    final.push({
-      adm: stu.admission_no || 'N/A',
-      prem: stu.prem_no || 'N/A',
-      name: stu.name || "-",
-      sex: stu.gender === "Female" ? "F" : "M",
-      detail: detail.join(", ")
-    });
-  });
+    let subtbodyHtml = subjectStats.length === 0 ? 
+      `<tr><td colspan="7" style="${tdStyle} text-align:center;">NO SUBJECT PERFORMANCE DATA</td></tr>` :
+      subjectStats.map((sub, i) => {
+        let g = getGrade(sub.avg);
+        let bgColor = "#fff", color = "#000";
+        if(g==="A"){bgColor="#006400";color="#fff";} 
+        else if(g==="B"){bgColor="#90EE90";color="#000";} 
+        else if(g==="C"){bgColor="#FFFF66";color="#000";} 
+        else if(g==="D"){bgColor="#FFB6B6";color="#000";} 
+        else if(g==="E"){bgColor="#FF0000";color="#fff";}
+        
+        let gpaStyle = `border:2px solid #000; padding:5px; background:${bgColor}; color:${color}; text-align:center; font-weight:bold;`;
+        
+        return `
+          <tr>
+            <td style="${tdStyle}">${i+1}</td>
+            <td style="${tdStyle}">${sub.name}</td>
+            <td style="${tdStyle}">${sub.sat}</td>
+            <td style="${tdStyle}">${sub.sat}</td>
+            <td style="${tdStyle}">${sub.passed}</td>
+            <td style="${tdStyle}">${sub.avg.toFixed(1)}</td>
+            <td style="${gpaStyle}">${g}</td>
+          </tr>
+        `;
+      }).join("");
 
-  // INLINE STYLES TO GUARANTEE VISIBILITY
-  const thStyle = 'border:1px solid #999; padding:4px 6px; background:#e6e6e6; text-align:left; white-space:nowrap;';
-  const tdStyle = 'border:1px solid #ccc; padding:4px 6px; white-space:nowrap;';
-  
-  let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `
-    <tr><td style="${tdStyle}">${k}</td><td style="${tdStyle}">${v.A}</td><td style="${tdStyle}">${v.B}</td><td style="${tdStyle}">${v.C}</td><td style="${tdStyle}">${v.D}</td><td style="${tdStyle}">${v.E}</td></tr>
-  `).join("");
-
-  let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="${tdStyle} text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
-    <tr><td style="${tdStyle}">${r.adm}</td><td style="${tdStyle}">${r.prem}</td><td style="${tdStyle}">${r.name}</td><td style="${tdStyle}">${r.sex}</td><td style="${tdStyle}">${r.detail}</td></tr>
-  `).join("");
-
-  let subjectStats = state.subjects.map(sub => {
-    let st = state.results.filter(r => {
-      if (String(r.subject_id) !== String(sub.id)) return false;
-      return students.some(s => String(s.id) === String(r.student_id));
-    });
-    if (st.length === 0) return null;
-    let total = st.reduce((a,b) => a + Number(b.marks), 0);
-    let avg = total / st.length;
-    return { name: sub.name, sat: st.length, passed: st.filter(x => x.marks >= 41).length, avg };
-  }).filter(Boolean);
-
-  let subtbodyHtml = subjectStats.length === 0 ? 
-    `<tr><td colspan="7" style="${tdStyle} text-align:center;">NO SUBJECT PERFORMANCE DATA AVAILABLE</td></tr>` :
-    subjectStats.map((sub, i) => {
-      let g = getGrade(sub.avg);
-      let bgColor = "#fff", color = "#000";
-      if(g==="A"){bgColor="#006400";color="#fff";} 
-      else if(g==="B"){bgColor="#90EE90";color="#000";} 
-      else if(g==="C"){bgColor="#FFFF66";color="#000";} 
-      else if(g==="D"){bgColor="#FFB6B6";color="#000";} 
-      else if(g==="E"){bgColor="#FF0000";color="#fff";}
+    dash.innerHTML = `
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-weight: bold; margin-bottom: 5px;">GRADE PERFORMANCE</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
+          <thead><tr><th style="${thStyle}">SEX</th><th style="${thStyle}">A</th><th style="${thStyle}">B</th><th style="${thStyle}">C</th><th style="${thStyle}">D</th><th style="${thStyle}">E</th></tr></thead>
+          <tbody>${gradePerfHtml}</tbody>
+        </table>
+      </div>
       
-      let gpaStyle = `border:1px solid #ccc; padding:4px 6px; background:${bgColor}; color:${color}; text-align:center; font-weight:bold;`;
-      
-      return `
-        <tr>
-          <td style="${tdStyle}">${i+1}</td>
-          <td style="${tdStyle}">${sub.name}</td>
-          <td style="${tdStyle}">${sub.sat}</td>
-          <td style="${tdStyle}">${sub.sat}</td>
-          <td style="${tdStyle}">${sub.passed}</td>
-          <td style="${tdStyle}">${sub.avg.toFixed(1)}</td>
-          <td style="${gpaStyle}">${g}</td>
-        </tr>
-      `;
-    }).join("");
+      <div style="margin-bottom: 20px;">
+        <h3 style="font-weight: bold; margin-bottom: 5px;">STUDENT DETAILS</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
+          <thead><tr><th style="${thStyle}">CAND NO</th><th style="${thStyle}">PREM NO</th><th style="${thStyle}">NAME</th><th style="${thStyle}">SEX</th><th style="${thStyle}">SUBJECTS</th></tr></thead>
+          <tbody>${tbodyHtml}</tbody>
+        </table>
+      </div>
 
-  dash.innerHTML = `
-    <div class="overflow-x-auto mb-4">
-      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; margin-bottom:20px;">
-        <thead><tr><th style="${thStyle}">SEX</th><th style="${thStyle}">A</th><th style="${thStyle}">B</th><th style="${thStyle}">C</th><th style="${thStyle}">D</th><th style="${thStyle}">E</th></tr></thead>
-        <tbody>${gradePerfHtml}</tbody>
-      </table>
-    </div>
-    <div class="overflow-x-auto mb-4">
-      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff; margin-bottom:20px;">
-        <thead><tr><th style="${thStyle}">CAND NO</th><th style="${thStyle}">PREM NO</th><th style="${thStyle}">NAME</th><th style="${thStyle}">SEX</th><th style="${thStyle}">SUBJECTS</th></tr></thead>
-        <tbody>${tbodyHtml}</tbody>
-      </table>
-    </div>
-    <div class="overflow-x-auto">
-      <table style="width:100%; border-collapse:collapse; font-size:12px; background:#fff;">
-        <thead><tr><th style="${thStyle}">NO</th><th style="${thStyle}">SUBJECT</th><th style="${thStyle}">REGISTERED</th><th style="${thStyle}">SAT</th><th style="${thStyle}">PASSED</th><th style="${thStyle}">AVERAGE</th><th style="${thStyle}">GPA</th></tr></thead>
-        <tbody>${subtbodyHtml}</tbody>
-      </table>
-    </div>
-  `;
-}
+      <div>
+        <h3 style="font-weight: bold; margin-bottom: 5px;">SUBJECT PERFORMANCE</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
+          <thead><tr><th style="${thStyle}">NO</th><th style="${thStyle}">SUBJECT</th><th style="${thStyle}">REGISTERED</th><th style="${thStyle}">SAT</th><th style="${thStyle}">PASSED</th><th style="${thStyle}">AVERAGE</th><th style="${thStyle}">GPA</th></tr></thead>
+          <tbody>${subtbodyHtml}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    console.error("Error drawing NECTA report:", err);
+    dash.innerHTML = `<p class="text-red-500 text-center py-6">Error loading tables: ${err.message}</p>`;
+  }
+  }
 
 function renderResultsEntry() {
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
