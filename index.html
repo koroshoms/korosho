@@ -1126,19 +1126,24 @@ async function loadNectaReport() {
         detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
       });
 
-      if (count === 0) return;
-      let avg = total / count;
-      let g = getGrade(avg);
-      detail.push("Average - " + g);
-      gradePerf[stu.gender || "Male"][g]++;
+          if (count === 0) return;
+    let avg = total / count;
+    let g = getGrade(avg);
+    detail.push("Average - " + g);
+    
+    let genderKey = "Male";
+    if (stu.gender === "F" || stu.gender === "Female") {
+      genderKey = "Female";
+    }
+    gradePerf[genderKey][g]++;
 
-      final.push({
-        adm: stu.admission_no || 'N/A',
-        prem: stu.prem_no || 'N/A',
-        name: stu.name || "-",
-        sex: stu.gender === "Female" ? "F" : "M",
-        detail: detail.join(", ")
-      });
+    final.push({
+      adm: stu.admission_no || 'N/A',
+      prem: stu.prem_no || 'N/A',
+      name: stu.name || "-",
+      sex: (stu.gender === "F" || stu.gender === "Female") ? "F" : "M",
+      detail: detail.join(", ")
+    });
     });
 
     const thStyle = 'border:2px solid #000; padding:5px; background:#e6e6e6; text-align:left;';
