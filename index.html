@@ -195,6 +195,26 @@ select.form-input { cursor: pointer; }
 
 <div id="modalHost"></div>
 <div class="toast-container" id="toastHost"></div>
+<div id="print-area" style="display: none;"></div>
+
+<style>
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    #print-area, #print-area * {
+      visibility: visible;
+    }
+    #print-area {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      display: block !important;
+    }
+  }
+</style>
+<div class="toast-container" id="toastHost"></div>
 
 <script>
 const SUPABASE_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co';
@@ -2003,53 +2023,21 @@ async function printExamPaper(exam = null) {
   // 2. Generate HTML
   const htmlContent = getExamPreviewHTML(draft, c, questions);
 
-  // 3. Setup Hidden Iframe for Printing
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'absolute';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
+  // 3. Inject into Print Area and Trigger Print
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = htmlContent;
+  printArea.style.display = 'block';
 
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<html><head><title>Print Exam</title><style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>${htmlContent}</body></html>`);
-  doc.close();
-
-  // 4. Wait for images to load before triggering print
-  const images = doc.getElementsByTagName('img');
-  let loadedImages = 0;
-  const totalImages = images.length;
-  
-  const triggerPrint = () => {
+  // Wait a tiny bit for the DOM to render the images in the print area
+  setTimeout(() => {
+    window.print();
+    
+    // Clean up after print dialog is closed
     setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(() => document.body.removeChild(iframe), 1000);
+      printArea.innerHTML = '';
+      printArea.style.display = 'none';
     }, 500);
-  };
-
-  if (totalImages === 0) {
-    triggerPrint();
-  } else {
-    for (let img of images) {
-      if (img.complete) {
-        loadedImages++;
-        if (loadedImages === totalImages) triggerPrint();
-      } else {
-        img.onload = () => {
-          loadedImages++;
-          if (loadedImages === totalImages) triggerPrint();
-        };
-        img.onerror = () => {
-          loadedImages++;
-          if (loadedImages === totalImages) triggerPrint();
-        };
-      }
-    }
-  }
+  }, 500);
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
