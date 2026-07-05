@@ -2019,23 +2019,41 @@ async function printExamPaper(exam = null) {
   // 2. Generate HTML
   const htmlContent = getExamPreviewHTML(draft, c, questions);
 
-  // 3. Inject into Print Area and Trigger Print
-  const printArea = document.getElementById('print-area');
-  printArea.innerHTML = htmlContent;
-  printArea.style.display = 'block';
+  // 3. Open a clean, new window and print from there
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (!printWindow) {
+    showToast('Please allow pop-ups to print the exam', 'error');
+    return;
+  }
 
-  // Wait for all images (like the logo) to load before printing
-  const images = printArea.getElementsByTagName('img');
+  // Write the HTML and essential print styles into the new window
+  printWindow.document.open();
+  printWindow.document.write(`
+    <html>
+    <head>
+      <title>Print Exam</title>
+      <style>
+        @page { size: A4; margin: 0; }
+        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      </style>
+    </head>
+    <body>${htmlContent}</body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  // 4. Wait for images (like the logo) to load before triggering print
+  const images = printWindow.document.getElementsByTagName('img');
   let loadedImages = 0;
   const totalImages = images.length;
   
   const triggerPrint = () => {
-    window.print();
-    // Clean up after print dialog is closed
     setTimeout(() => {
-      printArea.innerHTML = '';
-      printArea.style.display = 'none';
-    }, 500);
+      printWindow.focus();
+      printWindow.print();
+      // Close the window after printing (slight delay for mobile compatibility)
+      setTimeout(() => printWindow.close(), 500);
+    }, 300);
   };
 
   if (totalImages === 0) {
