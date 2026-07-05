@@ -1995,13 +1995,60 @@ async function printExamPaper(exam = null) {
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // 1. Generate HTML and inject it immediately
-  const htmlContent = getExamPreviewHTML(draft, c, questions);
-  const printArea = document.getElementById('print-area');
-  printArea.innerHTML = htmlContent;
-  printArea.style.display = 'block';
+  // 1. Generate the Exam HTML
+  const examHTML = getExamPreviewHTML(draft, c, questions);
 
-  // 2. Save to Supabase IN THE BACKGROUND (No 'await', so we don't block the print button)
+  // 2. Create a Standalone HTML Document with a Print Button
+  const fullHTML = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Print Exam</title>
+      <style>
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #e2e8f0; }
+        .print-btn-container { text-align: center; margin: 20px 0; }
+        .print-btn { 
+          padding: 15px 30px; background: #047857; color: white; border: none; 
+          border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; 
+          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .paper-wrapper { background: white; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        @media print {
+          body { background: white; padding: 0; }
+          .print-btn-container { display: none !important; }
+          .paper-wrapper { box-shadow: none; max-width: 100%; padding: 0; margin: 0; }
+          @page { size: A4; margin: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-btn-container">
+        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+      </div>
+      <div class="paper-wrapper">${examHTML}</div>
+    </body>
+    </html>
+  `;
+
+  // 3. Open the clean HTML in a new tab
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  
+  // Use a hidden link to open the new tab (bypasses popup blockers)
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  
+  // Clean up the URL object
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  // 4. Save to Supabase IN THE BACKGROUND (Does not block the new tab)
   if (!exam && state.examQuestions.length > 0) {
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
@@ -2023,17 +2070,6 @@ async function printExamPaper(exam = null) {
       else { showToast('Copy sent to Admin for review.', 'success'); fetchAllData(); }
     });
   }
-
-  // 3. Trigger Print immediately (250ms delay allows mobile DOM to paint the exam paper)
-  setTimeout(() => {
-    window.print();
-    
-    // Clean up after the print dialog is closed
-    setTimeout(() => {
-      printArea.innerHTML = '';
-      printArea.style.display = 'none';
-    }, 500);
-  }, 250);
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
