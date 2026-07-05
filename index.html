@@ -1657,6 +1657,7 @@ function renderExamSet() {
             <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
             <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
             <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
+            <div class="q-type-card" onclick="addQuestion('mentioning')"><i class="fa-solid fa-list-ol text-2xl text-cyan-600 mb-2"></i><div class="font-semibold text-sm">Mentioning</div></div>
             <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
             <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
@@ -1712,7 +1713,6 @@ function getExamPreviewHTML(draft, c, questions) {
 
   questions.forEach((q, i) => {
     if (q.type === 'section') {
-      // NO UNDERLINE ON SECTIONS
       questionsHtml += `<div style="text-align: center; font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
@@ -1753,34 +1753,60 @@ function getExamPreviewHTML(draft, c, questions) {
           </tbody>
         </table>`;
       } else if (q.type === 'picture') {
-        // FIX: PICTURES ALIGN HORIZONTALLY IN ONE FLEX CONTAINER
-        let alignStyle = 'flex-start';
-        if (q.pictures && q.pictures.length > 0) {
-          alignStyle = q.pictures[0].align === 'center' ? 'center' : (q.pictures[0].align === 'right' ? 'flex-end' : 'flex-start');
-        }
-        questionsHtml += `<div style="display: flex; justify-content: ${alignStyle}; gap: 10px; margin: 10px 0; page-break-inside: avoid;">`;
-        (q.pictures||[]).forEach(pic => {
-          if (pic.url) {
-            questionsHtml += `<img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
+        questionsHtml += `<div style="margin-top: 10px;">`;
+        (q.items||[]).forEach((item, idx) => {
+          let alignStyle = 'flex-start';
+          let marginLeft = '0'; let marginRight = '0';
+          if (item.align === 'center') { alignStyle = 'center'; }
+          else if (item.align === 'center-left') { alignStyle = 'flex-start'; marginLeft = '25%'; }
+          else if (item.align === 'center-right') { alignStyle = 'flex-end'; marginRight = '25%'; }
+          else if (item.align === 'right') { alignStyle = 'flex-end'; }
+          
+          questionsHtml += `<div style="margin-bottom: 15px; page-break-inside: auto;">
+            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${item.text || ''}</div>
+            <div style="display: flex; justify-content: ${alignStyle}; margin-left: ${marginLeft}; margin-right: ${marginRight}; margin-bottom: 5px; page-break-inside: avoid;">`;
+          if (item.url) {
+            questionsHtml += `<img src="${item.url}" style="width: ${item.width}px; height: ${item.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
           } else {
-            questionsHtml += `<div style="width: ${pic.width}px; height: ${pic.height}px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
+            questionsHtml += `<div style="width: ${item.width}px; height: ${item.height}px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
           }
+          questionsHtml += `</div>`;
+          if (item.hasLine) {
+            questionsHtml += `<div style="border-bottom: 1px solid #000; width: ${item.lineLength}%; margin-top: 5px; margin-bottom: 5px;"></div>`;
+          }
+          questionsHtml += `</div>`;
         });
         questionsHtml += `</div>`;
-        questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
+      } else if (q.type === 'drawing') {
+        questionsHtml += `<div style="margin-top: 10px;">`;
+        (q.items||[]).forEach((item, idx) => {
+          questionsHtml += `<div style="margin-bottom: 15px; page-break-inside: auto;">
+            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${item.text || ''}</div>
+            <div style="border: 1px solid #000; height: ${item.boxHeight}px; width: ${item.boxWidth}%; page-break-inside: avoid;"></div>
+          </div>`;
+        });
+        questionsHtml += `</div>`;
+      } else if (q.type === 'mentioning') {
+        questionsHtml += `<div style="margin-top: 10px;">`;
+        (q.items||[]).forEach((item, idx) => {
+          const prefix = getMentionPrefix(q.format, idx);
+          questionsHtml += `<div style="display: flex; align-items: baseline; gap: 5px; margin-bottom: 8px; page-break-inside: avoid;">
+            <span style="font-weight: bold; white-space: nowrap;">${prefix}</span>
+            ${item.text ? `<span style="margin-right: 5px;">${item.text}</span>` : ''}
+            <span style="border-bottom: 1px solid #000; flex-grow: 1; min-width: 50%;"></span>
+          </div>`;
+        });
+        questionsHtml += `</div>`;
       } else if (q.type === 'short') {
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'long') {
         for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px; page-break-inside: avoid;"></div>`;
-      } else if (q.type === 'drawing') {
-        questionsHtml += `<div style="margin:6px 0; border:1px solid #000; height: ${q.boxHeight||100}px; width: ${q.boxWidth||100}%; background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px); page-break-inside: avoid;"></div>`;
       }
       
       questionsHtml += `</div></div>`; 
     }
   });
 
-  // FIX: MARGIN REDUCED TO 12px (ONE ENTER). LOGO LEFT -5mm. FONT APPLIED TO HEADINGS/BODY.
   return `
     <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; color: #000; box-sizing: border-box;">
       <div style="padding: 10mm; position: relative; z-index: 5;">
@@ -1842,6 +1868,19 @@ function toRoman(num) {
   return romans[num - 1] || num;
 }
 
+// Helper for Mentioning Prefix
+function getMentionPrefix(format, index) {
+  const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
+  const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
+  switch(format) {
+    case 'roman': return `${romans[index]}.`;
+    case 'bracket-roman': return `(${romans[index]})`;
+    case 'letter': return `${letters[index]}.`;
+    case 'bracket-letter': return `(${letters[index]})`;
+    default: return `${index+1}.`;
+  }
+}
+
 function updateExamPreview() {
   const previewDiv = document.getElementById('exam-live-preview');
   if (previewDiv) {
@@ -1853,7 +1892,7 @@ function updateExamPreview() {
 }
 
 function renderQuestionEditor(q, i) {
-  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items' };
+  const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items', mentioning: 'Mentioning' };
   
   if (q.type === 'section') {
     return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
@@ -1911,40 +1950,79 @@ function renderQuestionEditor(q, i) {
   } else if (q.type === 'picture') {
     extraFields += `
       <div class="space-y-2 mt-3">
-        <label class="form-label">Sub-items (e.g., (i) What is this? (ii) Name the part)</label>
-        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
-        
-        <label class="form-label">Attached Pictures</label>
-        ${(q.pictures||[]).map((pic, idx) => `
+        <label class="form-label">Picture Items</label>
+        ${(q.items||[]).map((item, idx) => `
           <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
-            <div class="flex items-center gap-2 mb-2">
-              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${idx}, this)">
-              <button class="icon-btn" style="width:32px;height:32px;" onclick="removePictureImage(${q.id}, ${idx})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-600">Item ${idx+1}</span>
+              <button class="icon-btn" style="width:28px;height:28px;" onclick="removePictureItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
             </div>
-            ${pic.url ? `<img src="${pic.url}" style="max-height:80px;border:1px solid var(--border);border-radius:4px;">` : ''}
-            <div class="grid grid-cols-3 gap-2 mt-2">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.width}" placeholder="W (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'width', this.value)">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${pic.height}" placeholder="H (px)" onchange="updatePictureSetting(${q.id}, ${idx}, 'height', this.value)">
-              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureSetting(${q.id}, ${idx}, 'align', this.value)">
-                <option value="left" ${pic.align==='left'?'selected':''}>Left</option>
-                <option value="center" ${pic.align==='center'?'selected':''}>Center</option>
-                <option value="right" ${pic.align==='right'?'selected':''}>Right</option>
+            <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) What is this?)" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
+            <div class="flex items-center gap-2 mb-2">
+              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${item.id}, this)">
+              ${item.url ? `<img src="${item.url}" style="max-height:60px;border:1px solid #ccc;border-radius:4px;">` : ''}
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.width}" placeholder="W" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'width', this.value)">
+              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.height}" placeholder="H" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'height', this.value)">
+              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'align', this.value)">
+                <option value="left" ${item.align==='left'?'selected':''}>Left</option>
+                <option value="center-left" ${item.align==='center-left'?'selected':''}>Center-Left</option>
+                <option value="center" ${item.align==='center'?'selected':''}>Center</option>
+                <option value="center-right" ${item.align==='center-right'?'selected':''}>Center-Right</option>
+                <option value="right" ${item.align==='right'?'selected':''}>Right</option>
               </select>
+            </div>
+            <div class="mt-2 flex items-center gap-4">
+              <label class="flex items-center gap-2 text-xs">
+                <input type="checkbox" ${item.hasLine?'checked':''} onchange="updatePictureItemProp(${q.id}, ${item.id}, 'hasLine', this.checked)"> Add Answer Line
+              </label>
+              ${item.hasLine ? `<input type="number" class="form-input" style="padding:4px;font-size:11px;width:80px;" value="${item.lineLength}" placeholder="%" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'lineLength', this.value)">` : ''}
             </div>
           </div>
         `).join('')}
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureImage(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Image Slot</button>
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Picture Item</button>
       </div>
     `;
   } else if (q.type === 'drawing') {
     extraFields += `
       <div class="space-y-2 mt-3">
-        <label class="form-label">Sub-items (e.g., (i) Draw the map (ii) Label it)</label>
-        <textarea class="form-input" rows="2" placeholder="Enter sub-items..." onchange="updateQuestionField(${q.id}, 'subItems', this.value)">${q.subItems||''}</textarea>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${q.boxHeight||100}" onchange="updateQuestionField(${q.id}, 'boxHeight', this.value)"></div>
-          <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${q.boxWidth||100}" onchange="updateQuestionField(${q.id}, 'boxWidth', this.value)"></div>
+        <label class="form-label">Drawing Items</label>
+        ${(q.items||[]).map((item, idx) => `
+          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-600">Item ${idx+1}</span>
+              <button class="icon-btn" style="width:28px;height:28px;" onclick="removeDrawingItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+            </div>
+            <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) Draw the map)" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${item.boxHeight}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxHeight', this.value)"></div>
+              <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${item.boxWidth}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxWidth', this.value)"></div>
+            </div>
+          </div>
+        `).join('')}
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addDrawingItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Drawing Item</button>
+      </div>
+    `;
+  } else if (q.type === 'mentioning') {
+    extraFields += `
+      <div class="space-y-2 mt-3">
+        <div><label class="form-label">Numbering Format</label>
+          <select class="form-input" onchange="updateMentioningFormat(${q.id}, this.value)">
+            <option value="roman" ${q.format==='roman'?'selected':''}>i. ii. iii.</option>
+            <option value="bracket-roman" ${q.format==='bracket-roman'?'selected':''}>(i) (ii) (iii)</option>
+            <option value="letter" ${q.format==='letter'?'selected':''}>a. b. c.</option>
+            <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
+          </select>
         </div>
+        <label class="form-label">Items</label>
+        ${(q.items||[]).map((item, idx) => `
+          <div class="flex items-center gap-2 mb-2">
+            <input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item.text}" placeholder="Item text (optional)" onchange="updateMentioningItemProp(${q.id}, ${item.id}, 'text', this.value)">
+            <button class="icon-btn" style="width:32px;height:32px;" onclick="removeMentioningItem(${q.id}, ${item.id})"><i class="fa-solid fa-xmark text-xs"></i></button>
+          </div>
+        `).join('')}
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMentioningItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
       </div>
     `;
   }
@@ -1957,8 +2035,9 @@ function addQuestion(type) {
   const newQ = { id, type, text: '', marks: 5 }; 
   if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
-  if (type === 'picture') newQ.pictures = [];
-  if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
+  if (type === 'picture') newQ.items = [{ id: Date.now()+1, text: '', url: '', width: 150, height: 150, align: 'center', hasLine: false, lineLength: 50 }];
+  if (type === 'drawing') newQ.items = [{ id: Date.now()+1, text: '', boxHeight: 100, boxWidth: 100 }];
+  if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
   
   state.examQuestions.push(newQ); 
   state.examDraft.isDirty = true;
@@ -1975,6 +2054,7 @@ function updateQuestionField(id, field, val) {
   } 
 }
 
+// --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); }
@@ -2012,6 +2092,7 @@ function removeMcqChoice(qId, itemId, cIdx) {
   }
 }
 
+// --- MATCHING HELPERS ---
 function addMatchingRow(qId) { 
   const q = state.examQuestions.find(x => x.id === qId); 
   if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); } 
@@ -2029,38 +2110,75 @@ function updateMatchingCol(qId, col, idx, val) {
   } 
 }
 
-function addPictureImage(qId) {
+// --- PICTURE HELPERS (Item-based) ---
+function addPictureItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'picture') { q.items.push({ id: Date.now(), text: '', url: '', width: 150, height: 150, align: 'center', hasLine: false, lineLength: 50 }); state.examDraft.isDirty = true; renderPage(); }
 }
-function removePictureImage(qId, idx) {
+function removePictureItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'picture') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
 }
-function updatePictureSetting(qId, idx, key, val) {
+function updatePictureItemProp(qId, itemId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.pictures[idx]) {
-    q.pictures[idx][key] = val;
-    state.examDraft.isDirty = true;
-    updateExamPreview();
+  if (q && q.type === 'picture') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item[prop] = (prop === 'width' || prop === 'height' || prop === 'lineLength') ? parseInt(val) : val; state.examDraft.isDirty = true; updateExamPreview(); }
   }
 }
-function uploadPictureImage(qId, idx, input) {
+function uploadPictureImage(qId, itemId, input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     const q = state.examQuestions.find(x => x.id === qId);
-    if (q && q.pictures[idx]) {
-      q.pictures[idx].url = e.target.result;
-      state.examDraft.isDirty = true;
-      renderPage();
-      showToast('Picture attached', 'success');
+    if (q && q.type === 'picture') {
+      const item = q.items.find(it => it.id === itemId);
+      if (item) { item.url = e.target.result; state.examDraft.isDirty = true; renderPage(); showToast('Picture attached', 'success'); }
     }
   };
   reader.readAsDataURL(file);
 }
 
+// --- DRAWING HELPERS (Item-based) ---
+function addDrawingItem(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 100 }); state.examDraft.isDirty = true; renderPage(); }
+}
+function removeDrawingItem(qId, itemId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
+}
+function updateDrawingItemProp(qId, itemId, prop, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'drawing') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item[prop] = (prop === 'boxHeight' || prop === 'boxWidth') ? parseInt(val) : val; state.examDraft.isDirty = true; updateExamPreview(); }
+  }
+}
+
+// --- MENTIONING HELPERS ---
+function addMentioningItem(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mentioning') { q.items.push({ id: Date.now(), text: '' }); state.examDraft.isDirty = true; renderPage(); }
+}
+function removeMentioningItem(qId, itemId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mentioning') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
+}
+function updateMentioningItemProp(qId, itemId, prop, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mentioning') {
+    const item = q.items.find(it => it.id === itemId);
+    if (item) { item[prop] = val; state.examDraft.isDirty = true; updateExamPreview(); }
+  }
+}
+function updateMentioningFormat(qId, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; updateExamPreview(); }
+}
+
+// --- MISC HELPERS ---
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); state.examDraft.isDirty = true; renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
@@ -2175,8 +2293,8 @@ async function printExamPaper(exam = null) {
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
-      if (cleanQ.type === 'picture' && cleanQ.pictures) {
-        cleanQ.pictures.forEach(pic => pic.url = '');
+      if (cleanQ.type === 'picture' && cleanQ.items) {
+        cleanQ.items.forEach(item => { if(item.url) item.url = ''; });
       }
       return cleanQ;
     });
