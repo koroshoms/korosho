@@ -132,6 +132,49 @@ select.form-input { cursor: pointer; }
 .question-block.collapsed { background: #f1f5f9; padding: 10px 16px; }
 .progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
+
+/* ===== A4 PAGE STYLES (Word-like pagination & perfectly centered borders) ===== */
+.a4-page {
+  width: 210mm;
+  height: 297mm;
+  background: white;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10mm; /* Creates perfectly equal outer margin for border centering */
+}
+.a4-page-content {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 10mm; /* Inner printable area padding */
+  overflow: hidden;
+  position: relative;
+}
+.preview-scroll-container {
+  overflow: auto; /* Enables both horizontal and vertical scroll */
+  background: #525659;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  width: 100%;
+}
+.preview-pages-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  min-width: max-content;
+  width: max-content;
+  margin: 0 auto;
+}
+.preview-page-wrapper {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
 </style>
 </head>
 <body>
@@ -230,7 +273,6 @@ const state = {
   resultsDraft: { subjectId: null, classId: null }
 };
 
-// MS Word Border CSS Generator
 function getBorderCSS(style) {
   switch(style) {
     case 'none': return 'border: none;';
@@ -258,31 +300,25 @@ function getExamSettings(classId) {
   if (classId && state.examConfig.overrides[classId]) return state.examConfig.overrides[classId];
   return state.examConfig.default;
 }
-  
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   const submitBtn = e.target.querySelector('button[type="submit"]');
   const errorBox = document.getElementById('loginErrorBox');
-
   if (errorBox) { errorBox.classList.add('hidden'); errorBox.innerText = ''; }
   submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In...';
   submitBtn.disabled = true;
-
   try {
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     if (authError) throw new Error(authError.message);
-
     let { data: profile, error: profileError } = await supabase.from('profiles').select('*').eq('id', authData.user.id).single();
     if (profileError && profileError.code === 'PGRST116') {
       const { data: newProfile, error: insertError } = await supabase.from('profiles').insert([{ id: authData.user.id, full_name: email.split('@')[0], role: 'admin', email: email }]).select().single();
       if (insertError) throw new Error('Could not create user profile: ' + insertError.message);
       profile = newProfile;
-    } else if (profileError) {
-      throw new Error('Database Error: ' + profileError.message);
-    }
-
+    } else if (profileError) { throw new Error('Database Error: ' + profileError.message); }
     state.currentUser = { id: authData.user.id, username: email, name: profile.full_name || email.split('@')[0], role: profile.role || 'admin' };
     document.getElementById('loginPage').classList.add('hidden-page');
     document.getElementById('appShell').classList.remove('hidden-page');
@@ -330,57 +366,38 @@ async function fetchAllData() {
     state.teachers = profiles.filter(p => ['teacher', 'academic', 'headteacher', 'admin'].includes(p.role)) || [];
     profiles.forEach(p => { profilesMap[p.id] = p; });
   } catch (e) { console.warn("Profiles fetch failed:", e.message); state.teachers = []; }
-
   try {
     const { data: classes, error: cErr } = await supabase.from('classes').select('*');
     if (cErr) throw cErr;
-    state.classes = (classes || []).map(c => ({
-      ...c,
-      profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null
-    }));
+    state.classes = (classes || []).map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
   } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
-
   try {
     const { data: subjects, error: sErr } = await supabase.from('subjects').select('*');
     if (sErr) throw sErr;
-    state.subjects = (subjects || []).map(s => ({
-      ...s,
-      profiles: s.teacher_id ? profilesMap[s.teacher_id] : null
-    }));
+    state.subjects = (subjects || []).map(s => ({ ...s, profiles: s.teacher_id ? profilesMap[s.teacher_id] : null }));
   } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
-
   try {
     const { data: students, error: stErr } = await supabase.from('students').select('*');
     if (stErr) throw stErr;
     const classesMap = {};
     state.classes.forEach(c => classesMap[c.id] = c);
-    state.students = (students || []).map(st => ({
-      ...st,
-      classes: st.class_id ? classesMap[st.class_id] : null
-    }));
+    state.students = (students || []).map(st => ({ ...st, classes: st.class_id ? classesMap[st.class_id] : null }));
   } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
-
   try {
     const { data: notices, error: nErr } = await supabase.from('notices').select('*').order('created_at', { ascending: false });
     if (nErr) throw nErr;
-    state.notices = (notices || []).map(n => ({
-      ...n,
-      profiles: n.author_id ? profilesMap[n.author_id] : null
-    }));
+    state.notices = (notices || []).map(n => ({ ...n, profiles: n.author_id ? profilesMap[n.author_id] : null }));
   } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
-
   try {
     const { data: exams, error: eErr } = await supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false });
     if (eErr) throw eErr;
     state.exams = exams || [];
   } catch (e) { console.warn("Exams fetch failed:", e.message); state.exams = []; }
-
   try {
     const { data: results, error: rErr } = await supabase.from('results').select('*');
     if (rErr) throw rErr;
     state.results = results || [];
   } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
-
   if (!state.timetable) generateTimetable();
 }
 
@@ -427,24 +444,14 @@ async function initApp() {
   buildNav();
   await fetchAllData();
   navigateTo('dashboard');
-  
-  supabase.channel('public:published_reports')
+  supabase.channel('public:published_results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
-      if (state.currentPage === 'results') {
-        await checkPublishStatus();
-        await loadNectaReport();
-      }
-    })
-    .subscribe();
-
+      if (state.currentPage === 'results') { await checkPublishStatus(); await loadNectaReport(); }
+    }).subscribe();
   supabase.channel('public:results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'results' }, async payload => {
-      if (state.currentPage === 'results') {
-        await fetchAllData();
-        await loadNectaReport();
-      }
-    })
-    .subscribe();
+      if (state.currentPage === 'results') { await fetchAllData(); await loadNectaReport(); }
+    }).subscribe();
 }
 
 function buildNav() {
@@ -485,10 +492,7 @@ function renderPage() {
   else if (page === 'notices') host.innerHTML = renderNotices();
   else if (page === 'publish') host.innerHTML = renderPublish();
   else if (page === 'exam-config') host.innerHTML = renderExamConfig();
-  else if (page === 'exam-set') {
-    host.innerHTML = renderExamSet();
-    updateExamPreview();
-  }
+  else if (page === 'exam-set') { host.innerHTML = renderExamSet(); setTimeout(updateExamPreview, 50); }
   else if (page === 'exam-review') host.innerHTML = renderExamReview();
   else if (page === 'reports') host.innerHTML = renderReports();
 }
@@ -497,7 +501,6 @@ function renderDashboard() {
   const u = state.currentUser, firstName = u.name.split(' ')[0], greet = getGreeting();
   const roleLabels = { admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Master', teacher: 'Teacher' };
   let stats = [], quickLinks = [];
-
   if (u.role === 'admin') {
     stats = [
       { label: 'Total Teachers', value: state.teachers.length, icon: 'fa-chalkboard-user', color: 'emerald' },
@@ -562,7 +565,6 @@ function renderDashboard() {
       { page: 'notices', icon: 'fa-bullhorn', color: 'amber', label: 'View Notices' }
     ];
   }
-
   const colorMap = { emerald: { bg: '#ECFDF5', fg: '#047857' }, blue: { bg: '#DBEAFE', fg: '#1E40AF' }, amber: { bg: '#FEF3C7', fg: '#92400E' }, purple: { bg: '#F3E8FF', fg: '#6B21A8' } };
   const statsHtml = stats.map((s, i) => {
     const c = colorMap[s.color];
@@ -574,7 +576,6 @@ function renderDashboard() {
       <div class="text-xs text-slate-500 flex items-center gap-1.5"><i class="fa-solid fa-circle text-emerald-600 text-[6px]"></i> Live Data</div>
     </div>`;
   }).join('');
-
   const recentNotices = state.notices.slice(0, 3).map(n => `
     <div class="notice-card ${n.priority==='high'?'high':''} fade-up-4">
       <div class="flex items-start justify-between gap-3 mb-1">
@@ -585,7 +586,6 @@ function renderDashboard() {
       <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400"><span><i class="fa-solid fa-user mr-1"></i> ${n.profiles?.full_name || 'Unknown'}</span><span><i class="fa-solid fa-calendar mr-1"></i> ${new Date(n.created_at).toLocaleDateString()}</span></div>
     </div>
   `).join('');
-
   const quickLinksHtml = quickLinks.map((q, i) => {
     const c = colorMap[q.color];
     return `<button onclick="navigateTo('${q.page}')" class="p-4 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center">
@@ -593,7 +593,6 @@ function renderDashboard() {
       <div class="font-semibold text-sm">${q.label}</div>
     </button>`;
   }).join('');
-
   return `
     <div class="rounded-2xl p-6 mb-6 fade-up-1" style="background: linear-gradient(135deg, #065F46 0%, #047857 50%, #0F172A 100%); position: relative; overflow: hidden;">
       <div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,#F59E0B,transparent 70%);opacity:0.2;"></div>
@@ -604,20 +603,12 @@ function renderDashboard() {
       </div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${statsHtml}</div>
-    
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      ${u.role === 'teacher' ? `
-      <div class="card fade-up-3">
-        <div class="section-title"><span><i class="fa-solid fa-calendar-day text-blue-600 mr-2"></i> Today's Schedule</span></div>
-        ${renderTeacherTodaySchedule(u)}
-      </div>
-      ` : ''}
-      
+      ${u.role === 'teacher' ? `<div class="card fade-up-3"><div class="section-title"><span><i class="fa-solid fa-calendar-day text-blue-600 mr-2"></i> Today's Schedule</span></div>${renderTeacherTodaySchedule(u)}</div>` : ''}
       <div class="card fade-up-4 ${u.role === 'teacher' ? 'lg:col-span-1' : 'lg:col-span-2'}">
         <div class="section-title"><span><i class="fa-solid fa-bullhorn text-amber-500 mr-2"></i> Recent Notices</span></div>
         <div class="space-y-3">${recentNotices || '<p class="text-slate-500 text-sm">No notices yet.</p>'}</div>
       </div>
-      
       <div class="card fade-up-4">
         <div class="section-title"><span><i class="fa-solid fa-bolt text-emerald-600 mr-2"></i> Quick Actions</span></div>
         <div class="grid grid-cols-2 gap-3">${quickLinksHtml}</div>
@@ -629,54 +620,32 @@ function renderDashboard() {
 function renderTeacherTodaySchedule(user) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   if (!['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].includes(today)) return '<p class="text-sm text-slate-500">No school today.</p>';
-  
   const sessions = [];
   if (state.timetable) {
     state.timetable.timeSlots.forEach((slot, sIdx) => {
       if (slot.type === 'break') return;
       const cell = state.timetable.cells[`${today}-${sIdx}`];
-      if (cell && cell.type === 'lesson' && cell.teaId === user.id) {
-        sessions.push({ ...cell, time: slot.time, sIdx });
-      }
+      if (cell && cell.type === 'lesson' && cell.teaId === user.id) sessions.push({ ...cell, time: slot.time, sIdx });
     });
   }
-
   if (sessions.length === 0) return '<p class="text-sm text-slate-500">You have no teaching sessions today.</p>';
-
   const now = new Date();
   const currentMins = now.getHours() * 60 + now.getMinutes();
-
-  return `
-    <div class="space-y-2">
-      ${sessions.map(s => {
-        const [start, end] = s.time.split(' - ');
-        const [sh, sm] = start.split(':').map(Number);
-        const [eh, em] = end.split(':').map(Number);
-        const startMins = sh * 60 + sm;
-        const endMins = eh * 60 + em;
-
-        let status = { label: 'Upcoming', color: 'gray', icon: 'fa-clock' };
-        if (currentMins > endMins) {
-          status = { label: 'Completed', color: 'green', icon: 'fa-check-circle' };
-        } else if (currentMins >= startMins && currentMins <= endMins) {
-          status = { label: 'In Progress', color: 'amber', icon: 'fa-spinner fa-spin' };
-        }
-
-        return `
-          <div class="flex items-center gap-3 p-3 rounded-lg border ${status.color === 'amber' ? 'bg-amber-50' : status.color === 'green' ? 'bg-green-50' : 'bg-slate-50'}" style="border-color:var(--border)">
-            <div class="text-xs font-mono font-bold w-20 text-slate-600">${s.time}</div>
-            <div class="flex-1">
-              <div class="font-semibold text-sm">${s.subj}</div>
-              <div class="text-xs text-slate-500">Period ${s.sIdx + 1}</div>
-            </div>
-            <div class="badge badge-${status.color}">
-              <i class="fa-solid ${status.icon} mr-1"></i> ${status.label}
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
+  return `<div class="space-y-2">${sessions.map(s => {
+    const [start, end] = s.time.split(' - ');
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    const startMins = sh * 60 + sm;
+    const endMins = eh * 60 + em;
+    let status = { label: 'Upcoming', color: 'gray', icon: 'fa-clock' };
+    if (currentMins > endMins) status = { label: 'Completed', color: 'green', icon: 'fa-check-circle' };
+    else if (currentMins >= startMins && currentMins <= endMins) status = { label: 'In Progress', color: 'amber', icon: 'fa-spinner fa-spin' };
+    return `<div class="flex items-center gap-3 p-3 rounded-lg border ${status.color === 'amber' ? 'bg-amber-50' : status.color === 'green' ? 'bg-green-50' : 'bg-slate-50'}" style="border-color:var(--border)">
+      <div class="text-xs font-mono font-bold w-20 text-slate-600">${s.time}</div>
+      <div class="flex-1"><div class="font-semibold text-sm">${s.subj}</div><div class="text-xs text-slate-500">Period ${s.sIdx + 1}</div></div>
+      <div class="badge badge-${status.color}"><i class="fa-solid ${status.icon} mr-1"></i> ${status.label}</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 async function renderTeachers() {
@@ -687,35 +656,23 @@ async function renderTeachers() {
     if (error) throw error;
     state.teachers = teachers || [];
     const isAdmin = state.currentUser.role === 'admin';
-    host.innerHTML = `
-      <div class="card fade-up-1">
-        <div class="section-title">
-          <span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>
-          ${isAdmin ? `<button class="btn-primary" onclick="openModal('addTeacher')"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}
-        </div>
-        <div class="overflow-x-auto">
-          <table class="data-table">
-            <thead><tr><th>Teacher</th><th>Email</th><th>Role</th><th>Phone</th>${isAdmin ? '<th>Actions</th>' : ''}</tr></thead>
-            <tbody>
-              ${state.teachers.map(t => {
-                const initials = (t.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-                const roleColors = { admin: 'purple', headteacher: 'amber', academic: 'blue', teacher: 'green' };
-                return `<tr>
-                  <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div class="font-semibold text-slate-900">${t.full_name}</div></div></td>
-                  <td><span class="text-xs text-slate-600">${t.email || 'N/A'}</span></td>
-                  <td><span class="badge badge-${roleColors[t.role]} capitalize">${t.role}</span></td>
-                  <td><span class="text-xs text-slate-600">${t.phone || 'N/A'}</span></td>
-                  ${isAdmin ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteTeacher('${t.id}')"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `;
-  } catch (error) {
-    host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`;
-  }
+    host.innerHTML = `<div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-chalkboard-user text-emerald-600 mr-2"></i> Teaching Staff</span>${isAdmin ? `<button class="btn-primary" onclick="openModal('addTeacher')"><i class="fa-solid fa-plus mr-1"></i> Add Teacher</button>` : ''}</div>
+      <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Teacher</th><th>Email</th><th>Role</th><th>Phone</th>${isAdmin ? '<th>Actions</th>' : ''}</tr></thead><tbody>
+        ${state.teachers.map(t => {
+          const initials = (t.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+          const roleColors = { admin: 'purple', headteacher: 'amber', academic: 'blue', teacher: 'green' };
+          return `<tr>
+            <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div class="font-semibold text-slate-900">${t.full_name}</div></div></td>
+            <td><span class="text-xs text-slate-600">${t.email || 'N/A'}</span></td>
+            <td><span class="badge badge-${roleColors[t.role]} capitalize">${t.role}</span></td>
+            <td><span class="text-xs text-slate-600">${t.phone || 'N/A'}</span></td>
+            ${isAdmin ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteTeacher('${t.id}')"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
+          </tr>`;
+        }).join('')}
+      </tbody></table></div>
+    </div>`;
+  } catch (error) { host.innerHTML = `<div class="card"><p class="text-red-500">Error loading teachers: ${error.message}</p></div>`; }
 }
 
 async function deleteTeacher(id) {
@@ -728,33 +685,21 @@ async function deleteTeacher(id) {
 }
 
 function renderStudents() {
-  return `
-    <div class="card fade-up-1">
-      <div class="section-title">
-        <span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span>
-        <button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add Student</button>
-      </div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th><th>Actions</th></tr></thead>
-          <tbody>
-            ${state.students.map(s => {
-              const initials = (s.name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
-              return `<tr>
-                <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#D97706,#F59E0B);">${initials}</div><div class="font-semibold text-slate-900">${s.name}</div></div></td>
-                <td><span class="badge badge-blue">${s.classes?.name || 'N/A'}</span></td>
-                <td>${s.gender==='F'?'<span class="badge badge-purple">Female</span>':'<span class="badge badge-blue">Male</span>'}</td>
-                <td>${s.age}</td>
-                <td>${s.parent_name}</td>
-                <td><span class="text-xs text-slate-600">${s.parent_phone}</span></td>
-                <td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteStudent(${s.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span><button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add Student</button></div>
+    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th><th>Actions</th></tr></thead><tbody>
+      ${state.students.map(s => {
+        const initials = (s.name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
+        return `<tr>
+          <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#D97706,#F59E0B);">${initials}</div><div class="font-semibold text-slate-900">${s.name}</div></div></td>
+          <td><span class="badge badge-blue">${s.classes?.name || 'N/A'}</span></td>
+          <td>${s.gender==='F'?'<span class="badge badge-purple">Female</span>':'<span class="badge badge-blue">Male</span>'}</td>
+          <td>${s.age}</td><td>${s.parent_name}</td><td><span class="text-xs text-slate-600">${s.parent_phone}</span></td>
+          <td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteStudent(${s.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>
+  </div>`;
 }
 
 async function deleteStudent(id) {
@@ -767,63 +712,51 @@ async function deleteStudent(id) {
 }
 
 function renderClasses() {
-  return `
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 fade-up-1">
-      ${state.classes.map((c, i) => {
-        const teacher = c.profiles;
-        const initials = teacher ? (teacher.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() : "?";
-        return `<div class="card fade-up-${i+1}" style="padding:0;overflow:hidden;">
-          <div class="p-5" style="background: linear-gradient(135deg, ${['#047857','#D97706','#0EA5E9','#9333EA','#DC2626'][i%5]}, ${['#10B981','#F59E0B','#0284C7','#A855F7','#EF4444'][i%5]});">
-            <div class="flex items-center justify-between text-white">
-              <div><div class="text-xs uppercase tracking-wider opacity-80">Class</div><div class="text-2xl font-bold">${c.name}</div></div>
-              <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center"><i class="fa-solid fa-school text-xl"></i></div>
-            </div>
+  return `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 fade-up-1">
+    ${state.classes.map((c, i) => {
+      const teacher = c.profiles;
+      const initials = teacher ? (teacher.full_name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase() : "?";
+      return `<div class="card fade-up-${i+1}" style="padding:0;overflow:hidden;">
+        <div class="p-5" style="background: linear-gradient(135deg, ${['#047857','#D97706','#0EA5E9','#9333EA','#DC2626'][i%5]}, ${['#10B981','#F59E0B','#0284C7','#A855F7','#EF4444'][i%5]});">
+          <div class="flex items-center justify-between text-white">
+            <div><div class="text-xs uppercase tracking-wider opacity-80">Class</div><div class="text-2xl font-bold">${c.name}</div></div>
+            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center"><i class="fa-solid fa-school text-xl"></i></div>
           </div>
-          <div class="p-5">
-            <div class="flex items-center gap-3 mb-4">
-              ${teacher ? `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold">${teacher.full_name}</div></div>` : `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:#E2E8F0;color:#64748B;"><i class="fa-solid fa-user-slash"></i></div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold text-slate-400">Not assigned</div></div>`}
-            </div>
-            <div class="grid grid-cols-2 gap-3 mb-4">
-              <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Room</div><div class="text-sm font-bold text-slate-900">${c.room || 'N/A'}</div></div>
-              <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Students</div><div class="text-sm font-bold text-slate-900">${state.students.filter(s => s.class_id === c.id).length}</div></div>
-            </div>
-            <button class="btn-ghost w-full" onclick="openModal('assignTeacher', ${c.id})"><i class="fa-solid fa-user-pen mr-1"></i> Assign Teacher</button>
+        </div>
+        <div class="p-5">
+          <div class="flex items-center gap-3 mb-4">
+            ${teacher ? `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:linear-gradient(135deg,#047857,#10B981);">${initials}</div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold">${teacher.full_name}</div></div>` : `<div class="avatar" style="width:40px;height:40px;font-size:13px;background:#E2E8F0;color:#64748B;"><i class="fa-solid fa-user-slash"></i></div><div><div class="text-xs text-slate-500">Class Teacher</div><div class="text-sm font-semibold text-slate-400">Not assigned</div></div>`}
           </div>
-        </div>`;
-      }).join('')}
-      <div class="card fade-up-5 flex flex-col items-center justify-center text-center" style="border:2px dashed var(--border);cursor:pointer;" onclick="openModal('addClass')">
-        <div class="w-14 h-14 rounded-circle bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><i class="fa-solid fa-plus text-xl"></i></div>
-        <div class="font-semibold text-slate-900">Add New Class</div>
-      </div>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Room</div><div class="text-sm font-bold text-slate-900">${c.room || 'N/A'}</div></div>
+            <div class="bg-slate-50 rounded-lg p-3"><div class="text-xs text-slate-500">Students</div><div class="text-sm font-bold text-slate-900">${state.students.filter(s => s.class_id === c.id).length}</div></div>
+          </div>
+          <button class="btn-ghost w-full" onclick="openModal('assignTeacher', ${c.id})"><i class="fa-solid fa-user-pen mr-1"></i> Assign Teacher</button>
+        </div>
+      </div>`;
+    }).join('')}
+    <div class="card fade-up-5 flex flex-col items-center justify-center text-center" style="border:2px dashed var(--border);cursor:pointer;" onclick="openModal('addClass')">
+      <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3"><i class="fa-solid fa-plus text-xl"></i></div>
+      <div class="font-semibold text-slate-900">Add New Class</div>
     </div>
-  `;
+  </div>`;
 }
 
 function renderSubjects() {
-  return `
-    <div class="card fade-up-1">
-      <div class="section-title">
-        <span><i class="fa-solid fa-book text-emerald-600 mr-2"></i> Subjects Offered</span>
-        <button class="btn-primary" onclick="openModal('addSubject')"><i class="fa-solid fa-plus mr-1"></i> Add Subject</button>
-      </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        ${state.subjects.map((s, i) => {
-          const colors = [
-            {bg:'#ECFDF5', fg:'#047857', border:'#A7F3D0'}, {bg:'#FFFBEB', fg:'#D97706', border:'#FDE68A'},
-            {bg:'#EFF6FF', fg:'#1E40AF', border:'#BFDBFE'}, {bg:'#FAF5FF', fg:'#9333EA', border:'#E9D5FF'}
-          ];
-          const c = colors[i % colors.length];
-          return `<div class="border rounded-xl p-4 hover:shadow-md transition-all fade-up-${(i%6)+1}" style="border-color:${c.border};">
-            <div class="flex items-start justify-between mb-3">
-              <div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold" style="background:${c.bg};color:${c.fg};">${s.code}</div>
-            </div>
-            <h4 class="font-bold text-slate-900">${s.name}</h4>
-            <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${s.profiles?.full_name || 'Unassigned'}</p>
-          </div>`;
-        }).join('')}
-      </div>
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-book text-emerald-600 mr-2"></i> Subjects Offered</span><button class="btn-primary" onclick="openModal('addSubject')"><i class="fa-solid fa-plus mr-1"></i> Add Subject</button></div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      ${state.subjects.map((s, i) => {
+        const colors = [{bg:'#ECFDF5',fg:'#047857',border:'#A7F3D0'},{bg:'#FFFBEB',fg:'#D97706',border:'#FDE68A'},{bg:'#EFF6FF',fg:'#1E40AF',border:'#BFDBFE'},{bg:'#FAF5FF',fg:'#9333EA',border:'#E9D5FF'}];
+        const c = colors[i % colors.length];
+        return `<div class="border rounded-xl p-4 hover:shadow-md transition-all fade-up-${(i%6)+1}" style="border-color:${c.border};">
+          <div class="flex items-start justify-between mb-3"><div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold" style="background:${c.bg};color:${c.fg};">${s.code}</div></div>
+          <h4 class="font-bold text-slate-900">${s.name}</h4>
+          <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${s.profiles?.full_name || 'Unassigned'}</p>
+        </div>`;
+      }).join('')}
     </div>
-  `;
+  </div>`;
 }
 
 function generateTimetable() {
@@ -837,52 +770,28 @@ function generateTimetable() {
     { time: '13:00 - 14:00', type: 'break', label: 'Lunch Break' },
     { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
-  
   const subjectPool = state.subjects.length > 0 ? state.subjects : [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
   const teachers = state.teachers || [];
-
   const lessonSlots = timeSlots.filter(s => s.type === 'lesson').length;
   const totalPeriods = lessonSlots * days.length;
   const pool = [];
   const baseCount = Math.floor(totalPeriods / subjectPool.length);
   const remainder = totalPeriods % subjectPool.length;
-
-  subjectPool.forEach((subj, idx) => {
-    let count = baseCount + (idx < remainder ? 1 : 0);
-    for(let i=0; i<count; i++) pool.push(subj);
-  });
-
-  for(let i=pool.length-1; i>0; i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [pool[i],pool[j]] = [pool[j],pool[i]];
-  }
-
+  subjectPool.forEach((subj, idx) => { let count = baseCount + (idx < remainder ? 1 : 0); for(let i=0; i<count; i++) pool.push(subj); });
+  for(let i=pool.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
   const timetable = { days, timeSlots, cells: {} };
   let poolIdx = 0;
-
   days.forEach(day => {
     let prevSubjectId = null;
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
-      if (slot.type === 'break') {
-        timetable.cells[key] = { type: 'break', label: slot.label };
-      } else {
+      if (slot.type === 'break') { timetable.cells[key] = { type: 'break', label: slot.label }; }
+      else {
         let attempts = 0;
         let chosenSubj = pool[poolIdx % pool.length];
-        while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) {
-          poolIdx++;
-          chosenSubj = pool[poolIdx % pool.length];
-          attempts++;
-        }
-        
+        while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
         const teacher = teachers.find(t => t.id === chosenSubj.teacher_id);
-        timetable.cells[key] = { 
-          type: 'lesson', 
-          subj: chosenSubj.name, 
-          subjId: chosenSubj.id,
-          tea: teacher ? teacher.full_name : '—',
-          teaId: teacher ? teacher.id : null
-        };
+        timetable.cells[key] = { type: 'lesson', subj: chosenSubj.name, subjId: chosenSubj.id, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
         prevSubjectId = chosenSubj.id;
         poolIdx++;
       }
@@ -896,44 +805,32 @@ function renderTimetable() {
   let gridStyle = `grid-template-columns: 110px repeat(${tt.days.length}, 1fr);`;
   let cells = `<div class="tt-header">Time / Day</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
-  
   tt.timeSlots.forEach((slot, sIdx) => {
     cells += `<div class="tt-time">${slot.time}</div>`;
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
       const cell = tt.cells[key];
-      if (cell.type === 'break') { 
-        cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; 
-      } else {
+      if (cell.type === 'break') { cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; }
+      else {
         cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
-          <div class="tt-class">
-            <div class="subj">${cell.subj}</div>
-            <div class="tea"><i class="fa-solid fa-user mr-1"></i> ${cell.tea.split(' ').slice(-1)[0]}</div>
-          </div>
+          <div class="tt-class"><div class="subj">${cell.subj}</div><div class="tea"><i class="fa-solid fa-user mr-1"></i> ${cell.tea.split(' ').slice(-1)[0]}</div></div>
         </div>`;
       }
     });
   });
-  
-  return `
-    <div class="card fade-up-1">
-      <div class="section-title">
-        <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
-        ${isAdmin ? `<div class="flex flex-wrap gap-2">
-          <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
-          <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
-          <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
-        </div>` : ''}
-      </div>
-      <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
+      ${isAdmin ? `<div class="flex flex-wrap gap-2">
+        <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
+        <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
+        <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
+      </div>` : ''}
     </div>
-  `;
+    <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+  </div>`;
 }
 
-function editTimetableCell(day, sIdx) { 
-  openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); 
-}
-
+function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
 function addTimetableColumn() {
   const lastIdx = state.timetable.timeSlots.length - 1;
   const lastTime = state.timetable.timeSlots[lastIdx].time.split(' - ')[1];
@@ -941,145 +838,73 @@ function addTimetableColumn() {
   m += 40;
   if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
   const newTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  
   state.timetable.timeSlots.push({ time: `${lastTime} - ${newTime}`, type: 'lesson' });
-  
   const newPeriodIdx = state.timetable.timeSlots.length - 1;
   state.timetable.days.forEach(day => {
     const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
-    state.timetable.cells[`${day}-${newPeriodIdx}`] = { 
-      type: 'lesson', 
-      subj: subj.name, 
-      tea: subj.profiles?.full_name || '-' 
-    };
+    state.timetable.cells[`${day}-${newPeriodIdx}`] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' };
   });
-  renderPage(); 
-  showToast('New period column added', 'success');
+  renderPage(); showToast('New period column added', 'success');
 }
-
 function addTimetableRow() {
   const nextDay = state.timetable.days.length;
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   if (nextDay >= days.length) return showToast('No more days to add', 'error');
-  
   const dayName = days[nextDay];
   state.timetable.days.push(dayName);
-  
   state.timetable.timeSlots.forEach((slot, sIdx) => {
     const key = `${dayName}-${sIdx}`;
-    if (slot.type === 'break') {
-      state.timetable.cells[key] = { type: 'break', label: slot.label };
-    } else {
-      const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
-      state.timetable.cells[key] = { 
-        type: 'lesson', 
-        subj: subj.name, 
-        tea: subj.profiles?.full_name || '-' 
-      };
-    }
+    if (slot.type === 'break') state.timetable.cells[key] = { type: 'break', label: slot.label };
+    else { const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}}; state.timetable.cells[key] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' }; }
   });
-  renderPage(); 
-  showToast(`${dayName} added to timetable`, 'success');
+  renderPage(); showToast(`${dayName} added to timetable`, 'success');
 }
-
-function regenerateTimetable() {
-  openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable. Continue?', () => {
-    generateTimetable(); renderPage(); showToast('Timetable regenerated', 'success');
-  });
-}
-
+function regenerateTimetable() { openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable. Continue?', () => { generateTimetable(); renderPage(); showToast('Timetable regenerated', 'success'); }); }
 function saveTimetableCell(day, sIdx, subjId, teaId) {
   const key = `${day}-${sIdx}`;
   const subj = state.subjects.find(s => s.id == subjId);
   const teacher = state.teachers.find(t => t.id == teaId);
-  
-  state.timetable.cells[key] = {
-    type: 'lesson',
-    subj: subj ? subj.name : 'Free',
-    subjId: subj ? subj.id : null,
-    tea: teacher ? teacher.full_name : '—',
-    teaId: teacher ? teacher.id : null
-  };
-  closeModal();
-  renderPage();
-  showToast('Session updated', 'success');
+  state.timetable.cells[key] = { type: 'lesson', subj: subj ? subj.name : 'Free', subjId: subj ? subj.id : null, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
+  closeModal(); renderPage(); showToast('Session updated', 'success');
 }
 
-// --- RESULTS MODULE ---
 let resultsViewMode = 'dashboard';
 let currentResClass = null;
 let isResPublished = false;
-
-function getGrade(m) {
-  if(m >= 81) return "A";
-  if(m >= 61) return "B";
-  if(m >= 41) return "C";
-  if(m >= 21) return "D";
-  return "E";
-}
-
-function getGpa(g) {
-  return {A:1,B:2,C:3,D:4,E:5}[g] || 5;
-}
-
-function formatSubjectName(name) {
-  const map = {
-    "Historia ya Tanzania na Maadili": "HIST.TZ",
-    "Geography and the environment": "GEOGRAPHY",
-    "Arts and Sports": "ARTS & SPORTS"
-  };
-  return map[name] || name;
-}
+function getGrade(m) { if(m >= 81) return "A"; if(m >= 61) return "B"; if(m >= 41) return "C"; if(m >= 21) return "D"; return "E"; }
+function getGpa(g) { return {A:1,B:2,C:3,D:4,E:5}[g] || 5; }
+function formatSubjectName(name) { const map = { "Historia ya Tanzania na Maadili": "HIST.TZ", "Geography and the environment": "GEOGRAPHY", "Arts and Sports": "ARTS & SPORTS" }; return map[name] || name; }
 
 function renderResults() {
-  if (resultsViewMode === 'entry' && ['teacher', 'academic'].includes(state.currentUser.role)) {
-    return renderResultsEntry();
-  }
+  if (resultsViewMode === 'entry' && ['teacher', 'academic'].includes(state.currentUser.role)) return renderResultsEntry();
   return renderResultsDashboard();
 }
 
 function renderResultsDashboard() {
   const canPublish = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
   const canEnter = ['teacher', 'academic'].includes(state.currentUser.role);
-
-  return `
-    <div class="card fade-up-1" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
-      <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">
-        KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD
-      </div>
-      
-      <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
-        <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
-          <option value="">Select Class</option>
-          ${state.classes.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
-        </select>
-        
-        ${canPublish ? `
-        <div id="publishBar" style="display: ${currentResClass ? 'flex' : 'none'}; gap: 10px;">
-          <button class="btn-primary" style="padding: 8px 16px;" onclick="togglePublish()" id="publishBtn">PUBLISH</button>
-          <button class="btn-ghost" style="padding: 8px 16px;" onclick="copyViewLink()">COPY VIEW LINK</button>
-        </div>
-        ` : ''}
-        
-        ${canEnter ? `
-        <button class="btn-ghost" style="padding: 8px 16px; margin-left: auto;" onclick="resultsViewMode='entry'; renderPage();">Enter Marks</button>
-        ` : ''}
-      </div>
-
-      <div id="res-status" style="padding: 10px 20px; font-weight: bold; color: red; background: #f8f9fa;"></div>
-
-      <div id="necta-dashboard" class="p-5" style="background: #f5f6fa;">
-        <p class="text-slate-500 text-center py-6">Select a class to view results.</p>
-      </div>
+  return `<div class="card fade-up-1" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
+    <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD</div>
+    <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
+      <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
+        <option value="">Select Class</option>
+        ${state.classes.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+      </select>
+      ${canPublish ? `<div id="publishBar" style="display: ${currentResClass ? 'flex' : 'none'}; gap: 10px;">
+        <button class="btn-primary" style="padding: 8px 16px;" onclick="togglePublish()" id="publishBtn">PUBLISH</button>
+        <button class="btn-ghost" style="padding: 8px 16px;" onclick="copyViewLink()">COPY VIEW LINK</button>
+      </div>` : ''}
+      ${canEnter ? `<button class="btn-ghost" style="padding: 8px 16px; margin-left: auto;" onclick="resultsViewMode='entry'; renderPage();">Enter Marks</button>` : ''}
     </div>
-  `;
+    <div id="res-status" style="padding: 10px 20px; font-weight: bold; color: red; background: #f8f9fa;"></div>
+    <div id="necta-dashboard" class="p-5" style="background: #f5f6fa;"><p class="text-slate-500 text-center py-6">Select a class to view results.</p></div>
+  </div>`;
 }
 
 async function onResultsClassChange() {
   currentResClass = document.getElementById('res-class-select').value;
   const pubBar = document.getElementById('publishBar');
   if (pubBar) pubBar.style.display = currentResClass ? 'flex' : 'none';
-  
   await checkPublishStatus();
   await loadNectaReport();
 }
@@ -1088,20 +913,13 @@ async function checkPublishStatus() {
   if (!currentResClass) return;
   const { data } = await supabase.from('published_reports').select('*').eq('class_id', currentResClass).maybeSingle();
   isResPublished = data?.is_published || false;
-  
   const pubBtn = document.getElementById('publishBtn');
   if (pubBtn) pubBtn.innerText = isResPublished ? 'UNPUBLISH' : 'PUBLISH';
-  
   const statusEl = document.getElementById('res-status');
   if (!statusEl) return;
-  
-  if (state.currentUser.role === 'teacher' && !isResPublished) {
-    statusEl.innerHTML = '<span style="color:red; font-weight:bold;">⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER</span>';
-  } else if (isResPublished) {
-    statusEl.innerHTML = '<span style="color:green; font-weight:bold;">✅ RESULTS ARE PUBLISHED</span>';
-  } else {
-    statusEl.innerHTML = '';
-  }
+  if (state.currentUser.role === 'teacher' && !isResPublished) statusEl.innerHTML = '<span style="color:red; font-weight:bold;">⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER</span>';
+  else if (isResPublished) statusEl.innerHTML = '<span style="color:green; font-weight:bold;">✅ RESULTS ARE PUBLISHED</span>';
+  else statusEl.innerHTML = '';
 }
 
 async function togglePublish() {
@@ -1109,9 +927,7 @@ async function togglePublish() {
   const newState = !isResPublished;
   const { error } = await supabase.from('published_reports').upsert({ class_id: currentResClass, is_published: newState }, { onConflict: 'class_id' });
   if (error) return showToast(error.message, 'error');
-  
-  await checkPublishStatus();
-  await loadNectaReport();
+  await checkPublishStatus(); await loadNectaReport();
   showToast(newState ? 'Results Published' : 'Results Unpublished', 'success');
 }
 
@@ -1124,198 +940,98 @@ function copyViewLink() {
 async function loadNectaReport() {
   const dash = document.getElementById('necta-dashboard');
   if (!dash) return;
-  
-  if (!currentResClass) { 
-    dash.innerHTML = '<p class="text-slate-500 text-center py-6">Select a class to view results.</p>'; 
-    return; 
-  }
-  
-  if (state.currentUser.role === 'teacher' && !isResPublished) {
-    dash.innerHTML = '<p class="text-red-500 text-center py-6 font-bold">Results not published yet.</p>';
-    return;
-  }
-
+  if (!currentResClass) { dash.innerHTML = '<p class="text-slate-500 text-center py-6">Select a class to view results.</p>'; return; }
+  if (state.currentUser.role === 'teacher' && !isResPublished) { dash.innerHTML = '<p class="text-red-500 text-center py-6 font-bold">Results not published yet.</p>'; return; }
   try {
-    const students = state.students.filter(s => String(s.class_id) === String(currentResClass))
-      .sort((a, b) => {
-        if ((a.gender || "Male") !== (b.gender || "Male")) return (a.gender === "Female") ? 1 : -1;
-        return (a.admission_no || a.name || "").localeCompare(b.admission_no || b.name || "");
-      });
-
+    const students = state.students.filter(s => String(s.class_id) === String(currentResClass)).sort((a, b) => {
+      if ((a.gender || "Male") !== (b.gender || "Male")) return (a.gender === "Female") ? 1 : -1;
+      return (a.admission_no || a.name || "").localeCompare(b.admission_no || b.name || "");
+    });
     let final = [];
     let gradePerf = { Male:{A:0,B:0,C:0,D:0,E:0}, Female:{A:0,B:0,C:0,D:0,E:0} };
-
     students.forEach(stu => {
       let total = 0, count = 0, detail = [];
       state.subjects.forEach(sub => {
         let r = state.results.find(x => String(x.student_id) === String(stu.id) && String(x.subject_id) === String(sub.id));
         if (!r) return;
-        let m = Number(r.marks);
-        total += m; count++;
+        let m = Number(r.marks); total += m; count++;
         detail.push(formatSubjectName(sub.name) + " - " + getGrade(m));
       });
-
       if (count === 0) return;
-      let avg = total / count;
-      let g = getGrade(avg);
+      let avg = total / count; let g = getGrade(avg);
       detail.push("Average - " + g);
-      
-      let genderKey = "Male";
-      if (stu.gender === "F" || stu.gender === "Female") {
-        genderKey = "Female";
-      }
+      let genderKey = (stu.gender === "F" || stu.gender === "Female") ? "Female" : "Male";
       gradePerf[genderKey][g]++;
-
-      final.push({
-        adm: stu.admission_no || 'N/A',
-        prem: stu.prem_no || 'N/A',
-        name: stu.name || "-",
-        sex: (stu.gender === "F" || stu.gender === "Female") ? "F" : "M",
-        detail: detail.join(", ")
-      });
+      final.push({ adm: stu.admission_no || 'N/A', prem: stu.prem_no || 'N/A', name: stu.name || "-", sex: (stu.gender === "F" || stu.gender === "Female") ? "F" : "M", detail: detail.join(", ") });
     });
-
     const thStyle = 'border:2px solid #000; padding:5px; background:#e6e6e6; text-align:left;';
     const tdStyle = 'border:2px solid #000; padding:5px;';
-    
-    let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `
-      <tr><td style="${tdStyle}">${k}</td><td style="${tdStyle}">${v.A}</td><td style="${tdStyle}">${v.B}</td><td style="${tdStyle}">${v.C}</td><td style="${tdStyle}">${v.D}</td><td style="${tdStyle}">${v.E}</td></tr>
-    `).join("");
-
-    let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="${tdStyle} text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `
-      <tr><td style="${tdStyle}">${r.adm}</td><td style="${tdStyle}">${r.prem}</td><td style="${tdStyle}">${r.name}</td><td style="${tdStyle}">${r.sex}</td><td style="${tdStyle}">${r.detail}</td></tr>
-    `).join("");
-
+    let gradePerfHtml = Object.entries(gradePerf).map(([k,v]) => `<tr><td style="${tdStyle}">${k}</td><td style="${tdStyle}">${v.A}</td><td style="${tdStyle}">${v.B}</td><td style="${tdStyle}">${v.C}</td><td style="${tdStyle}">${v.D}</td><td style="${tdStyle}">${v.E}</td></tr>`).join("");
+    let tbodyHtml = final.length === 0 ? `<tr><td colspan="5" style="${tdStyle} text-align:center;">NO STUDENTS DATA</td></tr>` : final.map(r => `<tr><td style="${tdStyle}">${r.adm}</td><td style="${tdStyle}">${r.prem}</td><td style="${tdStyle}">${r.name}</td><td style="${tdStyle}">${r.sex}</td><td style="${tdStyle}">${r.detail}</td></tr>`).join("");
     let subjectStats = state.subjects.map(sub => {
-      let st = state.results.filter(r => {
-        if (String(r.subject_id) !== String(sub.id)) return false;
-        return students.some(s => String(s.id) === String(r.student_id));
-      });
+      let st = state.results.filter(r => { if (String(r.subject_id) !== String(sub.id)) return false; return students.some(s => String(s.id) === String(r.student_id)); });
       if (st.length === 0) return null;
       let total = st.reduce((a,b) => a + Number(b.marks), 0);
       let avg = total / st.length;
       return { name: sub.name, sat: st.length, passed: st.filter(x => x.marks >= 41).length, avg };
     }).filter(Boolean);
-
-    let subtbodyHtml = subjectStats.length === 0 ? 
-      `<tr><td colspan="7" style="${tdStyle} text-align:center;">NO SUBJECT PERFORMANCE DATA</td></tr>` :
-      subjectStats.map((sub, i) => {
-        let g = getGrade(sub.avg);
-        let bgColor = "#fff", color = "#000";
-        if(g==="A"){bgColor="#006400";color="#fff";} 
-        else if(g==="B"){bgColor="#90EE90";color="#000";} 
-        else if(g==="C"){bgColor="#FFFF66";color="#000";} 
-        else if(g==="D"){bgColor="#FFB6B6";color="#000";} 
-        else if(g==="E"){bgColor="#FF0000";color="#fff";}
-        
-        let gpaStyle = `border:2px solid #000; padding:5px; background:${bgColor}; color:${color}; text-align:center; font-weight:bold;`;
-        
-        return `
-          <tr>
-            <td style="${tdStyle}">${i+1}</td>
-            <td style="${tdStyle}">${sub.name}</td>
-            <td style="${tdStyle}">${sub.sat}</td>
-            <td style="${tdStyle}">${sub.sat}</td>
-            <td style="${tdStyle}">${sub.passed}</td>
-            <td style="${tdStyle}">${sub.avg.toFixed(1)}</td>
-            <td style="${gpaStyle}">${g}</td>
-          </tr>
-        `;
-      }).join("");
-
+    let subtbodyHtml = subjectStats.length === 0 ? `<tr><td colspan="7" style="${tdStyle} text-align:center;">NO SUBJECT PERFORMANCE DATA</td></tr>` : subjectStats.map((sub, i) => {
+      let g = getGrade(sub.avg);
+      let bgColor = "#fff", color = "#000";
+      if(g==="A"){bgColor="#006400";color="#fff";} else if(g==="B"){bgColor="#90EE90";color="#000";} else if(g==="C"){bgColor="#FFFF66";color="#000";} else if(g==="D"){bgColor="#FFB6B6";color="#000";} else if(g==="E"){bgColor="#FF0000";color="#fff";}
+      let gpaStyle = `border:2px solid #000; padding:5px; background:${bgColor}; color:${color}; text-align:center; font-weight:bold;`;
+      return `<tr><td style="${tdStyle}">${i+1}</td><td style="${tdStyle}">${sub.name}</td><td style="${tdStyle}">${sub.sat}</td><td style="${tdStyle}">${sub.sat}</td><td style="${tdStyle}">${sub.passed}</td><td style="${tdStyle}">${sub.avg.toFixed(1)}</td><td style="${gpaStyle}">${g}</td></tr>`;
+    }).join("");
     dash.innerHTML = `
-      <div style="margin-bottom: 20px;">
-        <h3 style="font-weight: bold; margin-bottom: 5px;">GRADE PERFORMANCE</h3>
+      <div style="margin-bottom: 20px;"><h3 style="font-weight: bold; margin-bottom: 5px;">GRADE PERFORMANCE</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
           <thead><tr><th style="${thStyle}">SEX</th><th style="${thStyle}">A</th><th style="${thStyle}">B</th><th style="${thStyle}">C</th><th style="${thStyle}">D</th><th style="${thStyle}">E</th></tr></thead>
           <tbody>${gradePerfHtml}</tbody>
         </table>
       </div>
-      
-      <div style="margin-bottom: 20px;">
-        <h3 style="font-weight: bold; margin-bottom: 5px;">STUDENT DETAILS</h3>
+      <div style="margin-bottom: 20px;"><h3 style="font-weight: bold; margin-bottom: 5px;">STUDENT DETAILS</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
           <thead><tr><th style="${thStyle}">CAND NO</th><th style="${thStyle}">PREM NO</th><th style="${thStyle}">NAME</th><th style="${thStyle}">SEX</th><th style="${thStyle}">SUBJECTS</th></tr></thead>
           <tbody>${tbodyHtml}</tbody>
         </table>
       </div>
-
-      <div>
-        <h3 style="font-weight: bold; margin-bottom: 5px;">SUBJECT PERFORMANCE</h3>
+      <div><h3 style="font-weight: bold; margin-bottom: 5px;">SUBJECT PERFORMANCE</h3>
         <table style="width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border: 2px solid #000;">
           <thead><tr><th style="${thStyle}">NO</th><th style="${thStyle}">SUBJECT</th><th style="${thStyle}">REGISTERED</th><th style="${thStyle}">SAT</th><th style="${thStyle}">PASSED</th><th style="${thStyle}">AVERAGE</th><th style="${thStyle}">GPA</th></tr></thead>
           <tbody>${subtbodyHtml}</tbody>
         </table>
-      </div>
-    `;
-  } catch (err) {
-    console.error("Error drawing NECTA report:", err);
-    dash.innerHTML = `<p class="text-red-500 text-center py-6">Error loading tables: ${err.message}</p>`;
-  }
+      </div>`;
+  } catch (err) { console.error("Error drawing NECTA report:", err); dash.innerHTML = `<p class="text-red-500 text-center py-6">Error loading tables: ${err.message}</p>`; }
 }
 
 function renderResultsEntry() {
   const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
-  
-  if (myClasses.length === 0 || mySubjects.length === 0) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
-  }
-
+  if (myClasses.length === 0 || mySubjects.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
   if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
   if (!state.resultsDraft.classId) state.resultsDraft.classId = myClasses[0].id;
-
   const selectedSubjectId = state.resultsDraft.subjectId;
   const selectedClassId = state.resultsDraft.classId;
   const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
-
-  return `
-    <div class="card fade-up-1">
-      <div class="section-title">
-        <span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span>
-        <button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label class="form-label">Select Subject</label>
-          <select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">
-            ${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Select Class</label>
-          <select class="form-input" onchange="state.resultsDraft.classId = this.value; renderPage();">
-            ${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}
-          </select>
-        </div>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead>
-          <tbody>
-            ${studentsInClass.length === 0 ? '<tr><td colspan="4" class="text-center text-slate-500 py-6">No students in this class.</td></tr>' : studentsInClass.map(st => {
-              const existingResult = state.results.find(r => r.student_id == st.id && r.subject_id == selectedSubjectId);
-              const marks = existingResult ? existingResult.marks : '';
-              const grade = existingResult ? existingResult.grade : '-';
-              return `<tr>
-                <td class="font-semibold">${st.name}</td>
-                <td>${st.gender}</td>
-                <td>
-                  <input type="number" min="0" max="100" value="${marks}" 
-                    class="form-input" style="width: 100px; padding: 8px;" 
-                    onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value, 'grade-cell-${st.id}')"
-                    placeholder="---" />
-                </td>
-                <td id="grade-cell-${st.id}"><span class="badge badge-blue">${grade}</span></td>
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-      <p class="text-xs text-slate-500 mt-4"><i class="fa-solid fa-info-circle mr-1"></i> Marks are saved automatically to the database when you type and click away.</p>
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+      <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; renderPage();">${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
     </div>
-  `;
+    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead><tbody>
+      ${studentsInClass.length === 0 ? '<tr><td colspan="4" class="text-center text-slate-500 py-6">No students in this class.</td></tr>' : studentsInClass.map(st => {
+        const existingResult = state.results.find(r => r.student_id == st.id && r.subject_id == selectedSubjectId);
+        const marks = existingResult ? existingResult.marks : '';
+        const grade = existingResult ? existingResult.grade : '-';
+        return `<tr><td class="font-semibold">${st.name}</td><td>${st.gender}</td>
+          <td><input type="number" min="0" max="100" value="${marks}" class="form-input" style="width: 100px; padding: 8px;" onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value, 'grade-cell-${st.id}')" placeholder="---" /></td>
+          <td id="grade-cell-${st.id}"><span class="badge badge-blue">${grade}</span></td>
+        </tr>`;
+      }).join('')}
+    </tbody></table></div>
+    <p class="text-xs text-slate-500 mt-4"><i class="fa-solid fa-info-circle mr-1"></i> Marks are saved automatically to the database when you type and click away.</p>
+  </div>`;
 }
 
 async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
@@ -1323,80 +1039,57 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   if (isNaN(marks)) marks = 0;
   if (marks < 0) marks = 0;
   if (marks > 100) marks = 100;
-
   const grade = getGrade(marks);
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
-
   if (existing) {
     const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
-    existing.marks = marks;
-    existing.grade = grade;
+    existing.marks = marks; existing.grade = grade;
     showToast('Result updated', 'success');
   } else {
-    const { data, error } = await supabase.from('results').insert([{
-      student_id: studentId,
-      subject_id: subjectId,
-      marks,
-      grade,
-      exam_name: 'Term II Assessment',
-      term: 'Term II',
-      year: '2025',
-      published: false,
-      created_by: state.currentUser.id
-    }]).select().single();
-    
+    const { data, error } = await supabase.from('results').insert([{ student_id: studentId, subject_id: subjectId, marks, grade, exam_name: 'Term II Assessment', term: 'Term II', year: '2025', published: false, created_by: state.currentUser.id }]).select().single();
     if (error) return showToast(error.message, 'error');
     state.results.push(data);
     showToast('Result saved', 'success');
   }
-  
   const gradeCell = document.getElementById(gradeCellId);
-  if (gradeCell) {
-    gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
-  }
+  if (gradeCell) gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
 }
 
 function renderNotices() {
   const canPost = ['admin','headteacher','academic'].includes(state.currentUser.role);
-  return `
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 space-y-4 fade-up-1">
-        <div class="flex items-center justify-between mb-2">
-          <h3 class="text-lg font-bold">All Announcements</h3>
-          ${canPost ? `<button class="btn-primary" onclick="openModal('postNotice')"><i class="fa-solid fa-plus mr-1"></i> Post Announcement</button>` : ''}
-        </div>
-        ${state.notices.length === 0 ? '<div class="text-center text-slate-500 py-12">No announcements yet.</div>' : state.notices.map((n, i) => `
-          <div class="notice-card ${n.priority==='high'?'high':''} fade-up-${(i%6)+1}">
-            <div class="flex items-start justify-between gap-3 mb-2">
-              <div class="flex-1">
-                <div class="flex items-center gap-2 mb-1">
-                  ${n.priority==='high' ? '<span class="badge badge-red"><i class="fa-solid fa-exclamation"></i> High Priority</span>' : '<span class="badge badge-green">Normal</span>'}
-                  <span class="text-xs text-slate-400">${new Date(n.created_at).toLocaleDateString()}</span>
-                </div>
-                <h4 class="font-bold text-slate-900 text-base">${n.title}</h4>
-              </div>
-              ${canPost ? `<button class="icon-btn" style="width:32px;height:32px;" onclick="deleteNotice(${n.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>` : ''}
-            </div>
-            <p class="text-sm text-slate-600 leading-relaxed">${n.body}</p>
-            <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
-              <div class="avatar" style="width:26px;height:26px;font-size:10px;background:linear-gradient(135deg,#047857,#10B981);">${n.profiles?.full_name?.split(' ').map(x=>x[0]).join('').slice(0,2) || '??'}</div>
-              <span class="text-xs text-slate-600">Posted by <strong>${n.profiles?.full_name || 'Unknown'}</strong></span>
-            </div>
-          </div>
-        `).join('')}
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-4 fade-up-1">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-bold">All Announcements</h3>
+        ${canPost ? `<button class="btn-primary" onclick="openModal('postNotice')"><i class="fa-solid fa-plus mr-1"></i> Post Announcement</button>` : ''}
       </div>
-      <div class="space-y-4">
-        <div class="card fade-up-2">
-          <h4 class="font-bold mb-3"><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> Notice Statistics</h4>
-          <div class="space-y-3">
-            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">Total Notices</span><span class="font-bold">${state.notices.length}</span></div><div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div></div>
-            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">High Priority</span><span class="font-bold text-red-600">${state.notices.filter(n=>n.priority==='high').length}</span></div><div class="progress-track"><div class="progress-fill" style="width:${(state.notices.filter(n=>n.priority==='high').length/(state.notices.length||1))*100}%;background:linear-gradient(90deg,#DC2626,#EF4444);"></div></div></div>
+      ${state.notices.length === 0 ? '<div class="text-center text-slate-500 py-12">No announcements yet.</div>' : state.notices.map((n, i) => `
+        <div class="notice-card ${n.priority==='high'?'high':''} fade-up-${(i%6)+1}">
+          <div class="flex items-start justify-between gap-3 mb-2">
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">${n.priority==='high' ? '<span class="badge badge-red"><i class="fa-solid fa-exclamation"></i> High Priority</span>' : '<span class="badge badge-green">Normal</span>'}<span class="text-xs text-slate-400">${new Date(n.created_at).toLocaleDateString()}</span></div>
+              <h4 class="font-bold text-slate-900 text-base">${n.title}</h4>
+            </div>
+            ${canPost ? `<button class="icon-btn" style="width:32px;height:32px;" onclick="deleteNotice(${n.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>` : ''}
           </div>
+          <p class="text-sm text-slate-600 leading-relaxed">${n.body}</p>
+          <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+            <div class="avatar" style="width:26px;height:26px;font-size:10px;background:linear-gradient(135deg,#047857,#10B981);">${n.profiles?.full_name?.split(' ').map(x=>x[0]).join('').slice(0,2) || '??'}</div>
+            <span class="text-xs text-slate-600">Posted by <strong>${n.profiles?.full_name || 'Unknown'}</strong></span>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="space-y-4">
+      <div class="card fade-up-2">
+        <h4 class="font-bold mb-3"><i class="fa-solid fa-chart-pie text-emerald-600 mr-2"></i> Notice Statistics</h4>
+        <div class="space-y-3">
+          <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">Total Notices</span><span class="font-bold">${state.notices.length}</span></div><div class="progress-track"><div class="progress-fill" style="width:100%;"></div></div></div>
+          <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-600">High Priority</span><span class="font-bold text-red-600">${state.notices.filter(n=>n.priority==='high').length}</span></div><div class="progress-track"><div class="progress-fill" style="width:${(state.notices.filter(n=>n.priority==='high').length/(state.notices.length||1))*100}%;background:linear-gradient(90deg,#DC2626,#EF4444);"></div></div></div>
         </div>
       </div>
     </div>
-  `;
+  </div>`;
 }
 
 async function deleteNotice(id) {
@@ -1414,10 +1107,8 @@ function renderExamConfig() {
   const c = state.examConfig.default;
   const classes = state.classes;
   const borderOptions = ['none', 'simple-box', 'double-box', 'shadow-box', '3d-box', 'triple-line', 'dashed-box', 'dotted-box'];
-  
   const renderForm = (key, s) => `
     <form id="exam-settings-form" data-key="${key}" class="space-y-4" onsubmit="saveExamConfig(event)">
-      
       <div class="border-b pb-4">
         <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Header Settings</h4>
         <div class="grid md:grid-cols-2 gap-3">
@@ -1426,7 +1117,6 @@ function renderExamConfig() {
           <div><label class="form-label">Heading Line Spacing</label><select name="headingLineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.headingLineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
         </div>
       </div>
-
       <div class="border-b pb-4">
         <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Body Settings (Instructions & Questions)</h4>
         <div class="grid md:grid-cols-2 gap-3">
@@ -1434,17 +1124,13 @@ function renderExamConfig() {
           <div><label class="form-label">Body Line Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
         </div>
       </div>
-
       <div class="border-b pb-4">
         <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Page Layout (MS Word Borders)</h4>
         <div class="grid md:grid-cols-2 gap-3">
-          <div><label class="form-label">Page Border Style</label>
-            <select name="borderStyle" class="form-input" onchange="document.getElementById('preview-border').style.cssText = getBorderCSS(this.value);">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select>
-          </div>
+          <div><label class="form-label">Page Border Style</label><select name="borderStyle" class="form-input" onchange="document.getElementById('preview-border').style.cssText = getBorderCSS(this.value);">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select></div>
           <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
         </div>
       </div>
-
       <div class="border-b pb-4">
         <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Exam Details</h4>
         <div class="grid md:grid-cols-2 gap-3">
@@ -1454,7 +1140,6 @@ function renderExamConfig() {
           <div class="md:col-span-2"><label class="form-label">Default Instructions</label><textarea name="instructions" class="form-input" rows="2">${s.instructions}</textarea></div>
         </div>
       </div>
-
       <div>
         <label class="form-label">Live Preview</label>
         <div style="width: 100%; height: 350px; background: #f1f5f9; display: flex; justify-content: center; overflow: hidden; border-radius: 8px; border: 1px solid #ddd;">
@@ -1464,99 +1149,73 @@ function renderExamConfig() {
                 <strong>KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</strong><br>
                 <span style="font-size: 0.8em;">P.O. Box 03 – TANDAHIMBA – MTWARA</span><br>
                 <span style="font-size: 0.8em;">EMAIL: <span style="color:blue; text-decoration:underline;">koroshoschool@gmail.com</span></span><br><br>
-                <strong>EXAM TITLE</strong><br>
-                <strong>SCIENCE - STANDARD III</strong>
+                <strong>EXAM TITLE</strong><br><strong>SCIENCE - STANDARD III</strong>
               </div>
               <hr style="margin: 15px 0; border-top: 1px solid #000;">
               <div style="font-family: '${s.fontType}', 'Jost', sans-serif; font-size: ${s.fontSize}pt; line-height: ${s.lineSpacing};">
-                <strong>Instructions:</strong><br>
-                1. Answer all questions.<br>
-                2. Observe neatness.<br><br>
-                1. Sample question text here...
+                <strong>Instructions:</strong><br>1. Answer all questions.<br>2. Observe neatness.<br><br>1. Sample question text here...
               </div>
             </div>
           </div>
         </div>
       </div>
-
       <button type="submit" class="btn-primary w-full">Save Settings</button>
-    </form>
-  `;
-
-  return `
-    <div class="space-y-5">
-      <div class="card fade-up-1">
-        <div class="section-title"><span><i class="fa-solid fa-sliders text-emerald-600 mr-2"></i> Default Exam Rules (All Classes)</span></div>
-        <p class="text-xs text-slate-500 mb-4">Customize the page layout exactly like Microsoft Word. Changes apply to all classes unless overridden below.</p>
-        ${renderForm('default', c)}
-      </div>
-      
-      <div class="card fade-up-2">
-        <div class="section-title"><span><i class="fa-solid fa-school text-emerald-600 mr-2"></i> Per-Class Overrides</span></div>
-        <div class="space-y-2">
-          ${classes.map(cls => {
-            const isOverridden = !!state.examConfig.overrides[cls.id];
-            const settings = getExamSettings(cls.id);
-            return `
-              <div class="p-4 rounded-lg flex items-center justify-between" style="background:#F8FAFC; border:1px solid var(--border)">
-                <div>
-                  <div class="font-semibold">${cls.name}</div>
-                  <div class="text-xs text-slate-500">${isOverridden ? 'Custom rules applied' : 'Using defaults'} - ${settings.fontSize}pt ${settings.fontType}</div>
-                </div>
-                <div class="flex gap-2">
-                  <button class="btn-ghost btn-sm" onclick="openClassSettingsModal('${cls.id}')">${isOverridden ? 'Edit' : 'Add Override'}</button>
-                  ${isOverridden ? `<button class="btn-ghost btn-sm" style="color:red" onclick="deleteClassSettings('${cls.id}')">Remove</button>` : ''}
-                </div>
-              </div>
-            `;
-          }).join('')}
-        </div>
+    </form>`;
+  return `<div class="space-y-5">
+    <div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-sliders text-emerald-600 mr-2"></i> Default Exam Rules (All Classes)</span></div>
+      <p class="text-xs text-slate-500 mb-4">Customize the page layout exactly like Microsoft Word. Changes apply to all classes unless overridden below.</p>
+      ${renderForm('default', c)}
+    </div>
+    <div class="card fade-up-2">
+      <div class="section-title"><span><i class="fa-solid fa-school text-emerald-600 mr-2"></i> Per-Class Overrides</span></div>
+      <div class="space-y-2">
+        ${classes.map(cls => {
+          const isOverridden = !!state.examConfig.overrides[cls.id];
+          const settings = getExamSettings(cls.id);
+          return `<div class="p-4 rounded-lg flex items-center justify-between" style="background:#F8FAFC; border:1px solid var(--border)">
+            <div><div class="font-semibold">${cls.name}</div><div class="text-xs text-slate-500">${isOverridden ? 'Custom rules applied' : 'Using defaults'} - ${settings.fontSize}pt ${settings.fontType}</div></div>
+            <div class="flex gap-2">
+              <button class="btn-ghost btn-sm" onclick="openClassSettingsModal('${cls.id}')">${isOverridden ? 'Edit' : 'Add Override'}</button>
+              ${isOverridden ? `<button class="btn-ghost btn-sm" style="color:red" onclick="deleteClassSettings('${cls.id}')">Remove</button>` : ''}
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
-  `;
+  </div>`;
 }
 
 function openClassSettingsModal(classId) {
   const cls = state.classes.find(c => c.id == classId);
   const s = getExamSettings(classId);
   const borderOptions = ['none', 'simple-box', 'double-box', 'shadow-box', '3d-box', 'triple-line', 'dashed-box', 'dotted-box'];
-  const content = `
-    <div class="modal-header"><h3 class="font-bold text-lg">Exam Rules: ${cls.name}</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="modal-body">
-      <form id="exam-class-form" data-key="${classId}" class="space-y-4" onsubmit="saveExamConfig(event)">
-        
-        <div class="border-b pb-4">
-          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Header Settings</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
-            <div><label class="form-label">Heading Size (pt)</label><input type="number" name="headingFontSize" class="form-input" value="${s.headingFontSize||14}" required></div>
-            <div><label class="form-label">Heading Spacing</label><select name="headingLineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.headingLineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
-          </div>
+  const content = `<div class="modal-header"><h3 class="font-bold text-lg">Exam Rules: ${cls.name}</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><form id="exam-class-form" data-key="${classId}" class="space-y-4" onsubmit="saveExamConfig(event)">
+      <div class="border-b pb-4"><h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Header Settings</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+          <div><label class="form-label">Heading Size (pt)</label><input type="number" name="headingFontSize" class="form-input" value="${s.headingFontSize||14}" required></div>
+          <div><label class="form-label">Heading Spacing</label><select name="headingLineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.headingLineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
         </div>
-
-        <div class="border-b pb-4">
-          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Body Settings</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="form-label">Body Size (pt)</label><input type="number" name="fontSize" class="form-input" value="${s.fontSize||12}" required></div>
-            <div><label class="form-label">Body Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
-          </div>
+      </div>
+      <div class="border-b pb-4"><h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Body Settings</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Body Size (pt)</label><input type="number" name="fontSize" class="form-input" value="${s.fontSize||12}" required></div>
+          <div><label class="form-label">Body Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
         </div>
-
-        <div>
-          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Page Layout</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="form-label">Border Style</label><select name="borderStyle" class="form-input">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select></div>
-            <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
-          </div>
+      </div>
+      <div><h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Page Layout</h4>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Border Style</label><select name="borderStyle" class="form-input">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select></div>
+          <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
         </div>
-
-        <div class="modal-footer" style="padding:0; border:none; margin-top:20px;">
-          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn-primary">Save Rules</button>
-        </div>
-      </form>
-    </div>
-  `;
+      </div>
+      <div class="modal-footer" style="padding:0; border:none; margin-top:20px;">
+        <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+        <button type="submit" class="btn-primary">Save Rules</button>
+      </div>
+    </form></div>`;
   document.getElementById('modalHost').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box">${content}</div></div>`;
 }
 
@@ -1574,304 +1233,410 @@ function saveExamConfig(e) {
   const fd = new FormData(form);
   const obj = {};
   for(const [k,v] of fd.entries()) obj[k] = v;
-  
   obj.defaultQuestions = parseInt(obj.defaultQuestions);
   obj.totalMarks = parseInt(obj.totalMarks);
   obj.fontSize = parseInt(obj.fontSize);
   obj.headingFontSize = parseInt(obj.headingFontSize);
   obj.lineSpacing = parseFloat(obj.lineSpacing);
   obj.headingLineSpacing = parseFloat(obj.headingLineSpacing);
-  
-  if (key === 'default') {
-    state.examConfig.default = obj;
-  } else {
-    if (!state.examConfig.overrides) state.examConfig.overrides = {};
-    state.examConfig.overrides[key] = obj;
-  }
-  
+  if (key === 'default') state.examConfig.default = obj;
+  else { if (!state.examConfig.overrides) state.examConfig.overrides = {}; state.examConfig.overrides[key] = obj; }
   localStorage.setItem('korosho_exam_config', JSON.stringify(state.examConfig));
   showToast('Settings saved', 'success');
-  closeModal();
-  renderPage();
+  closeModal(); renderPage();
 }
 
 function renderExamSet() {
   const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
   const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
-
   if (state.currentUser.role === 'teacher' && (myClasses.length === 0 || mySubjects.length === 0)) {
     return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
   }
-
   const availableClasses = state.currentUser.role === 'teacher' ? myClasses : state.classes;
   const availableSubjects = state.currentUser.role === 'teacher' ? mySubjects : state.subjects;
-
   if (!state.examDraft.classId && availableClasses.length > 0) state.examDraft.classId = availableClasses[0].id;
   if (!state.examDraft.subjectId && availableSubjects.length > 0) state.examDraft.subjectId = availableSubjects[0].id;
   if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
-
   const settings = getExamSettings(state.examDraft.classId);
-
-  return `
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 space-y-5">
-        
-        <div class="card fade-up-1" style="background:#F0FDF4; border-color:#A7F3D0">
-          <div class="flex items-center gap-3">
-            <i class="fa-solid fa-lock text-emerald-600"></i>
-            <div>
-              <div class="font-bold text-sm text-emerald-800">Formatting Rules Locked for this Class</div>
-              <div class="text-xs text-emerald-600">${settings.fontType} ${settings.fontSize}pt • ${settings.defaultQuestions} Questions • ${settings.totalMarks} Marks</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card fade-up-1">
-          <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
-          <div class="grid md:grid-cols-3 gap-3 mb-4">
-            <div>
-              <label class="form-label">Class</label>
-              <select class="form-input" onchange="state.examDraft.classId = this.value; renderPage();">
-                ${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Subject</label>
-              <select class="form-input" onchange="state.examDraft.subjectId = this.value; updateExamPreview();">
-                ${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
-              </select>
-            </div>
-            <div>
-              <label class="form-label">Exam Title</label>
-              <input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value; updateExamPreview();" placeholder="e.g. MAY MONTHLY TEST - 2026">
-            </div>
-          </div>
-          <div>
-            <label class="form-label">Paper Structure Instruction (First instruction)</label>
-            <textarea class="form-input" rows="2" placeholder="e.g. This paper consists of sections A and B with a total of five (5) questions." oninput="state.examDraft.customInstruction = this.value; updateExamPreview();">${state.examDraft.customInstruction || ''}</textarea>
-          </div>
-        </div>
-
-        <div class="card fade-up-1">
-          <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Element</span></div>
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
-            <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
-            <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
-            <div class="q-type-card" onclick="addQuestion('mentioning')"><i class="fa-solid fa-list-ol text-2xl text-cyan-600 mb-2"></i><div class="font-semibold text-sm">Mentioning</div></div>
-            <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
-            <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
-            <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
-            <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
-          </div>
-        </div>
-        
-        <div class="card fade-up-2">
-          <div class="section-title">
-            <span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span>
-            ${state.examQuestions.filter(q => q.collapsed).length > 0 ? `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="unhideAllQuestions()"><i class="fa-solid fa-eye mr-1"></i> UNHIDE ALL</button>` : ''}
-          </div>
-          <div class="space-y-3">
-            ${state.examQuestions.length === 0 ? '<div class="text-center text-slate-500 py-8">No questions added yet. Click above to start.</div>' : state.examQuestions.map((q, i) => renderQuestionEditor(q, i)).join('')}
-          </div>
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-5">
+      <div class="card fade-up-1" style="background:#F0FDF4; border-color:#A7F3D0">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-lock text-emerald-600"></i>
+          <div><div class="font-bold text-sm text-emerald-800">Formatting Rules Locked for this Class</div><div class="text-xs text-emerald-600">${settings.fontType} ${settings.fontSize}pt • ${settings.defaultQuestions} Questions • ${settings.totalMarks} Marks</div></div>
         </div>
       </div>
-      <div class="space-y-4">
-        
-        <div class="card fade-up-3">
-          <h4 class="font-bold mb-3"><i class="fa-solid fa-eye text-blue-600 mr-2"></i> Live Preview</h4>
-          <div style="height: 500px; overflow-y: auto; overflow-x: hidden; background: #e2e8f0; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-            <div id="exam-live-preview" style="transform-origin: top left; transform: scale(0.45); width: 210mm; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-height: 297mm;"></div>
-          </div>
+      <div class="card fade-up-1">
+        <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
+        <div class="grid md:grid-cols-3 gap-3 mb-4">
+          <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = this.value; renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+          <div><label class="form-label">Subject</label><select class="form-input" onchange="state.examDraft.subjectId = this.value; updateExamPreview();">${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+          <div><label class="form-label">Exam Title</label><input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value; updateExamPreview();" placeholder="e.g. MAY MONTHLY TEST - 2026"></div>
         </div>
-        
-        <div class="card fade-up-3">
-          <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
-          <button class="btn-primary w-full" onclick="printExamPaper()" ${state.examQuestions.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
-            <i class="fa-solid fa-print mr-1"></i> Print / Save as PDF
-          </button>
-          <p class="text-xs text-slate-500 mt-2 text-center">A copy will automatically be sent to the Admin for formatting review.</p>
+        <div><label class="form-label">Paper Structure Instruction (First instruction)</label><textarea class="form-input" rows="2" placeholder="e.g. This paper consists of sections A and B with a total of five (5) questions." oninput="state.examDraft.customInstruction = this.value; updateExamPreview();">${state.examDraft.customInstruction || ''}</textarea></div>
+      </div>
+      <div class="card fade-up-1">
+        <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Element</span></div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
+          <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
+          <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
+          <div class="q-type-card" onclick="addQuestion('mentioning')"><i class="fa-solid fa-list-ol text-2xl text-cyan-600 mb-2"></i><div class="font-semibold text-sm">Mentioning</div></div>
+          <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
+          <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
+          <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
+          <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
         </div>
+      </div>
+      <div class="card fade-up-2">
+        <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span>${state.examQuestions.filter(q => q.collapsed).length > 0 ? `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="unhideAllQuestions()"><i class="fa-solid fa-eye mr-1"></i> UNHIDE ALL</button>` : ''}</div>
+        <div class="space-y-3">${state.examQuestions.length === 0 ? '<div class="text-center text-slate-500 py-8">No questions added yet. Click above to start.</div>' : state.examQuestions.map((q, i) => renderQuestionEditor(q, i)).join('')}</div>
       </div>
     </div>
-  `;
+    <div class="space-y-4">
+      <div class="card fade-up-3">
+        <h4 class="font-bold mb-3"><i class="fa-solid fa-eye text-blue-600 mr-2"></i> Live Preview (A4 Pages)</h4>
+        <div class="preview-scroll-container" style="height: 600px;">
+          <div id="exam-live-preview" class="preview-pages-wrapper"></div>
+        </div>
+      </div>
+      <div class="card fade-up-3">
+        <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
+        <button class="btn-primary w-full" onclick="printExamPaper()" ${state.examQuestions.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="fa-solid fa-print mr-1"></i> Print / Save as PDF</button>
+        <p class="text-xs text-slate-500 mt-2 text-center">A copy will automatically be sent to the Admin for formatting review.</p>
+      </div>
+    </div>
+  </div>`;
 }
 
-function getExamPreviewHTML(draft, c, questions) {
+// ===== WORD-LIKE PAGINATION ENGINE =====
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const PAGE_PADDING_OUTSIDE_MM = 10;
+const PAGE_PADDING_INSIDE_MM = 10;
+
+function getFontStack(fontType) {
+  return `'${fontType}', 'Century Gothic', 'Jost', 'Trebuchet MS', sans-serif`;
+}
+
+function getPxPerMm() {
+  const div = document.createElement('div');
+  div.style.cssText = 'height: 1mm; width: 1mm; position: absolute; left: -9999px; top: -9999px;';
+  document.body.appendChild(div);
+  const px = div.getBoundingClientRect().height;
+  document.body.removeChild(div);
+  return px || 3.7795275591;
+}
+
+function buildExamBlocks(draft, c, questions) {
+  const blocks = [];
   const selectedClass = state.classes.find(cls => cls.id == draft.classId);
   const selectedSubject = state.subjects.find(sub => sub.id == draft.subjectId);
-  
   const className = selectedClass ? selectedClass.name.toUpperCase() : 'N/A';
   const subjectName = selectedSubject ? selectedSubject.name.toUpperCase() : 'N/A';
   const examTitle = (draft.title || c.examTitle).toUpperCase();
   const timeAllowed = c.timeAllowed.toUpperCase();
   const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
   const customInstr = draft.customInstruction || 'Please write the paper structure instruction in the Exam Details section.';
-  const borderCSS = getBorderCSS(c.borderStyle);
-  
-  const headingStyle = `font-family: '${c.fontType}', 'Jost', 'Trebuchet MS', sans-serif; font-size: ${c.headingFontSize}pt; line-height: ${c.headingLineSpacing};`;
-  const bodyStyle = `font-family: '${c.fontType}', 'Jost', 'Trebuchet MS', sans-serif; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
-  
-  let questionsHtml = '';
-  let qCount = 0;
+  const headingStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.headingFontSize}pt; line-height: ${c.headingLineSpacing};`;
+  const bodyStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
 
-  questions.forEach((q, i) => {
-    if (q.type === 'section') {
-      questionsHtml += `<div style="text-align: center; font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
-    } else {
-      qCount++;
-      questionsHtml += `<div style="margin-bottom: 20px; display: flex; page-break-inside: auto;">
-        <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
-        <div style="flex: 1;">
-          <div style="font-weight: bold; page-break-after: avoid;">
-            ${q.text || 'Untitled question'} 
-            <span style="float: right; font-weight: normal; font-size: 0.8em; color: #555;">(${q.marks||0} marks)</span>
-          </div>`;
-      
-      if (q.subItems) {
-        questionsHtml += `<div style="margin-top: 5px; white-space: pre-wrap; page-break-inside: avoid;">${q.subItems}</div>`;
-      }
-
-      if(q.type === 'mcq'){
-        questionsHtml += `<div style="margin-top: 10px;">`;
-        (q.items||[]).forEach((item, idx) => {
-          questionsHtml += `<div style="margin-bottom: 10px; page-break-inside: auto;">
-            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">(${toRoman(idx+1)}) ${item.text || ''}</div>
-            <div style="padding-left: 20px;">`;
-          item.choices.forEach((opt, cIdx) => {
-            if(opt) questionsHtml += `<div style="margin-bottom: 2px; page-break-inside: avoid;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
-          });
-          questionsHtml += `</div></div>`;
-        });
-        questionsHtml += `</div>`;
-      } else if (q.type === 'matching') {
-        questionsHtml += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; page-break-inside: auto;">
-          <thead style="display: table-header-group;"><tr><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column B</th></tr></thead>
-          <tbody>
-            ${(q.colA||[]).map((item, idx) => `
-              <tr style="page-break-inside: avoid;">
-                <td style="border: 1px solid #000; padding: 5px;">(${toRoman(idx+1)}) ${item}</td>
-                <td style="border: 1px solid #000; padding: 5px;">${String.fromCharCode(65+idx)}. ${q.colB[idx] || ''}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>`;
-      } else if (q.type === 'picture') {
-        // FIX #1: Picture question - all pictures arranged horizontally with optional center-left/center-right
-        const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
-        const enabledSlots = slotOrder.filter(k => q.slots && q.slots[k] && q.slots[k].enabled);
-        
-        if (enabledSlots.length > 0) {
-          questionsHtml += `<div style="margin-top: 10px; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; gap: 10px; page-break-inside: avoid;">`;
-          enabledSlots.forEach(slotKey => {
-            const slot = q.slots[slotKey];
-            questionsHtml += `<div style="flex: 1; min-width: 0; text-align: center;">`;
-            if (slot.text) {
-              questionsHtml += `<div style="margin-bottom: 4px; page-break-after: avoid;">${slot.text}</div>`;
-            }
-            if (slot.url) {
-              questionsHtml += `<img src="${slot.url}" style="width: ${slot.width}px; height: ${slot.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
-            } else {
-              questionsHtml += `<div style="width: ${slot.width}px; height: ${slot.height}px; border: 1px dashed #ccc; display: inline-flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
-            }
-            questionsHtml += `</div>`;
-          });
-          questionsHtml += `</div>`;
-        }
-        if (q.hasLine) {
-          questionsHtml += `<div style="border-bottom: 1px solid #000; width: ${q.lineLength}%; margin-top: 10px; margin-bottom: 5px;"></div>`;
-        }
-      } else if (q.type === 'drawing') {
-        // FIX #3: Drawing question - 2 boxes per row horizontally, more go below
-        questionsHtml += `<div style="margin-top: 10px;">`;
-        const drawItems = q.items || [];
-        for (let dIdx = 0; dIdx < drawItems.length; dIdx += 2) {
-          questionsHtml += `<div style="display: flex; flex-direction: row; gap: 4%; margin-bottom: 15px; page-break-inside: avoid;">`;
-          for (let j = dIdx; j < Math.min(dIdx + 2, drawItems.length); j++) {
-            const dItem = drawItems[j];
-            questionsHtml += `<div style="flex: 1; min-width: 0;">
-              ${dItem.text ? `<div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${dItem.text}</div>` : ''}
-              <div style="border: 1px solid #000; height: ${dItem.boxHeight}px; width: 100%; box-sizing: border-box; page-break-inside: avoid;"></div>
-            </div>`;
-          }
-          questionsHtml += `</div>`;
-        }
-        questionsHtml += `</div>`;
-      } else if (q.type === 'mentioning') {
-        questionsHtml += `<div style="margin-top: 10px;">`;
-        (q.items||[]).forEach((item, idx) => {
-          const prefix = getMentionPrefix(q.format, idx);
-          questionsHtml += `<div style="display: flex; align-items: baseline; gap: 5px; margin-bottom: 8px; page-break-inside: avoid;">
-            <span style="font-weight: bold; white-space: nowrap;">${prefix}</span>
-            ${item.text ? `<span style="margin-right: 5px;">${item.text}</span>` : ''}
-            <span style="border-bottom: 1px solid #000; flex-grow: 1; min-width: 50%;"></span>
-          </div>`;
-        });
-        questionsHtml += `</div>`;
-      } else if (q.type === 'short') {
-        questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
-      } else if (q.type === 'long') {
-        for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px; page-break-inside: avoid;"></div>`;
-      }
-      
-      questionsHtml += `</div></div>`; 
-    }
+  blocks.push({
+    type: 'header',
+    html: `<div style="position: relative; min-height: 35mm; margin-bottom: 0px; ${headingStyle}">
+      <div style="position: absolute; top: 0; left: -5mm; width: 35mm; height: 35mm; z-index: 1;">
+        <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+      </div>
+      <div style="position: relative; z-index: 2; width: 100%; text-align: center; padding-top: 2mm;">
+        <div style="font-weight: bold; text-transform: uppercase;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+        <div style="font-weight: bold; margin-top: 5px;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+        <div style="font-weight: bold; margin-top: 3px;">TEL: +255715976760/+255623638683/+255655481995</div>
+        <div style="font-weight: bold; margin-top: 3px;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+      </div>
+    </div>`
   });
 
-  return `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; color: #000; box-sizing: border-box;">
-      <div style="padding: 10mm; position: relative; z-index: 5;">
-        <div style="${borderCSS} padding: 10mm; min-height: 277mm;">
-          
-          <div style="position: relative; min-height: 35mm; margin-bottom: 10px; ${headingStyle}">
-            <div style="position: absolute; top: 0; left: -5mm; width: 35mm; height: 35mm; z-index: 1;">
-              <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
-            </div>
-            <div style="position: relative; z-index: 2; width: 100%; text-align: center; padding-top: 2mm;">
-              <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-              <div style="font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
-              <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
-              <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
-            </div>
-          </div>
+  blocks.push({
+    type: 'exam-title',
+    html: `<div style="text-align: center; margin: 5px 0 15px 0; ${headingStyle}">
+      <div style="font-weight: bold; text-transform: uppercase;">${examTitle}</div>
+      <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px;">${subjectName}</div>
+      <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px;">${className}</div>
+    </div>`
+  });
 
-          <div style="text-align: center; margin: 12px 0 20px 0; ${headingStyle}">
-            <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
-            <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
-            <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; font-weight: bold; text-transform: uppercase; white-space: nowrap; margin-top: 20px; ${headingStyle}">
-            <span>TIME: ${timeAllowed}</span>
-            <span>${dateStr}</span>
-          </div>
-          
-          <hr style="border: none; border-top: 2px solid #000; margin: 5px 0 15px 0;">
-
-          <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap; ${headingStyle}">
-            <span>PUPIL'S NAME&nbsp;</span>
-            <span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
-          </div>
-
-          <div style="${bodyStyle}">
-            <div style="margin-top: 30px;">
-              <h3 style="font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-              <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
-                <li style="margin-bottom: 5px;">${customInstr}</li>
-                <li style="margin-bottom: 5px;">Answer all questions as per instructions in each section.</li>
-                <li style="margin-bottom: 5px;">Observe neatness in your work.</li>
-              </ul>
-            </div>
-
-            <div style="margin-top: 20px;">
-              ${questionsHtml}
-            </div>
-          </div>
-
-        </div>
-      </div>
+  blocks.push({
+    type: 'time-date',
+    html: `<div style="display: flex; justify-content: space-between; font-weight: bold; text-transform: uppercase; margin-top: 20px; ${headingStyle}">
+      <span>TIME: ${timeAllowed}</span><span>${dateStr}</span>
     </div>
-  `;
+    <hr style="border: none; border-top: 2px solid #000; margin: 5px 0 15px 0;">`
+  });
+
+  blocks.push({
+    type: 'pupil-name',
+    html: `<div style="font-weight: bold; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; ${headingStyle}">
+      <span>PUPIL'S NAME&nbsp;</span><span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
+    </div>`
+  });
+
+  blocks.push({
+    type: 'instructions',
+    html: `<div style="${bodyStyle}">
+      <div style="margin-top: 20px;">
+        <h3 style="font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+        <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+          <li style="margin-bottom: 5px;">${customInstr}</li>
+          <li style="margin-bottom: 5px;">Answer all questions as per instructions in each section.</li>
+          <li style="margin-bottom: 5px;">Observe neatness in your work.</li>
+        </ul>
+      </div>
+    </div>`
+  });
+
+  let qCount = 0;
+  questions.forEach(q => {
+    if (q.type === 'section') {
+      blocks.push({
+        type: 'section-header',
+        html: `<div style="text-align: center; font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; ${bodyStyle}">${q.text || 'SECTION'}</div>`
+      });
+    } else {
+      qCount++;
+      blocks.push({
+        type: 'q-header',
+        html: `<div style="margin-bottom: 10px; display: flex; ${bodyStyle}">
+          <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
+          <div style="flex: 1;">
+            <div style="font-weight: bold;">
+              ${q.text || 'Untitled question'} 
+              <span style="float: right; font-weight: normal; font-size: 0.8em; color: #555;">(${q.marks||0} marks)</span>
+            </div>
+          </div>
+        </div>`
+      });
+
+      if (q.subItems) {
+        blocks.push({ type: 'sub-items', html: `<div style="margin-top: 5px; margin-left: 23px; white-space: pre-wrap; ${bodyStyle}">${q.subItems}</div>` });
+      }
+
+      if (q.type === 'mcq') {
+        (q.items || []).forEach((item, idx) => {
+          let itemHtml = `<div style="margin-bottom: 10px; margin-left: 23px; ${bodyStyle}">
+            <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
+            <div style="padding-left: 20px;">`;
+          item.choices.forEach((opt, cIdx) => {
+            if (opt) itemHtml += `<div style="margin-bottom: 2px;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
+          });
+          itemHtml += `</div></div>`;
+          blocks.push({ type: 'mcq-item', html: itemHtml });
+        });
+      } else if (q.type === 'matching') {
+        const tableWidth = q.tableWidth || 100;
+        const colAWidth = q.colAWidth || 50;
+        const colBWidth = 100 - colAWidth;
+        let tableHtml = `<table style="width: ${tableWidth}%; border-collapse: collapse; margin-top: 10px; margin-left: 23px; margin-bottom: 10px; ${bodyStyle}">
+          <thead><tr><th style="border: 1px solid #000; padding: 5px; width: ${colAWidth}%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: ${colBWidth}%; text-align: left;">Column B</th></tr></thead>
+          <tbody>`;
+        (q.colA || []).forEach((item, idx) => {
+          tableHtml += `<tr><td style="border: 1px solid #000; padding: 5px;">(${toRoman(idx+1)}) ${item}</td><td style="border: 1px solid #000; padding: 5px;">${String.fromCharCode(65+idx)}. ${q.colB[idx] || ''}</td></tr>`;
+        });
+        tableHtml += `</tbody></table>`;
+        blocks.push({ type: 'matching-table', html: tableHtml });
+      } else if (q.type === 'picture') {
+        (q.rows || []).forEach(row => {
+          blocks.push({ type: 'picture-row', html: renderPictureRowHTML(row, bodyStyle) });
+        });
+      } else if (q.type === 'drawing') {
+        const drawItems = q.items || [];
+        for (let dIdx = 0; dIdx < drawItems.length; dIdx += 2) {
+          const rowItems = drawItems.slice(dIdx, dIdx + 2);
+          blocks.push({ type: 'drawing-row', html: renderDrawingRowHTML(rowItems, dIdx, bodyStyle) });
+        }
+      } else if (q.type === 'mentioning') {
+        (q.items || []).forEach((item, idx) => {
+          const prefix = getMentionPrefix(q.format, idx);
+          blocks.push({
+            type: 'mentioning-item',
+            html: `<div style="display: flex; align-items: baseline; gap: 5px; margin-bottom: 8px; margin-left: 23px; ${bodyStyle}">
+              <span style="font-weight: bold; white-space: nowrap;">${prefix}</span>
+              ${item.text ? `<span style="margin-right: 5px;">${item.text}</span>` : ''}
+              <span style="border-bottom: 1px solid #000; flex-grow: 1; min-width: 50%;"></span>
+            </div>`
+          });
+        });
+      } else if (q.type === 'short') {
+        blocks.push({ type: 'answer-line', html: `<div style="margin: 8px 0 8px 23px; border-bottom: 1px solid #000; height: 20px; ${bodyStyle}"></div>` });
+      } else if (q.type === 'long') {
+        for (let l = 0; l < 4; l++) {
+          blocks.push({ type: 'answer-line', html: `<div style="margin: 8px 0 8px 23px; border-bottom: 1px solid #000; height: 20px; ${bodyStyle}"></div>` });
+        }
+      }
+    }
+  });
+  return blocks;
+}
+
+function renderPictureRowHTML(row, bodyStyle) {
+  const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
+  const enabledSlots = slotOrder.filter(k => row.slots && row.slots[k] && row.slots[k].enabled);
+  if (enabledSlots.length === 0) return '';
+  let html = `<div style="display: flex; flex-direction: row; justify-content: space-around; align-items: flex-start; gap: 10px; margin-top: 10px; margin-left: 23px; margin-bottom: 10px; ${bodyStyle}">`;
+  enabledSlots.forEach(slotKey => {
+    const slot = row.slots[slotKey];
+    html += `<div style="flex: 1; min-width: 0; text-align: center;">`;
+    if (slot.text) html += `<div style="margin-bottom: 5px;">${slot.text}</div>`;
+    html += `<div style="display: inline-block;">`;
+    if (slot.url) {
+      html += `<img src="${slot.url}" style="width: ${slot.width}px; height: ${slot.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px; display: block;">`;
+    } else {
+      html += `<div style="width: ${slot.width}px; height: ${slot.height}px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px;">No Image</div>`;
+    }
+    if (slot.hasLine) {
+      html += `<div style="height: 35px;"></div>`;
+      html += `<div style="border-bottom: 1px solid #000; width: 100%;"></div>`;
+    }
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function renderDrawingRowHTML(items, startIdx, bodyStyle) {
+  let html = `<div style="display: flex; flex-direction: row; gap: 4%; margin-bottom: 15px; margin-left: 23px; ${bodyStyle}">`;
+  items.forEach((dItem, j) => {
+    const widthPct = dItem.boxWidth || 48;
+    html += `<div style="width: ${widthPct}%; min-width: 0;">
+      ${dItem.text ? `<div style="font-weight: normal; margin-bottom: 4px;">${dItem.text}</div>` : ''}
+      <div style="border: 1px solid #000; height: ${dItem.boxHeight || 100}px; width: 100%; box-sizing: border-box;"></div>
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+function groupBlocksForPagination(blocks) {
+  const groups = [];
+  let currentGroup = null;
+  for (const block of blocks) {
+    if (block.type === 'q-header') {
+      if (currentGroup) groups.push(currentGroup);
+      currentGroup = { type: 'question', blocks: [block] };
+    } else if (block.type === 'section-header') {
+      if (currentGroup) groups.push(currentGroup);
+      groups.push({ type: 'section', blocks: [block] });
+      currentGroup = null;
+    } else if (['header', 'exam-title', 'time-date', 'pupil-name', 'instructions'].includes(block.type)) {
+      if (currentGroup) groups.push(currentGroup);
+      groups.push({ type: 'preamble', blocks: [block] });
+      currentGroup = null;
+    } else {
+      if (currentGroup && currentGroup.type === 'question') {
+        currentGroup.blocks.push(block);
+      } else {
+        if (currentGroup) groups.push(currentGroup);
+        currentGroup = { type: 'orphan', blocks: [block] };
+        groups.push(currentGroup);
+        currentGroup = null;
+      }
+    }
+  }
+  if (currentGroup) groups.push(currentGroup);
+  return groups;
+}
+
+function paginateBlocks(blocks, c) {
+  const groups = groupBlocksForPagination(blocks);
+  
+  const pxPerMm = getPxPerMm();
+  const printableWidthPx = (A4_WIDTH_MM - 2 * PAGE_PADDING_OUTSIDE_MM - 2 * PAGE_PADDING_INSIDE_MM) * pxPerMm;
+  const printableHeightPx = (A4_HEIGHT_MM - 2 * PAGE_PADDING_OUTSIDE_MM - 2 * PAGE_PADDING_INSIDE_MM) * pxPerMm;
+  
+  const page = document.createElement('div');
+  page.style.cssText = `position: absolute; left: -99999px; top: 0; width: ${printableWidthPx}px;`;
+  const measurer = document.createElement('div');
+  measurer.style.cssText = `width: 100%; box-sizing: border-box; font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
+  page.appendChild(measurer);
+  document.body.appendChild(page);
+  
+  const maxHeight = printableHeightPx;
+  const pages = [];
+  let currentPageBlocks = [];
+
+  const measureWith = (extraBlocks) => {
+    measurer.innerHTML = [...currentPageBlocks, ...extraBlocks].map(b => b.html).join('');
+    return measurer.scrollHeight;
+  };
+  const measureCurrent = () => {
+    measurer.innerHTML = currentPageBlocks.map(b => b.html).join('');
+    return measurer.scrollHeight;
+  };
+
+  for (const group of groups) {
+    if (measureWith(group.blocks) <= maxHeight) {
+      currentPageBlocks.push(...group.blocks);
+      continue;
+    }
+    measurer.innerHTML = group.blocks.map(b => b.html).join('');
+    if (measurer.scrollHeight <= maxHeight) {
+      if (currentPageBlocks.length > 0) { pages.push(currentPageBlocks); currentPageBlocks = []; }
+      currentPageBlocks.push(...group.blocks);
+      continue;
+    }
+    if (currentPageBlocks.length > 0) { pages.push(currentPageBlocks); currentPageBlocks = []; }
+    
+    if (group.type === 'question') {
+      const qHeader = group.blocks[0];
+      const subBlocks = group.blocks.slice(1);
+      currentPageBlocks = [qHeader];
+      
+      for (let i = 0; i < subBlocks.length; i++) {
+        const block = subBlocks[i];
+        if (measureWith([block]) <= maxHeight) {
+          currentPageBlocks.push(block);
+        } else {
+          if (currentPageBlocks.length === 1 && currentPageBlocks[0].type === 'q-header' && i === 0) {
+            pages.push([]);
+            currentPageBlocks = [qHeader, block];
+          } else {
+            pages.push(currentPageBlocks);
+            currentPageBlocks = [block];
+          }
+        }
+      }
+    } else {
+      currentPageBlocks.push(...group.blocks);
+    }
+  }
+  if (currentPageBlocks.length > 0) pages.push(currentPageBlocks);
+  if (pages.length === 0) pages.push([]);
+  
+  document.body.removeChild(page);
+  return pages;
+}
+
+function renderExamPagesHTML(pages, c) {
+  const borderCSS = getBorderCSS(c.borderStyle);
+  const bodyFontStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
+  
+  return pages.map(blocks => {
+    return `<div class="a4-page">
+      <div class="a4-page-content" style="${borderCSS} ${bodyFontStyle}">
+        ${blocks.map(b => b.html).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateExamPreview() {
+  const previewDiv = document.getElementById('exam-live-preview');
+  if (!previewDiv) return;
+  const draft = state.examDraft;
+  const c = getExamSettings(draft.classId);
+  const questions = state.examQuestions;
+  const blocks = buildExamBlocks(draft, c, questions);
+  const pages = paginateBlocks(blocks, c);
+  previewDiv.innerHTML = renderExamPagesHTML(pages, c);
 }
 
 function toRoman(num) {
@@ -1879,7 +1644,6 @@ function toRoman(num) {
   return romans[num - 1] || num;
 }
 
-// Helper for Mentioning Prefix
 function getMentionPrefix(format, index) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
   const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
@@ -1892,20 +1656,9 @@ function getMentionPrefix(format, index) {
   }
 }
 
-function updateExamPreview() {
-  const previewDiv = document.getElementById('exam-live-preview');
-  if (previewDiv) {
-    const draft = state.examDraft;
-    const c = getExamSettings(draft.classId);
-    const questions = state.examQuestions;
-    previewDiv.innerHTML = getExamPreviewHTML(draft, c, questions);
-  }
-}
-
 function renderQuestionEditor(q, i) {
   const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items', mentioning: 'Mentioning' };
   
-  // FIX #4: Collapsed state - show compact bar with UNHIDE button
   if (q.collapsed) {
     return `<div class="question-block collapsed">
       <div class="flex items-center justify-between">
@@ -1922,7 +1675,24 @@ function renderQuestionEditor(q, i) {
     </div>`;
   }
 
-  let extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter main question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+  let extraFields = '';
+  
+  if (q.type === 'section') {
+    extraFields = `<div class="mt-3"><label class="form-label">Section Header Text</label><textarea class="form-input" rows="2" placeholder="e.g. SECTION A" onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+    
+    return `<div class="question-block">
+      <div class="flex items-start justify-between mb-3">
+        <span class="badge badge-blue">${typeLabels[q.type]}</span>
+        <div class="flex gap-2">
+          <button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="toggleQuestionCollapse(${q.id})"><i class="fa-solid fa-eye-slash mr-1"></i> HIDE</button>
+          <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+        </div>
+      </div>
+      ${extraFields}
+    </div>`;
+  }
+  
+  extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter main question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
   
   if (q.type === 'mcq') {
     extraFields += `<div class="mt-4 border-t pt-3">
@@ -1940,17 +1710,25 @@ function renderQuestionEditor(q, i) {
                 <span class="text-xs font-bold w-4">${String.fromCharCode(65+cIdx)}.</span>
                 <input type="text" class="form-input flex-1" style="padding:6px;font-size:12px;" value="${ch}" placeholder="Choice ${cIdx+1}" onchange="updateMcqChoice(${q.id}, ${item.id}, ${cIdx}, this.value)">
                 <button class="icon-btn" style="width:28px;height:28px;" onclick="removeMcqChoice(${q.id}, ${item.id}, ${cIdx})"><i class="fa-solid fa-xmark text-xs text-red-500"></i></button>
-              </div>
-            `).join('')}
+              </div>`).join('')}
           </div>
           <button class="btn-ghost" style="padding:4px 10px;font-size:11px;margin-top:4px;" onclick="addMcqChoice(${q.id}, ${item.id})"><i class="fa-solid fa-plus mr-1"></i> Add Choice</button>
-        </div>
-      `).join('')}
+        </div>`).join('')}
       <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMcqItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
     </div>`;
   } else if (q.type === 'matching') {
-    extraFields += `
-      <div class="mt-3 grid grid-cols-2 gap-4">
+    extraFields += `<div class="mt-3 border-t pt-3">
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="form-label">Table Width (%)</label>
+          <input type="number" class="form-input" min="20" max="100" value="${q.tableWidth || 100}" onchange="updateMatchingTableProp(${q.id}, 'tableWidth', this.value)">
+        </div>
+        <div>
+          <label class="form-label">Column A Width (%)</label>
+          <input type="number" class="form-input" min="10" max="90" value="${q.colAWidth || 50}" onchange="updateMatchingTableProp(${q.id}, 'colAWidth', this.value)">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="form-label">Column A (Items)</label>
           ${q.colA.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Item ${idx+1}" onchange="updateMatchingCol(${q.id}, 'A', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
@@ -1958,108 +1736,53 @@ function renderQuestionEditor(q, i) {
         </div>
         <div>
           <label class="form-label">Column B (Answers)</label>
-          ${q.colB.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Match ${idx+1}" onchange="updateMatchingCol(${q.id}, 'B', ${idx}, this.value)"><button class="icon-btn" style="width:32px;height:32px;" onclick="removeMatchingRow(${q.id}, ${idx})"><i class="fa-solid fa-xmark text-xs"></i></button></div>`).join('')}
+          ${q.colB.map((item, idx) => `<div class="flex items-center gap-2 mb-2"><input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item}" placeholder="Match ${idx+1}" onchange="updateMatchingCol(${q.id}, 'B', ${idx}, this.value)"></div>`).join('')}
         </div>
       </div>
-    `;
+    </div>`;
   } else if (q.type === 'picture') {
-    // FIX #1: Picture question editor with slots - left, [center-left], center, [center-right], right
-    const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
-    const slotLabels = { 'left': 'Left', 'center-left': 'Center-Left', 'center': 'Center', 'center-right': 'Center-Right', 'right': 'Right' };
-    extraFields += `
-      <div class="space-y-2 mt-3">
-        <label class="form-label">Picture Slots (arranged horizontally: Left → [Center-Left] → Center → [Center-Right] → Right)</label>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          ${slotOrder.map(slotKey => {
-            const slot = q.slots ? q.slots[slotKey] : null;
-            if (!slot) return '';
-            const isOptional = slotKey === 'center-left' || slotKey === 'center-right';
-            return `
-              <div class="p-3 border rounded-lg" style="background:${slot.enabled ? '#fff' : '#f8fafc'}; ${!slot.enabled ? 'opacity:0.5;' : ''}">
-                <div class="flex justify-between items-center mb-2">
-                  ${isOptional ? `
-                    <label class="flex items-center gap-2 text-xs cursor-pointer">
-                      <input type="checkbox" ${slot.enabled?'checked':''} onchange="togglePictureSlot(${q.id}, '${slotKey}')">
-                      <span class="font-bold text-slate-600">${slotLabels[slotKey]}</span>
-                      <span class="text-[10px] text-slate-400">(optional)</span>
-                    </label>
-                  ` : `
-                    <span class="font-bold text-xs text-slate-600">${slotLabels[slotKey]}</span>
-                  `}
-                </div>
-                ${slot.enabled ? `
-                  <textarea class="form-input mb-2" rows="1" style="padding:6px;font-size:11px;" placeholder="Sub-item text" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'text', this.value)">${slot.text||''}</textarea>
-                  <div class="flex items-center gap-2 mb-2">
-                    <input type="file" accept="image/*" class="text-xs flex-1" style="font-size:10px;" onchange="uploadPictureSlotImage(${q.id}, '${slotKey}', this)">
-                    ${slot.url ? `<img src="${slot.url}" style="max-height:40px;max-width:50px;border:1px solid #ccc;border-radius:4px;">` : ''}
-                  </div>
-                  <div class="grid grid-cols-2 gap-1">
-                    <div><label class="form-label" style="font-size:10px;">Width</label><input type="number" class="form-input" style="padding:4px;font-size:11px;" value="${slot.width}" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'width', this.value)"></div>
-                    <div><label class="form-label" style="font-size:10px;">Height</label><input type="number" class="form-input" style="padding:4px;font-size:11px;" value="${slot.height}" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'height', this.value)"></div>
-                  </div>
-                ` : `<p class="text-xs text-slate-400 italic">Not selected - no space reserved</p>`}
-              </div>
-            `;
-          }).join('')}
-        </div>
-        <div class="mt-3 flex items-center gap-4 p-2 bg-slate-50 rounded">
-          <label class="flex items-center gap-2 text-xs cursor-pointer">
-            <input type="checkbox" ${q.hasLine?'checked':''} onchange="updateQuestionField(${q.id}, 'hasLine', this.checked)"> 
-            <span>Add Answer Line Below Pictures</span>
-          </label>
-          ${q.hasLine ? `<input type="number" class="form-input" style="padding:4px;font-size:11px;width:80px;" value="${q.lineLength||50}" placeholder="%" onchange="updateQuestionField(${q.id}, 'lineLength', parseInt(this.value)||50)">` : ''}
-        </div>
-      </div>
-    `;
+    extraFields += renderPictureEditor(q);
   } else if (q.type === 'drawing') {
-    // FIX #3: Drawing editor - 2 per row grid layout
-    extraFields += `
-      <div class="space-y-2 mt-3">
-        <label class="form-label">Drawing Boxes (2 per row, additional boxes go below)</label>
-        <div class="grid grid-cols-2 gap-3">
-          ${(q.items||[]).map((item, idx) => `
-            <div class="p-3 border rounded-lg" style="background:#fff;">
-              <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-bold text-slate-600">Box ${idx+1} ${idx < 2 ? '(Row 1)' : '(Row ' + (Math.floor(idx/2)+1) + ')'}</span>
-                <button class="icon-btn" style="width:28px;height:28px;" onclick="removeDrawingItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
-              </div>
-              <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) Draw the map)" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
-              <div class="grid grid-cols-2 gap-2">
-                <div><label class="form-label">Height (px)</label><input type="number" class="form-input" value="${item.boxHeight}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxHeight', this.value)"></div>
-                <div><label class="form-label">Width (%)</label><input type="number" class="form-input" value="${item.boxWidth}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxWidth', this.value)"></div>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addDrawingItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Drawing Box</button>
-      </div>
-    `;
-  } else if (q.type === 'mentioning') {
-    // FIX #2: Mentioning question - number input controls item count
-    extraFields += `
-      <div class="space-y-2 mt-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="form-label">Numbering Format</label>
-            <select class="form-input" onchange="updateMentioningFormat(${q.id}, this.value)">
-              <option value="roman" ${q.format==='roman'?'selected':''}>i. ii. iii.</option>
-              <option value="bracket-roman" ${q.format==='bracket-roman'?'selected':''}>(i) (ii) (iii)</option>
-              <option value="letter" ${q.format==='letter'?'selected':''}>a. b. c.</option>
-              <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
-            </select>
-          </div>
-          <div><label class="form-label">Number of Items</label>
-            <input type="number" class="form-input" min="1" max="20" value="${(q.items||[]).length}" onchange="updateMentioningCount(${q.id}, this.value)" placeholder="Type a number e.g. 3">
-          </div>
-        </div>
-        <label class="form-label">Items</label>
+    extraFields += `<div class="space-y-2 mt-3">
+      <label class="form-label">Drawing Boxes (2 per row, additional boxes go below)</label>
+      <div class="grid grid-cols-2 gap-3">
         ${(q.items||[]).map((item, idx) => `
-          <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs font-bold w-10 text-slate-600 flex-shrink-0">${getMentionPrefix(q.format, idx)}</span>
-            <input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item.text}" placeholder="Item text (optional)" onchange="updateMentioningItemProp(${q.id}, ${item.id}, 'text', this.value)">
-          </div>
-        `).join('')}
+          <div class="p-3 border rounded-lg" style="background:#fff;">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-600">Box ${idx+1} (Row ${Math.floor(idx/2)+1})</span>
+              <button class="icon-btn" style="width:28px;height:28px;" onclick="removeDrawingItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+            </div>
+            <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) Draw the map)" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
+            <div class="grid grid-cols-2 gap-2">
+              <div><label class="form-label" style="font-size:10px;">Height (px)</label><input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.boxHeight}" min="20" max="500" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxHeight', this.value)"></div>
+              <div><label class="form-label" style="font-size:10px;">Width (%)</label><input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.boxWidth}" min="10" max="100" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxWidth', this.value)"></div>
+            </div>
+          </div>`).join('')}
       </div>
-    `;
+      <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addDrawingItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Drawing Box</button>
+    </div>`;
+  } else if (q.type === 'mentioning') {
+    extraFields += `<div class="space-y-2 mt-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="form-label">Numbering Format</label>
+          <select class="form-input" onchange="updateMentioningFormat(${q.id}, this.value)">
+            <option value="roman" ${q.format==='roman'?'selected':''}>i. ii. iii.</option>
+            <option value="bracket-roman" ${q.format==='bracket-roman'?'selected':''}>(i) (ii) (iii)</option>
+            <option value="letter" ${q.format==='letter'?'selected':''}>a. b. c.</option>
+            <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
+          </select>
+        </div>
+        <div><label class="form-label">Number of Items</label>
+          <input type="number" class="form-input" min="1" max="20" value="${(q.items||[]).length}" onchange="updateMentioningCount(${q.id}, this.value)" placeholder="Type a number e.g. 3">
+        </div>
+      </div>
+      <label class="form-label">Items</label>
+      ${(q.items||[]).map((item, idx) => `
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-bold w-10 text-slate-600 flex-shrink-0">${getMentionPrefix(q.format, idx)}</span>
+          <input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item.text}" placeholder="Item text (optional)" onchange="updateMentioningItemProp(${q.id}, ${item.id}, 'text', this.value)">
+        </div>`).join('')}
+    </div>`;
   }
   
   return `<div class="question-block">
@@ -2075,43 +1798,84 @@ function renderQuestionEditor(q, i) {
   </div>`;
 }
 
-// FIX #4: Toggle collapse for individual question
-function toggleQuestionCollapse(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q) {
-    q.collapsed = !q.collapsed;
-    renderPage();
-    updateExamPreview();
-  }
+function renderPictureEditor(q) {
+  const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
+  const slotLabels = { 'left': 'Left', 'center-left': 'C-Left', 'center': 'Center', 'center-right': 'C-Right', 'right': 'Right' };
+  
+  let html = `<div class="space-y-3 mt-3">
+    <label class="form-label">Picture Rows (each row has 5 slots: Left, [C-Left], Center, [C-Right], Right)</label>`;
+  
+  (q.rows || []).forEach((row, rowIdx) => {
+    html += `<div class="border rounded-lg p-3" style="background:#fff;">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-bold text-slate-600">Row ${rowIdx + 1}</span>
+        ${(q.rows || []).length > 1 ? `<button class="icon-btn" style="width:28px;height:28px;" onclick="removePictureRow(${q.id}, ${row.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>` : ''}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">`;
+    
+    slotOrder.forEach(slotKey => {
+      const slot = row.slots[slotKey];
+      if (!slot) return;
+      const isOptional = slotKey === 'center-left' || slotKey === 'center-right';
+      html += `<div class="p-2 border rounded" style="background:${slot.enabled ? '#fff' : '#f8fafc'}; ${!slot.enabled ? 'opacity:0.5;' : ''}">
+        <div class="flex items-center gap-1 mb-1">
+          <input type="checkbox" ${slot.enabled?'checked':''} onchange="togglePictureSlot(${q.id}, ${row.id}, '${slotKey}')" style="width:12px;height:12px;">
+          <span class="text-[10px] font-bold text-slate-600">${slotLabels[slotKey]}</span>
+          ${isOptional ? '<span class="text-[9px] text-slate-400">(opt)</span>' : ''}
+        </div>
+        ${slot.enabled ? `
+          <input type="text" class="form-input mb-1" style="padding:4px;font-size:10px;" placeholder="text" value="${slot.text||''}" onchange="updatePictureSlotProp(${q.id}, ${row.id}, '${slotKey}', 'text', this.value)">
+          <input type="file" accept="image/*" class="text-xs mb-1 w-full" style="font-size:9px;" onchange="uploadPictureSlotImage(${q.id}, ${row.id}, '${slotKey}', this)">
+          ${slot.url ? `<img src="${slot.url}" style="max-height:30px;max-width:100%;border:1px solid #ccc;border-radius:2px;margin-bottom:2px;">` : ''}
+          <div class="flex gap-1">
+            <input type="number" class="form-input" style="padding:2px;font-size:10px;flex:1;" placeholder="W" value="${slot.width}" onchange="updatePictureSlotProp(${q.id}, ${row.id}, '${slotKey}', 'width', this.value)">
+            <input type="number" class="form-input" style="padding:2px;font-size:10px;flex:1;" placeholder="H" value="${slot.height}" onchange="updatePictureSlotProp(${q.id}, ${row.id}, '${slotKey}', 'height', this.value)">
+          </div>
+          <label class="flex items-center gap-1 mt-1 text-[10px] cursor-pointer">
+            <input type="checkbox" ${slot.hasLine?'checked':''} onchange="updatePictureSlotProp(${q.id}, ${row.id}, '${slotKey}', 'hasLine', this.checked)" style="width:12px;height:12px;">
+            <span>Answer line</span>
+          </label>
+        ` : '<p class="text-[10px] text-slate-400 italic">Disabled</p>'}
+      </div>`;
+    });
+    
+    html += `</div></div>`;
+  });
+  
+  html += `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row Below (Same Alignment)</button>
+  </div>`;
+  return html;
 }
 
-// FIX #4: Unhide all collapsed questions
+function toggleQuestionCollapse(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) { q.collapsed = !q.collapsed; renderPage(); setTimeout(updateExamPreview, 50); }
+}
+
 function unhideAllQuestions() {
   state.examQuestions.forEach(q => { q.collapsed = false; });
   renderPage();
+  setTimeout(updateExamPreview, 50);
 }
 
 function addQuestion(type) { 
   const id = Date.now(); 
-  // FIX #4: Collapse all existing questions when adding a new one
   state.examQuestions.forEach(q => { q.collapsed = true; });
-  
   const newQ = { id, type, text: '', marks: 5, collapsed: false }; 
   if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
-  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
-  // FIX #1: Picture question uses slots with left/center/right always, center-left/center-right optional
+  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; newQ.tableWidth = 100; newQ.colAWidth = 50; }
   if (type === 'picture') {
-    newQ.slots = {
-      'left': { enabled: true, text: '', url: '', width: 150, height: 150 },
-      'center-left': { enabled: false, text: '', url: '', width: 150, height: 150 },
-      'center': { enabled: true, text: '', url: '', width: 150, height: 150 },
-      'center-right': { enabled: false, text: '', url: '', width: 150, height: 150 },
-      'right': { enabled: true, text: '', url: '', width: 150, height: 150 }
-    };
-    newQ.hasLine = false;
-    newQ.lineLength = 50;
+    newQ.rows = [{
+      id: Date.now(),
+      slots: {
+        'left': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
+        'center-left': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
+        'center': { enabled: true, text: '', url: '', width: 150, height: 150, hasLine: true },
+        'center-right': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
+        'right': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false }
+      }
+    }];
   }
-  // FIX #3: Drawing question defaults to 2 boxes horizontally
   if (type === 'drawing') {
     newQ.items = [
       { id: Date.now()+1, text: '', boxHeight: 100, boxWidth: 48 },
@@ -2119,123 +1883,148 @@ function addQuestion(type) {
     ];
   }
   if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
+  if (type === 'section') { newQ.text = 'SECTION A'; }
   
   state.examQuestions.push(newQ); 
   state.examDraft.isDirty = true;
   renderPage(); 
-  updateExamPreview();
-  showToast('Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
+  setTimeout(updateExamPreview, 50);
+  showToast(type === 'section' ? 'Section header added' : 'Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
 }
 
 function updateQuestionField(id, field, val) { 
   const q = state.examQuestions.find(x => x.id === id); 
-  if (q) {
-    q[field] = val; 
-    state.examDraft.isDirty = true;
-    updateExamPreview();
-  } 
+  if (q) { q[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } 
 }
 
-// --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
 }
 function removeMcqItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
 }
 function updateMcqItem(qId, itemId, field, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item[field] = val; state.examDraft.isDirty = true; updateExamPreview(); }
-  }
+  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
 }
 function updateMcqChoice(qId, itemId, cIdx, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item.choices[cIdx] = val; state.examDraft.isDirty = true; updateExamPreview(); }
-  }
+  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices[cIdx] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
 }
 function addMcqChoice(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item.choices.push(''); state.examDraft.isDirty = true; renderPage(); }
-  }
+  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
 }
 function removeMcqChoice(qId, itemId, cIdx) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); state.examDraft.isDirty = true; renderPage(); }
-  }
+  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
 }
 
-// --- MATCHING HELPERS ---
 function addMatchingRow(qId) { 
   const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); } 
+  if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } 
 }
 function removeMatchingRow(qId, idx) { 
   const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } 
+  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } 
 }
 function updateMatchingCol(qId, col, idx, val) { 
   const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) {
-    if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val;
-    state.examDraft.isDirty = true;
-    updateExamPreview();
-  } 
+  if (q) { if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val; state.examDraft.isDirty = true; updateExamPreview(); } 
 }
-
-// --- PICTURE HELPERS (Slot-based) ---
-// FIX #1: New slot-based picture helpers
-function togglePictureSlot(qId, slotKey) {
+function updateMatchingTableProp(qId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture' && q.slots) {
-    q.slots[slotKey].enabled = !q.slots[slotKey].enabled;
+  if (q && q.type === 'matching') {
+    q[prop] = parseInt(val) || 100;
     state.examDraft.isDirty = true;
-    renderPage();
     updateExamPreview();
   }
 }
-function updatePictureSlotProp(qId, slotKey, prop, val) {
+
+function addPictureRow(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture' && q.slots) {
-    const slot = q.slots[slotKey];
-    if (slot) {
-      slot[prop] = (prop === 'width' || prop === 'height') ? parseInt(val) || 150 : val;
+  if (q && q.type === 'picture') {
+    const lastRow = q.rows[q.rows.length - 1];
+    const newSlots = {};
+    Object.keys(lastRow.slots).forEach(key => {
+      newSlots[key] = {
+        enabled: lastRow.slots[key].enabled,
+        text: '',
+        url: '',
+        width: lastRow.slots[key].width,
+        height: lastRow.slots[key].height,
+        hasLine: lastRow.slots[key].hasLine
+      };
+    });
+    q.rows.push({ id: Date.now(), slots: newSlots });
+    state.examDraft.isDirty = true;
+    renderPage();
+    setTimeout(updateExamPreview, 50);
+    showToast('New row added below with same alignment', 'success');
+  }
+}
+function removePictureRow(qId, rowId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'picture' && q.rows.length > 1) {
+    q.rows = q.rows.filter(r => r.id !== rowId);
+    state.examDraft.isDirty = true;
+    renderPage();
+    setTimeout(updateExamPreview, 50);
+  }
+}
+function togglePictureSlot(qId, rowId, slotKey) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'picture') {
+    const row = q.rows.find(r => r.id === rowId);
+    if (row && row.slots[slotKey]) {
+      row.slots[slotKey].enabled = !row.slots[slotKey].enabled;
+      state.examDraft.isDirty = true;
+      renderPage();
+      setTimeout(updateExamPreview, 50);
+    }
+  }
+}
+function updatePictureSlotProp(qId, rowId, slotKey, prop, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'picture') {
+    const row = q.rows.find(r => r.id === rowId);
+    if (row && row.slots[slotKey]) {
+      if (prop === 'width' || prop === 'height') row.slots[slotKey][prop] = parseInt(val) || 100;
+      else row.slots[slotKey][prop] = val;
       state.examDraft.isDirty = true;
       updateExamPreview();
     }
   }
 }
-function uploadPictureSlotImage(qId, slotKey, input) {
+function uploadPictureSlotImage(qId, rowId, slotKey, input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     const q = state.examQuestions.find(x => x.id === qId);
-    if (q && q.type === 'picture' && q.slots) {
-      const slot = q.slots[slotKey];
-      if (slot) { slot.url = e.target.result; state.examDraft.isDirty = true; renderPage(); updateExamPreview(); showToast('Picture attached', 'success'); }
+    if (q && q.type === 'picture') {
+      const row = q.rows.find(r => r.id === rowId);
+      if (row && row.slots[slotKey]) {
+        row.slots[slotKey].url = e.target.result;
+        state.examDraft.isDirty = true;
+        renderPage();
+        setTimeout(updateExamPreview, 50);
+        showToast('Picture attached', 'success');
+      }
     }
   };
   reader.readAsDataURL(file);
 }
 
-// --- DRAWING HELPERS (Item-based) ---
 function addDrawingItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 48 }); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
+  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 48 }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
 }
 function removeDrawingItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
+  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
 }
 function updateDrawingItemProp(qId, itemId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
@@ -2245,8 +2034,6 @@ function updateDrawingItemProp(qId, itemId, prop, val) {
   }
 }
 
-// --- MENTIONING HELPERS ---
-// FIX #2: Number-based item count control
 function updateMentioningCount(qId, count) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mentioning') {
@@ -2254,59 +2041,40 @@ function updateMentioningCount(qId, count) {
     if (count < 1) count = 1;
     if (count > 20) count = 20;
     const current = q.items.length;
-    if (count > current) {
-      for (let i = current; i < count; i++) {
-        q.items.push({ id: Date.now() + i, text: '' });
-      }
-    } else if (count < current) {
-      q.items = q.items.slice(0, count);
-    }
+    if (count > current) { for (let i = current; i < count; i++) q.items.push({ id: Date.now() + i, text: '' }); }
+    else if (count < current) { q.items = q.items.slice(0, count); }
     state.examDraft.isDirty = true;
     renderPage();
-    updateExamPreview();
+    setTimeout(updateExamPreview, 50);
     showToast(`${count} item${count > 1 ? 's' : ''} displayed`, 'success');
   }
 }
 function updateMentioningItemProp(qId, itemId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item[prop] = val; state.examDraft.isDirty = true; updateExamPreview(); }
-  }
+  if (q && q.type === 'mentioning') { const item = q.items.find(it => it.id === itemId); if (item) { item[prop] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
 }
 function updateMentioningFormat(qId, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
+  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
 }
 
-// --- MISC HELPERS ---
-function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); state.examDraft.isDirty = true; renderPage(); } }
-function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } }
-function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); showToast('Question removed', 'info'); closeModal(); }); }
+function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast('Question removed', 'info'); closeModal(); }); }
 
 function renderExamReview() {
-  return `
-    <div class="card fade-up-1">
-      <div class="section-title"><span><i class="fa-solid fa-check-double text-emerald-600 mr-2"></i> Review Generated Exams</span></div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
-          <thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Set By</th><th>Date</th><th>Action</th></tr></thead>
-          <tbody>
-            ${state.exams.length === 0 ? '<tr><td colspan="6" class="text-center text-slate-500 py-6">No exams saved yet.</td></tr>' : state.exams.map(ex => `
-              <tr>
-                <td class="font-semibold">${ex.title}</td>
-                <td>${ex.classes?.name || 'N/A'}</td>
-                <td>${ex.subjects?.name || 'N/A'}</td>
-                <td>${ex.profiles?.full_name || 'Unknown'}</td>
-                <td>${new Date(ex.created_at).toLocaleDateString()}</td>
-                <td><button class="btn-ghost btn-sm" onclick="reviewExamPrint(${ex.id})"><i class="fa-solid fa-print mr-1"></i> Print</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-check-double text-emerald-600 mr-2"></i> Review Generated Exams</span></div>
+    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Set By</th><th>Date</th><th>Action</th></tr></thead><tbody>
+      ${state.exams.length === 0 ? '<tr><td colspan="6" class="text-center text-slate-500 py-6">No exams saved yet.</td></tr>' : state.exams.map(ex => `
+        <tr>
+          <td class="font-semibold">${ex.title}</td>
+          <td>${ex.classes?.name || 'N/A'}</td>
+          <td>${ex.subjects?.name || 'N/A'}</td>
+          <td>${ex.profiles?.full_name || 'Unknown'}</td>
+          <td>${new Date(ex.created_at).toLocaleDateString()}</td>
+          <td><button class="btn-ghost btn-sm" onclick="reviewExamPrint(${ex.id})"><i class="fa-solid fa-print mr-1"></i> Print</button></td>
+        </tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
 }
 
 function reviewExamPrint(examId) {
@@ -2316,67 +2084,80 @@ function reviewExamPrint(examId) {
 }
 
 async function printExamPaper(exam = null) {
-  const draft = exam ? { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title } : state.examDraft;
+  const draft = exam ? { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title, customInstruction: exam.customInstruction || '' } : state.examDraft;
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  const examHTML = getExamPreviewHTML(draft, c, questions);
+  const blocks = buildExamBlocks(draft, c, questions);
+  const pages = paginateBlocks(blocks, c);
+  const pagesHtml = renderExamPagesHTML(pages, c);
+  const borderCSS = getBorderCSS(c.borderStyle);
+  const bodyFontStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
 
-  // FIX #5: Default print font is Century Gothic
-  const fullHTML = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Print Exam</title>
-      <style>
-        body { 
-          margin: 0; 
-          padding: 0; 
-          font-family: 'Century Gothic', 'Jost', sans-serif; 
-          background: #e2e8f0; 
-          display: flex;
-          justify-content: center;
-        }
-        .print-btn-container { text-align: center; margin: 20px 0; width: 100%; }
-        .print-btn { 
-          padding: 15px 30px; background: #047857; color: white; border: none; 
-          border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; 
-          font-family: 'Century Gothic', sans-serif;
-          box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .paper-wrapper { 
-          background: white; 
-          width: 210mm; 
-          min-height: 297mm; 
-          box-shadow: 0 0 15px rgba(0,0,0,0.2); 
-        }
-        @media print {
-          body { background: white; padding: 0; display: block; font-family: 'Century Gothic', sans-serif; }
-          .print-btn-container { display: none !important; }
-          .paper-wrapper { box-shadow: none; width: 100%; min-height: 100vh; }
-          @page { 
-            size: A4; 
-            margin: 0; 
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div style="width: 100%;">
-        <div class="print-btn-container">
-          <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
-        </div>
-        <div class="paper-wrapper">${examHTML}</div>
-      </div>
-    </body>
-    </html>
-  `;
+  const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Exam - ${draft.title || 'Untitled'}</title>
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e2e8f0; font-family: ${getFontStack(c.fontType)}; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px; }
+  .print-btn-container { text-align: center; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: sticky; top: 20px; z-index: 100; }
+  .print-btn { padding: 14px 32px; background: #047857; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: ${getFontStack(c.fontType)}; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .print-btn:hover { background: #065F46; }
+  .a4-page {
+    width: 210mm;
+    height: 297mm;
+    background: white;
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10mm;
+  }
+  .a4-page-content {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 10mm;
+    overflow: hidden;
+    position: relative;
+    ${borderCSS}
+    ${bodyFontStyle}
+  }
+  @media print {
+    html, body { margin: 0; padding: 0; background: white; gap: 0; }
+    body { display: block; }
+    .print-btn-container { display: none !important; }
+    .a4-page {
+      page-break-after: always;
+      break-after: page;
+      box-shadow: none;
+    }
+    .a4-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="print-btn-container">
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+  ${pagesHtml}
+</body>
+</html>`;
 
   const blob = new Blob([fullHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
-  
   const a = document.createElement('a');
   a.href = url;
   a.target = '_blank';
@@ -2384,31 +2165,29 @@ async function printExamPaper(exam = null) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 
   if (!exam && state.examQuestions.length > 0) {
     if (!state.examDraft.isDirty) {
       showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info');
       return;
     }
-
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
-      // Remove collapsed state and non-serializable props before saving
       delete cleanQ.collapsed;
-      if (cleanQ.type === 'picture' && cleanQ.slots) {
-        const slotsCopy = {};
-        Object.keys(cleanQ.slots).forEach(k => {
-          slotsCopy[k] = { ...cleanQ.slots[k] };
-          if(slotsCopy[k].url) slotsCopy[k].url = '';
+      if (cleanQ.type === 'picture' && cleanQ.rows) {
+        cleanQ.rows = cleanQ.rows.map(row => {
+          const slotsCopy = {};
+          Object.keys(row.slots).forEach(k => {
+            slotsCopy[k] = { ...row.slots[k] };
+            if (slotsCopy[k].url) slotsCopy[k].url = '';
+          });
+          return { id: row.id, slots: slotsCopy };
         });
-        cleanQ.slots = slotsCopy;
       }
       return cleanQ;
     });
-
     supabase.from('exams').insert([{
       title: draft.title || 'Untitled Exam',
       class_id: draft.classId,
@@ -2416,13 +2195,8 @@ async function printExamPaper(exam = null) {
       questions: questionsToSave,
       created_by: state.currentUser.id
     }]).then(({ error }) => {
-      if (error) {
-        showToast('Failed to send for review: ' + error.message, 'error');
-      } else {
-        showToast('Copy sent to Admin for review.', 'success');
-        state.examDraft.isDirty = false; 
-        fetchAllData();
-      }
+      if (error) showToast('Failed to send for review: ' + error.message, 'error');
+      else { showToast('Copy sent to Admin for review.', 'success'); state.examDraft.isDirty = false; fetchAllData(); }
     });
   }
 }
@@ -2435,23 +2209,14 @@ function openModal(type, data) {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Student</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body"><div class="space-y-3">
       <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="s-name" placeholder="Student name"></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="form-label">Class</label><select class="form-input" id="s-class">${state.classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-        <div><label class="form-label">Gender</label><select class="form-input" id="s-gender"><option value="M">Male</option><option value="F">Female</option></select></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="form-label">Age</label><input type="number" class="form-input" id="s-age" value="14"></div>
-        <div><label class="form-label">Parent Phone</label><input type="text" class="form-input" id="s-phone" placeholder="+255 7XX"></div>
-      </div>
+      <div class="grid grid-cols-2 gap-3"><div><label class="form-label">Class</label><select class="form-input" id="s-class">${state.classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div><div><label class="form-label">Gender</label><select class="form-input" id="s-gender"><option value="M">Male</option><option value="F">Female</option></select></div></div>
+      <div class="grid grid-cols-2 gap-3"><div><label class="form-label">Age</label><input type="number" class="form-input" id="s-age" value="14"></div><div><label class="form-label">Parent Phone</label><input type="text" class="form-input" id="s-phone" placeholder="+255 7XX"></div></div>
       <div><label class="form-label">Parent / Guardian Name</label><input type="text" class="form-input" id="s-parent" placeholder="Parent name"></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveStudent()">Save Student</button></div>`;
   } else if (type === 'addClass') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Class</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="modal-body"><div class="space-y-3">
-      <div><label class="form-label">Class Name</label><input type="text" class="form-input" id="c-name" placeholder="e.g. Form 3A"></div>
-      <div><label class="form-label">Room</label><input type="text" class="form-input" id="c-room" placeholder="e.g. Block B-201"></div>
-    </div></div>
+    <div class="modal-body"><div class="space-y-3"><div><label class="form-label">Class Name</label><input type="text" class="form-input" id="c-name" placeholder="e.g. Form 3A"></div><div><label class="form-label">Room</label><input type="text" class="form-input" id="c-room" placeholder="e.g. Block B-201"></div></div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveClass()">Create Class</button></div>`;
   } else if (type === 'addTeacher') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Staff</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2459,10 +2224,7 @@ function openModal(type, data) {
       <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="t-name" placeholder="e.g. Shadafi"></div>
       <div><label class="form-label">Email Address</label><input type="email" class="form-input" id="t-email" placeholder="e.g. shadafi@korosho.ac.tz"></div>
       <div><label class="form-label">Phone Number</label><input type="text" class="form-input" id="t-phone" placeholder="+255 7XX"></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="form-label">Role</label><select class="form-input" id="t-role"><option value="teacher">Teacher</option><option value="academic">Academic Master</option><option value="headteacher">Headteacher</option></select></div>
-        <div><label class="form-label">Temporary Password</label><input type="password" class="form-input" id="t-password" placeholder="Min 6 characters" required></div>
-      </div>
+      <div class="grid grid-cols-2 gap-3"><div><label class="form-label">Role</label><select class="form-input" id="t-role"><option value="teacher">Teacher</option><option value="academic">Academic Master</option><option value="headteacher">Headteacher</option></select></div><div><label class="form-label">Temporary Password</label><input type="password" class="form-input" id="t-password" placeholder="Min 6 characters" required></div></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveTeacher()">Create Account</button></div>`;
   } else if (type === 'assignTeacher') {
@@ -2472,8 +2234,7 @@ function openModal(type, data) {
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="assignTeacher(${cls.id})">Assign</button></div>`;
   } else if (type === 'addSubject') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Subject</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="modal-body"><div class="space-y-3">
-      <div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
+    <div class="modal-body"><div class="space-y-3"><div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
       <div><label class="form-label">Subject Code</label><input type="text" class="form-input" id="sub-code" placeholder="e.g. CIV"></div>
       <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
     </div></div>
@@ -2514,6 +2275,7 @@ function openModal(type, data) {
   }
   host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box">${content}</div></div>`;
 }
+
 function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
 function openConfirmModal(title, message, onConfirm) {
   const host = document.getElementById('modalHost');
@@ -2547,38 +2309,15 @@ async function saveTeacher() {
   const fullName = document.getElementById('t-name').value.trim();
   const phone = document.getElementById('t-phone').value.trim();
   const role = document.getElementById('t-role').value;
-
   if (!email || !password || !fullName) return showToast('Please fill all required fields', 'error');
-
   const { data: { session: adminSession } } = await supabase.auth.getSession();
   if (!adminSession) return showToast('Admin session lost. Please log in again.', 'error');
-
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
-  if (authError) {
-    return showToast('Auth Error: ' + authError.message, 'error');
-  }
-
-  await supabase.auth.setSession({
-    access_token: adminSession.access_token,
-    refresh_token: adminSession.refresh_token
-  });
-
-  const { error: profileError } = await supabase.from('profiles').insert([{
-    id: authData.user.id,
-    full_name: fullName,
-    email: email,
-    phone: phone,
-    role: role
-  }]);
-
-  if (profileError) {
-    showToast('Auth created, but profile failed: ' + profileError.message, 'error');
-  } else {
-    showToast(`${role} added successfully!`, 'success');
-    closeModal();
-    await fetchAllData();
-    renderPage();
-  }
+  if (authError) return showToast('Auth Error: ' + authError.message, 'error');
+  await supabase.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+  const { error: profileError } = await supabase.from('profiles').insert([{ id: authData.user.id, full_name: fullName, email: email, phone: phone, role: role }]);
+  if (profileError) showToast('Auth created, but profile failed: ' + profileError.message, 'error');
+  else { showToast(`${role} added successfully!`, 'success'); closeModal(); await fetchAllData(); renderPage(); }
 }
 
 async function assignTeacher(clsId) {
