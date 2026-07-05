@@ -1625,7 +1625,7 @@ function getExamPreviewHTML(draft, c, questions) {
 
   questions.forEach((q, i) => {
     if (q.type === 'section') {
-      questionsHtml += `<div style="text-align: center; font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
+      questionsHtml += `<div style="text-align: center; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
       questionsHtml += `<div style="margin-bottom: 20px; display: flex; page-break-inside: auto;">
@@ -1643,8 +1643,8 @@ function getExamPreviewHTML(draft, c, questions) {
       if(q.type === 'mcq'){
         questionsHtml += `<div style="margin-top: 10px;">`;
         (q.items||[]).forEach((item, idx) => {
-          questionsHtml += `<div style="margin-bottom: 10px; page-break-inside: avoid;">
-            <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
+          questionsHtml += `<div style="margin-bottom: 10px; page-break-inside: auto;">
+            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">(${toRoman(idx+1)}) ${item.text || ''}</div>
             <div style="padding-left: 20px;">`;
           item.choices.forEach((opt, cIdx) => {
             if(opt) questionsHtml += `<div style="margin-bottom: 2px; page-break-inside: avoid;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
@@ -1686,9 +1686,9 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
-  // --- TRIPLE BORDER & PERFECTLY CENTERED HEADER REPLICA ---
+  // --- EXACT REPLICA: TRIPLE BORDER, LOGO BEHIND TEXT, 12PX HEADINGS ---
   return `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.15; box-sizing: border-box;">
+    <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; font-family: Arial, sans-serif; color: #000; line-height: 1.15; box-sizing: border-box;">
       
       <!-- Triple Border Structure (Thin -> Thick -> Thin) -->
       <div style="position: absolute; top: 8mm; left: 8mm; right: 8mm; bottom: 8mm; border: 1px solid #000; z-index: 10;"></div>
@@ -1711,29 +1711,32 @@ function getExamPreviewHTML(draft, c, questions) {
       <!-- Content Area -->
       <div style="padding: 25mm; position: relative; z-index: 5;">
         
-        <!-- Header Area (Flexbox ensures text is perfectly centered on page, logo doesn't touch) -->
-        <div style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 30px;">
-          <div style="flex-shrink: 0; width: 35mm; height: 35mm; display: flex; align-items: center;">
+        <!-- Header Area (Logo positioned absolutely "behind text", Text centered perfectly) -->
+        <div style="position: relative; min-height: 35mm; margin-bottom: 20px; font-size: 12px; line-height: 1.4;">
+          
+          <!-- Logo: Absolute positioned, acts like MS Word "Behind Text" -->
+          <div style="position: absolute; top: 0; left: 0; width: 35mm; height: 35mm; z-index: 1;">
             <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
-          <div style="flex-grow: 1; text-align: center; padding-top: 5mm;">
-            <div style="font-size: 1.3em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-            <div style="font-size: 1.05em; font-weight: bold; margin-top: 8px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
-            <div style="font-size: 1.05em; font-weight: bold; margin-top: 4px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
-            <div style="font-size: 1.05em; font-weight: bold; margin-top: 4px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+          
+          <!-- Centered Heading Block (Full width, perfectly centered, sits above logo) -->
+          <div style="position: relative; z-index: 2; width: 100%; text-align: center; padding-top: 2mm;">
+            <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+            <div style="font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+            <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
+            <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
           </div>
-          <div style="flex-shrink: 0; width: 35mm;"></div> <!-- Right spacer to balance the logo -->
         </div>
 
-        <!-- Exam Title Block -->
-        <div style="text-align: center; margin-bottom: 30px; margin-top: 20px;">
-          <div style="font-size: 1.3em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
-          <div style="font-size: 1.2em; font-weight: bold; text-transform: uppercase; margin-top: 8px; white-space: nowrap;">${subjectName}</div>
-          <div style="font-size: 1.2em; font-weight: bold; text-transform: uppercase; margin-top: 8px; white-space: nowrap;">${className}</div>
+        <!-- Exam Title Block (Fixed 12px) -->
+        <div style="text-align: center; margin: 20px 0; font-size: 12px; line-height: 1.5;">
+          <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
+          <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
+          <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
         </div>
 
-        <!-- Information Row -->
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1em; text-transform: uppercase; white-space: nowrap; margin-top: 20px;">
+        <!-- Information Row (Fixed 12px) -->
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; text-transform: uppercase; white-space: nowrap; margin-top: 20px;">
           <span>TIME: ${timeAllowed}</span>
           <span>${dateStr}</span>
         </div>
@@ -1741,31 +1744,31 @@ function getExamPreviewHTML(draft, c, questions) {
         <!-- Horizontal Rule -->
         <hr style="border: none; border-top: 2px solid #000; margin: 5px 0 15px 0;">
 
-        <!-- Pupil Name -->
-        <div style="font-weight: bold; font-size: 1.1em; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap;">
+        <!-- Pupil Name (Fixed 12px) -->
+        <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap;">
           <span>PUPIL'S NAME&nbsp;</span>
           <span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
         </div>
 
-        <!-- Instructions -->
-        <div style="margin-top: 30px;">
-          <h3 style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-          <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+        <!-- Instructions (Fixed 12px) -->
+        <div style="margin-top: 30px; font-size: 12px;">
+          <h3 style="font-size: 12px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+          <ul style="list-style-type: disc; padding-left: 25px; margin: 0; font-size: 12px;">
             <li style="margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
             <li style="margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
             <li style="margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
           </ul>
         </div>
 
-        <!-- Questions Area -->
-        <div style="margin-top: 20px;">
+        <!-- Questions Area (Admin Font Settings Applied Here ONLY) -->
+        <div style="margin-top: 20px; font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.15;">
           ${questionsHtml}
         </div>
 
       </div>
     </div>
   `;
-}
+ }
 
 function toRoman(num) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
