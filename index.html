@@ -129,6 +129,7 @@ select.form-input { cursor: pointer; }
 .q-type-card:hover { border-color: var(--primary-light); background: #ECFDF5; }
 .q-type-card.selected { border-color: var(--primary); border-style: solid; background: #ECFDF5; }
 .question-block { background: #F8FAFC; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.question-block.collapsed { background: #f1f5f9; padding: 10px 16px; }
 .progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
 </style>
@@ -774,7 +775,7 @@ function renderClasses() {
         return `<div class="card fade-up-${i+1}" style="padding:0;overflow:hidden;">
           <div class="p-5" style="background: linear-gradient(135deg, ${['#047857','#D97706','#0EA5E9','#9333EA','#DC2626'][i%5]}, ${['#10B981','#F59E0B','#0284C7','#A855F7','#EF4444'][i%5]});">
             <div class="flex items-center justify-between text-white">
-              <div><div class="text-xs uppercase tracking-wider opacity:80">Class</div><div class="text-2xl font-bold">${c.name}</div></div>
+              <div><div class="text-xs uppercase tracking-wider opacity-80">Class</div><div class="text-2xl font-bold">${c.name}</div></div>
               <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center"><i class="fa-solid fa-school text-xl"></i></div>
             </div>
           </div>
@@ -1646,7 +1647,7 @@ function renderExamSet() {
             </div>
           </div>
           <div>
-            <label class="form-label">Paper Structure Instruction (First Instruction)</label>
+            <label class="form-label">Paper Structure Instruction (First instruction)</label>
             <textarea class="form-input" rows="2" placeholder="e.g. This paper consists of sections A and B with a total of five (5) questions." oninput="state.examDraft.customInstruction = this.value; updateExamPreview();">${state.examDraft.customInstruction || ''}</textarea>
           </div>
         </div>
@@ -1666,7 +1667,10 @@ function renderExamSet() {
         </div>
         
         <div class="card fade-up-2">
-          <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span></div>
+          <div class="section-title">
+            <span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span>
+            ${state.examQuestions.filter(q => q.collapsed).length > 0 ? `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="unhideAllQuestions()"><i class="fa-solid fa-eye mr-1"></i> UNHIDE ALL</button>` : ''}
+          </div>
           <div class="space-y-3">
             ${state.examQuestions.length === 0 ? '<div class="text-center text-slate-500 py-8">No questions added yet. Click above to start.</div>' : state.examQuestions.map((q, i) => renderQuestionEditor(q, i)).join('')}
           </div>
@@ -1753,38 +1757,45 @@ function getExamPreviewHTML(draft, c, questions) {
           </tbody>
         </table>`;
       } else if (q.type === 'picture') {
-        questionsHtml += `<div style="margin-top: 10px;">`;
-        (q.items||[]).forEach((item, idx) => {
-          let alignStyle = 'flex-start';
-          let marginLeft = '0'; let marginRight = '0';
-          if (item.align === 'center') { alignStyle = 'center'; }
-          else if (item.align === 'center-left') { alignStyle = 'flex-start'; marginLeft = '25%'; }
-          else if (item.align === 'center-right') { alignStyle = 'flex-end'; marginRight = '25%'; }
-          else if (item.align === 'right') { alignStyle = 'flex-end'; }
-          
-          questionsHtml += `<div style="margin-bottom: 15px; page-break-inside: auto;">
-            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${item.text || ''}</div>
-            <div style="display: flex; justify-content: ${alignStyle}; margin-left: ${marginLeft}; margin-right: ${marginRight}; margin-bottom: 5px; page-break-inside: avoid;">`;
-          if (item.url) {
-            questionsHtml += `<img src="${item.url}" style="width: ${item.width}px; height: ${item.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
-          } else {
-            questionsHtml += `<div style="width: ${item.width}px; height: ${item.height}px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
-          }
+        // FIX #1: Picture question - all pictures arranged horizontally with optional center-left/center-right
+        const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
+        const enabledSlots = slotOrder.filter(k => q.slots && q.slots[k] && q.slots[k].enabled);
+        
+        if (enabledSlots.length > 0) {
+          questionsHtml += `<div style="margin-top: 10px; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; gap: 10px; page-break-inside: avoid;">`;
+          enabledSlots.forEach(slotKey => {
+            const slot = q.slots[slotKey];
+            questionsHtml += `<div style="flex: 1; min-width: 0; text-align: center;">`;
+            if (slot.text) {
+              questionsHtml += `<div style="margin-bottom: 4px; page-break-after: avoid;">${slot.text}</div>`;
+            }
+            if (slot.url) {
+              questionsHtml += `<img src="${slot.url}" style="width: ${slot.width}px; height: ${slot.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
+            } else {
+              questionsHtml += `<div style="width: ${slot.width}px; height: ${slot.height}px; border: 1px dashed #ccc; display: inline-flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
+            }
+            questionsHtml += `</div>`;
+          });
           questionsHtml += `</div>`;
-          if (item.hasLine) {
-            questionsHtml += `<div style="border-bottom: 1px solid #000; width: ${item.lineLength}%; margin-top: 5px; margin-bottom: 5px;"></div>`;
-          }
-          questionsHtml += `</div>`;
-        });
-        questionsHtml += `</div>`;
+        }
+        if (q.hasLine) {
+          questionsHtml += `<div style="border-bottom: 1px solid #000; width: ${q.lineLength}%; margin-top: 10px; margin-bottom: 5px;"></div>`;
+        }
       } else if (q.type === 'drawing') {
+        // FIX #3: Drawing question - 2 boxes per row horizontally, more go below
         questionsHtml += `<div style="margin-top: 10px;">`;
-        (q.items||[]).forEach((item, idx) => {
-          questionsHtml += `<div style="margin-bottom: 15px; page-break-inside: auto;">
-            <div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${item.text || ''}</div>
-            <div style="border: 1px solid #000; height: ${item.boxHeight}px; width: ${item.boxWidth}%; page-break-inside: avoid;"></div>
-          </div>`;
-        });
+        const drawItems = q.items || [];
+        for (let dIdx = 0; dIdx < drawItems.length; dIdx += 2) {
+          questionsHtml += `<div style="display: flex; flex-direction: row; gap: 4%; margin-bottom: 15px; page-break-inside: avoid;">`;
+          for (let j = dIdx; j < Math.min(dIdx + 2, drawItems.length); j++) {
+            const dItem = drawItems[j];
+            questionsHtml += `<div style="flex: 1; min-width: 0;">
+              ${dItem.text ? `<div style="font-weight: normal; margin-bottom: 4px; page-break-after: avoid;">${dItem.text}</div>` : ''}
+              <div style="border: 1px solid #000; height: ${dItem.boxHeight}px; width: 100%; box-sizing: border-box; page-break-inside: avoid;"></div>
+            </div>`;
+          }
+          questionsHtml += `</div>`;
+        }
         questionsHtml += `</div>`;
       } else if (q.type === 'mentioning') {
         questionsHtml += `<div style="margin-top: 10px;">`;
@@ -1894,15 +1905,19 @@ function updateExamPreview() {
 function renderQuestionEditor(q, i) {
   const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items', mentioning: 'Mentioning' };
   
-  if (q.type === 'section') {
-    return `<div class="question-block" style="background:#f1f5f9; border-style:dashed;">
-      <div class="flex items-start justify-between mb-3">
-        <span class="badge badge-gray">${typeLabels[q.type]}</span>
-        <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
-      </div>
-      <div class="mt-3">
-        <label class="form-label">Section Title (Will be centered and bold)</label>
-        <input type="text" class="form-input" style="text-align:center; font-weight:bold; text-transform:uppercase;" value="${q.text||''}" placeholder="e.g. SECTION A (20 Marks)" onchange="updateQuestionField(${q.id}, 'text', this.value)">
+  // FIX #4: Collapsed state - show compact bar with UNHIDE button
+  if (q.collapsed) {
+    return `<div class="question-block collapsed">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 min-w-0">
+          <i class="fa-solid fa-eye-slash text-slate-400 flex-shrink-0"></i>
+          <span class="text-sm font-semibold text-slate-600 flex-shrink-0">${typeLabels[q.type]}</span>
+          ${q.text ? `<span class="text-xs text-slate-400 truncate">— "${q.text.substring(0, 60)}${q.text.length > 60 ? '...' : ''}"</span>` : ''}
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="toggleQuestionCollapse(${q.id})"><i class="fa-solid fa-eye mr-1"></i> UNHIDE</button>
+          <button class="icon-btn" style="width:28px;height:28px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+        </div>
       </div>
     </div>`;
   }
@@ -1948,101 +1963,168 @@ function renderQuestionEditor(q, i) {
       </div>
     `;
   } else if (q.type === 'picture') {
+    // FIX #1: Picture question editor with slots - left, [center-left], center, [center-right], right
+    const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
+    const slotLabels = { 'left': 'Left', 'center-left': 'Center-Left', 'center': 'Center', 'center-right': 'Center-Right', 'right': 'Right' };
     extraFields += `
       <div class="space-y-2 mt-3">
-        <label class="form-label">Picture Items</label>
-        ${(q.items||[]).map((item, idx) => `
-          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-xs font-bold text-slate-600">Item ${idx+1}</span>
-              <button class="icon-btn" style="width:28px;height:28px;" onclick="removePictureItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
-            </div>
-            <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) What is this?)" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
-            <div class="flex items-center gap-2 mb-2">
-              <input type="file" accept="image/*" class="text-xs flex-1" onchange="uploadPictureImage(${q.id}, ${item.id}, this)">
-              ${item.url ? `<img src="${item.url}" style="max-height:60px;border:1px solid #ccc;border-radius:4px;">` : ''}
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.width}" placeholder="W" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'width', this.value)">
-              <input type="number" class="form-input" style="padding:6px;font-size:12px;" value="${item.height}" placeholder="H" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'height', this.value)">
-              <select class="form-input" style="padding:6px;font-size:12px;" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'align', this.value)">
-                <option value="left" ${item.align==='left'?'selected':''}>Left</option>
-                <option value="center-left" ${item.align==='center-left'?'selected':''}>Center-Left</option>
-                <option value="center" ${item.align==='center'?'selected':''}>Center</option>
-                <option value="center-right" ${item.align==='center-right'?'selected':''}>Center-Right</option>
-                <option value="right" ${item.align==='right'?'selected':''}>Right</option>
-              </select>
-            </div>
-            <div class="mt-2 flex items-center gap-4">
-              <label class="flex items-center gap-2 text-xs">
-                <input type="checkbox" ${item.hasLine?'checked':''} onchange="updatePictureItemProp(${q.id}, ${item.id}, 'hasLine', this.checked)"> Add Answer Line
-              </label>
-              ${item.hasLine ? `<input type="number" class="form-input" style="padding:4px;font-size:11px;width:80px;" value="${item.lineLength}" placeholder="%" onchange="updatePictureItemProp(${q.id}, ${item.id}, 'lineLength', this.value)">` : ''}
-            </div>
-          </div>
-        `).join('')}
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Picture Item</button>
+        <label class="form-label">Picture Slots (arranged horizontally: Left → [Center-Left] → Center → [Center-Right] → Right)</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          ${slotOrder.map(slotKey => {
+            const slot = q.slots ? q.slots[slotKey] : null;
+            if (!slot) return '';
+            const isOptional = slotKey === 'center-left' || slotKey === 'center-right';
+            return `
+              <div class="p-3 border rounded-lg" style="background:${slot.enabled ? '#fff' : '#f8fafc'}; ${!slot.enabled ? 'opacity:0.5;' : ''}">
+                <div class="flex justify-between items-center mb-2">
+                  ${isOptional ? `
+                    <label class="flex items-center gap-2 text-xs cursor-pointer">
+                      <input type="checkbox" ${slot.enabled?'checked':''} onchange="togglePictureSlot(${q.id}, '${slotKey}')">
+                      <span class="font-bold text-slate-600">${slotLabels[slotKey]}</span>
+                      <span class="text-[10px] text-slate-400">(optional)</span>
+                    </label>
+                  ` : `
+                    <span class="font-bold text-xs text-slate-600">${slotLabels[slotKey]}</span>
+                  `}
+                </div>
+                ${slot.enabled ? `
+                  <textarea class="form-input mb-2" rows="1" style="padding:6px;font-size:11px;" placeholder="Sub-item text" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'text', this.value)">${slot.text||''}</textarea>
+                  <div class="flex items-center gap-2 mb-2">
+                    <input type="file" accept="image/*" class="text-xs flex-1" style="font-size:10px;" onchange="uploadPictureSlotImage(${q.id}, '${slotKey}', this)">
+                    ${slot.url ? `<img src="${slot.url}" style="max-height:40px;max-width:50px;border:1px solid #ccc;border-radius:4px;">` : ''}
+                  </div>
+                  <div class="grid grid-cols-2 gap-1">
+                    <div><label class="form-label" style="font-size:10px;">Width</label><input type="number" class="form-input" style="padding:4px;font-size:11px;" value="${slot.width}" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'width', this.value)"></div>
+                    <div><label class="form-label" style="font-size:10px;">Height</label><input type="number" class="form-input" style="padding:4px;font-size:11px;" value="${slot.height}" onchange="updatePictureSlotProp(${q.id}, '${slotKey}', 'height', this.value)"></div>
+                  </div>
+                ` : `<p class="text-xs text-slate-400 italic">Not selected - no space reserved</p>`}
+              </div>
+            `;
+          }).join('')}
+        </div>
+        <div class="mt-3 flex items-center gap-4 p-2 bg-slate-50 rounded">
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input type="checkbox" ${q.hasLine?'checked':''} onchange="updateQuestionField(${q.id}, 'hasLine', this.checked)"> 
+            <span>Add Answer Line Below Pictures</span>
+          </label>
+          ${q.hasLine ? `<input type="number" class="form-input" style="padding:4px;font-size:11px;width:80px;" value="${q.lineLength||50}" placeholder="%" onchange="updateQuestionField(${q.id}, 'lineLength', parseInt(this.value)||50)">` : ''}
+        </div>
       </div>
     `;
   } else if (q.type === 'drawing') {
+    // FIX #3: Drawing editor - 2 per row grid layout
     extraFields += `
       <div class="space-y-2 mt-3">
-        <label class="form-label">Drawing Items</label>
-        ${(q.items||[]).map((item, idx) => `
-          <div class="p-3 border rounded-lg mb-2" style="background:#fff;">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-xs font-bold text-slate-600">Item ${idx+1}</span>
-              <button class="icon-btn" style="width:28px;height:28px;" onclick="removeDrawingItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+        <label class="form-label">Drawing Boxes (2 per row, additional boxes go below)</label>
+        <div class="grid grid-cols-2 gap-3">
+          ${(q.items||[]).map((item, idx) => `
+            <div class="p-3 border rounded-lg" style="background:#fff;">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-bold text-slate-600">Box ${idx+1} ${idx < 2 ? '(Row 1)' : '(Row ' + (Math.floor(idx/2)+1) + ')'}</span>
+                <button class="icon-btn" style="width:28px;height:28px;" onclick="removeDrawingItem(${q.id}, ${item.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+              </div>
+              <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) Draw the map)" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
+              <div class="grid grid-cols-2 gap-2">
+                <div><label class="form-label">Height (px)</label><input type="number" class="form-input" value="${item.boxHeight}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxHeight', this.value)"></div>
+                <div><label class="form-label">Width (%)</label><input type="number" class="form-input" value="${item.boxWidth}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxWidth', this.value)"></div>
+              </div>
             </div>
-            <textarea class="form-input mb-2" rows="1" style="padding:8px;font-size:12px;" placeholder="Sub-item text (e.g. (i) Draw the map)" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'text', this.value)">${item.text||''}</textarea>
-            <div class="grid grid-cols-2 gap-3">
-              <div><label class="form-label">Box Height (px)</label><input type="number" class="form-input" value="${item.boxHeight}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxHeight', this.value)"></div>
-              <div><label class="form-label">Box Width (%)</label><input type="number" class="form-input" value="${item.boxWidth}" onchange="updateDrawingItemProp(${q.id}, ${item.id}, 'boxWidth', this.value)"></div>
-            </div>
-          </div>
-        `).join('')}
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addDrawingItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Drawing Item</button>
+          `).join('')}
+        </div>
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addDrawingItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Drawing Box</button>
       </div>
     `;
   } else if (q.type === 'mentioning') {
+    // FIX #2: Mentioning question - number input controls item count
     extraFields += `
       <div class="space-y-2 mt-3">
-        <div><label class="form-label">Numbering Format</label>
-          <select class="form-input" onchange="updateMentioningFormat(${q.id}, this.value)">
-            <option value="roman" ${q.format==='roman'?'selected':''}>i. ii. iii.</option>
-            <option value="bracket-roman" ${q.format==='bracket-roman'?'selected':''}>(i) (ii) (iii)</option>
-            <option value="letter" ${q.format==='letter'?'selected':''}>a. b. c.</option>
-            <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
-          </select>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="form-label">Numbering Format</label>
+            <select class="form-input" onchange="updateMentioningFormat(${q.id}, this.value)">
+              <option value="roman" ${q.format==='roman'?'selected':''}>i. ii. iii.</option>
+              <option value="bracket-roman" ${q.format==='bracket-roman'?'selected':''}>(i) (ii) (iii)</option>
+              <option value="letter" ${q.format==='letter'?'selected':''}>a. b. c.</option>
+              <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
+            </select>
+          </div>
+          <div><label class="form-label">Number of Items</label>
+            <input type="number" class="form-input" min="1" max="20" value="${(q.items||[]).length}" onchange="updateMentioningCount(${q.id}, this.value)" placeholder="Type a number e.g. 3">
+          </div>
         </div>
         <label class="form-label">Items</label>
         ${(q.items||[]).map((item, idx) => `
           <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-bold w-10 text-slate-600 flex-shrink-0">${getMentionPrefix(q.format, idx)}</span>
             <input type="text" class="form-input flex-1" style="padding:8px 12px;font-size:13px;" value="${item.text}" placeholder="Item text (optional)" onchange="updateMentioningItemProp(${q.id}, ${item.id}, 'text', this.value)">
-            <button class="icon-btn" style="width:32px;height:32px;" onclick="removeMentioningItem(${q.id}, ${item.id})"><i class="fa-solid fa-xmark text-xs"></i></button>
           </div>
         `).join('')}
-        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addMentioningItem(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Item</button>
       </div>
     `;
   }
   
-  return `<div class="question-block"><div class="flex items-start justify-between mb-3"><span class="badge badge-blue">${typeLabels[q.type]}</span><button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></div>${extraFields}<div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div></div>`;
+  return `<div class="question-block">
+    <div class="flex items-start justify-between mb-3">
+      <span class="badge badge-blue">${typeLabels[q.type]}</span>
+      <div class="flex gap-2">
+        <button class="btn-ghost" style="padding:4px 10px;font-size:11px;" onclick="toggleQuestionCollapse(${q.id})"><i class="fa-solid fa-eye-slash mr-1"></i> HIDE</button>
+        <button class="icon-btn" style="width:32px;height:32px;" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>
+      </div>
+    </div>
+    ${extraFields}
+    <div class="mt-3"><label class="form-label">Marks</label><input type="number" class="form-input" value="${q.marks||1}" onchange="updateQuestionField(${q.id}, 'marks', this.value)"></div>
+  </div>`;
+}
+
+// FIX #4: Toggle collapse for individual question
+function toggleQuestionCollapse(qId) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q) {
+    q.collapsed = !q.collapsed;
+    renderPage();
+    updateExamPreview();
+  }
+}
+
+// FIX #4: Unhide all collapsed questions
+function unhideAllQuestions() {
+  state.examQuestions.forEach(q => { q.collapsed = false; });
+  renderPage();
 }
 
 function addQuestion(type) { 
   const id = Date.now(); 
-  const newQ = { id, type, text: '', marks: 5 }; 
+  // FIX #4: Collapse all existing questions when adding a new one
+  state.examQuestions.forEach(q => { q.collapsed = true; });
+  
+  const newQ = { id, type, text: '', marks: 5, collapsed: false }; 
   if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; }
-  if (type === 'picture') newQ.items = [{ id: Date.now()+1, text: '', url: '', width: 150, height: 150, align: 'center', hasLine: false, lineLength: 50 }];
-  if (type === 'drawing') newQ.items = [{ id: Date.now()+1, text: '', boxHeight: 100, boxWidth: 100 }];
+  // FIX #1: Picture question uses slots with left/center/right always, center-left/center-right optional
+  if (type === 'picture') {
+    newQ.slots = {
+      'left': { enabled: true, text: '', url: '', width: 150, height: 150 },
+      'center-left': { enabled: false, text: '', url: '', width: 150, height: 150 },
+      'center': { enabled: true, text: '', url: '', width: 150, height: 150 },
+      'center-right': { enabled: false, text: '', url: '', width: 150, height: 150 },
+      'right': { enabled: true, text: '', url: '', width: 150, height: 150 }
+    };
+    newQ.hasLine = false;
+    newQ.lineLength = 50;
+  }
+  // FIX #3: Drawing question defaults to 2 boxes horizontally
+  if (type === 'drawing') {
+    newQ.items = [
+      { id: Date.now()+1, text: '', boxHeight: 100, boxWidth: 48 },
+      { id: Date.now()+2, text: '', boxHeight: 100, boxWidth: 48 }
+    ];
+  }
   if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
   
   state.examQuestions.push(newQ); 
   state.examDraft.isDirty = true;
   renderPage(); 
-  showToast('Question added', 'success'); 
+  updateExamPreview();
+  showToast('Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
 }
 
 function updateQuestionField(id, field, val) { 
@@ -2110,31 +2192,37 @@ function updateMatchingCol(qId, col, idx, val) {
   } 
 }
 
-// --- PICTURE HELPERS (Item-based) ---
-function addPictureItem(qId) {
+// --- PICTURE HELPERS (Slot-based) ---
+// FIX #1: New slot-based picture helpers
+function togglePictureSlot(qId, slotKey) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') { q.items.push({ id: Date.now(), text: '', url: '', width: 150, height: 150, align: 'center', hasLine: false, lineLength: 50 }); state.examDraft.isDirty = true; renderPage(); }
-}
-function removePictureItem(qId, itemId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
-}
-function updatePictureItemProp(qId, itemId, prop, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item[prop] = (prop === 'width' || prop === 'height' || prop === 'lineLength') ? parseInt(val) : val; state.examDraft.isDirty = true; updateExamPreview(); }
+  if (q && q.type === 'picture' && q.slots) {
+    q.slots[slotKey].enabled = !q.slots[slotKey].enabled;
+    state.examDraft.isDirty = true;
+    renderPage();
+    updateExamPreview();
   }
 }
-function uploadPictureImage(qId, itemId, input) {
+function updatePictureSlotProp(qId, slotKey, prop, val) {
+  const q = state.examQuestions.find(x => x.id === qId);
+  if (q && q.type === 'picture' && q.slots) {
+    const slot = q.slots[slotKey];
+    if (slot) {
+      slot[prop] = (prop === 'width' || prop === 'height') ? parseInt(val) || 150 : val;
+      state.examDraft.isDirty = true;
+      updateExamPreview();
+    }
+  }
+}
+function uploadPictureSlotImage(qId, slotKey, input) {
   const file = input.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
     const q = state.examQuestions.find(x => x.id === qId);
-    if (q && q.type === 'picture') {
-      const item = q.items.find(it => it.id === itemId);
-      if (item) { item.url = e.target.result; state.examDraft.isDirty = true; renderPage(); showToast('Picture attached', 'success'); }
+    if (q && q.type === 'picture' && q.slots) {
+      const slot = q.slots[slotKey];
+      if (slot) { slot.url = e.target.result; state.examDraft.isDirty = true; renderPage(); updateExamPreview(); showToast('Picture attached', 'success'); }
     }
   };
   reader.readAsDataURL(file);
@@ -2143,28 +2231,41 @@ function uploadPictureImage(qId, itemId, input) {
 // --- DRAWING HELPERS (Item-based) ---
 function addDrawingItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 100 }); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 48 }); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
 }
 function removeDrawingItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
 }
 function updateDrawingItemProp(qId, itemId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'drawing') {
     const item = q.items.find(it => it.id === itemId);
-    if (item) { item[prop] = (prop === 'boxHeight' || prop === 'boxWidth') ? parseInt(val) : val; state.examDraft.isDirty = true; updateExamPreview(); }
+    if (item) { item[prop] = (prop === 'boxHeight' || prop === 'boxWidth') ? parseInt(val) || 100 : val; state.examDraft.isDirty = true; updateExamPreview(); }
   }
 }
 
 // --- MENTIONING HELPERS ---
-function addMentioningItem(qId) {
+// FIX #2: Number-based item count control
+function updateMentioningCount(qId, count) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { q.items.push({ id: Date.now(), text: '' }); state.examDraft.isDirty = true; renderPage(); }
-}
-function removeMentioningItem(qId, itemId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
+  if (q && q.type === 'mentioning') {
+    count = parseInt(count) || 1;
+    if (count < 1) count = 1;
+    if (count > 20) count = 20;
+    const current = q.items.length;
+    if (count > current) {
+      for (let i = current; i < count; i++) {
+        q.items.push({ id: Date.now() + i, text: '' });
+      }
+    } else if (count < current) {
+      q.items = q.items.slice(0, count);
+    }
+    state.examDraft.isDirty = true;
+    renderPage();
+    updateExamPreview();
+    showToast(`${count} item${count > 1 ? 's' : ''} displayed`, 'success');
+  }
 }
 function updateMentioningItemProp(qId, itemId, prop, val) {
   const q = state.examQuestions.find(x => x.id === qId);
@@ -2175,13 +2276,13 @@ function updateMentioningItemProp(qId, itemId, prop, val) {
 }
 function updateMentioningFormat(qId, val) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; updateExamPreview(); }
+  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; renderPage(); updateExamPreview(); }
 }
 
 // --- MISC HELPERS ---
 function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); state.examDraft.isDirty = true; renderPage(); } }
 function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } }
-function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
+function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); updateExamPreview(); showToast('Question removed', 'info'); closeModal(); }); }
 
 function renderExamReview() {
   return `
@@ -2221,6 +2322,7 @@ async function printExamPaper(exam = null) {
   
   const examHTML = getExamPreviewHTML(draft, c, questions);
 
+  // FIX #5: Default print font is Century Gothic
   const fullHTML = `
     <!DOCTYPE html>
     <html>
@@ -2232,7 +2334,7 @@ async function printExamPaper(exam = null) {
         body { 
           margin: 0; 
           padding: 0; 
-          font-family: Arial, sans-serif; 
+          font-family: 'Century Gothic', 'Jost', sans-serif; 
           background: #e2e8f0; 
           display: flex;
           justify-content: center;
@@ -2241,6 +2343,7 @@ async function printExamPaper(exam = null) {
         .print-btn { 
           padding: 15px 30px; background: #047857; color: white; border: none; 
           border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; 
+          font-family: 'Century Gothic', sans-serif;
           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .paper-wrapper { 
@@ -2250,7 +2353,7 @@ async function printExamPaper(exam = null) {
           box-shadow: 0 0 15px rgba(0,0,0,0.2); 
         }
         @media print {
-          body { background: white; padding: 0; display: block; }
+          body { background: white; padding: 0; display: block; font-family: 'Century Gothic', sans-serif; }
           .print-btn-container { display: none !important; }
           .paper-wrapper { box-shadow: none; width: 100%; min-height: 100vh; }
           @page { 
@@ -2293,8 +2396,15 @@ async function printExamPaper(exam = null) {
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
-      if (cleanQ.type === 'picture' && cleanQ.items) {
-        cleanQ.items.forEach(item => { if(item.url) item.url = ''; });
+      // Remove collapsed state and non-serializable props before saving
+      delete cleanQ.collapsed;
+      if (cleanQ.type === 'picture' && cleanQ.slots) {
+        const slotsCopy = {};
+        Object.keys(cleanQ.slots).forEach(k => {
+          slotsCopy[k] = { ...cleanQ.slots[k] };
+          if(slotsCopy[k].url) slotsCopy[k].url = '';
+        });
+        cleanQ.slots = slotsCopy;
       }
       return cleanQ;
     });
