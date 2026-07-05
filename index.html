@@ -1989,9 +1989,9 @@ async function printExamPaper(exam = null) {
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // 1. Save to Supabase (if not reviewing an existing exam)
+  // 1. Save to Supabase IN THE BACKGROUND (Do not await, so mobile print isn't blocked)
   if (!exam && state.examQuestions.length > 0) {
-    showToast('Saving copy to Admin for review...', 'info');
+    showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
       if (cleanQ.type === 'picture' && cleanQ.pictures) {
@@ -2000,81 +2000,54 @@ async function printExamPaper(exam = null) {
       return cleanQ;
     });
 
-    const { error } = await supabase.from('exams').insert([{
+    supabase.from('exams').insert([{
       title: draft.title || 'Untitled Exam',
       class_id: draft.classId,
       subject_id: draft.subjectId,
       questions: questionsToSave,
       created_by: state.currentUser.id
-    }]);
-    
-    if (error) {
-      showToast('Failed to send for review: ' + error.message, 'error');
-    } else {
-      showToast('Copy sent to Admin for review.', 'success');
-      await fetchAllData(); 
-    }
+    }]).then(({ error }) => {
+      if (error) showToast('Failed to send for review: ' + error.message, 'error');
+      else { showToast('Copy sent to Admin for review.', 'success'); fetchAllData(); }
+    });
   }
 
   // 2. Generate HTML
   const htmlContent = getExamPreviewHTML(draft, c, questions);
 
-  // 3. Open a clean, new window and print from there
-  const printWindow = window.open('', '_blank', 'width=800,height=600');
-  if (!printWindow) {
-    showToast('Please allow pop-ups to print the exam', 'error');
-    return;
-  }
+  // 3. Create a hidden Iframe to print from
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.zIndex = '-1';
+  document.body.appendChild(iframe);
 
-  // Write the HTML and essential print styles into the new window
-  printWindow.document.open();
-  printWindow.document.write(`
-    <html>
-    <head>
-      <title>Print Exam</title>
-      <style>
-        @page { size: A4; margin: 0; }
-        body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      </style>
-    </head>
-    <body>${htmlContent}</body>
-    </html>
-  `);
-  printWindow.document.close();
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<html><head><title>Print Exam</title><style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>${htmlContent}</body></html>`);
+  doc.close();
 
-  // 4. Wait for images (like the logo) to load before triggering print
-  const images = printWindow.document.getElementsByTagName('img');
-  let loadedImages = 0;
-  const totalImages = images.length;
-  
-  const triggerPrint = () => {
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      // Close the window after printing (slight delay for mobile compatibility)
-      setTimeout(() => printWindow.close(), 500);
-    }, 300);
-  };
-
-  if (totalImages === 0) {
-    triggerPrint();
-  } else {
-    for (let img of images) {
-      if (img.complete) {
-        loadedImages++;
-        if (loadedImages === totalImages) triggerPrint();
-      } else {
-        img.onload = () => {
-          loadedImages++;
-          if (loadedImages === totalImages) triggerPrint();
-        };
-        img.onerror = () => {
-          loadedImages++;
-          if (loadedImages === totalImages) triggerPrint();
-        };
-      }
+  // 4. Give the mobile browser a moment to render the iframe, then print
+  setTimeout(() => {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch (e) {
+      console.error("Print failed", e);
+      showToast("Printing failed. Try downloading on a computer.", "error");
     }
-  }
+    
+    // Cleanup the iframe after the print dialog is closed
+    setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 1000);
+  }, 800); // 800ms delay allows mobile DOM to paint the exam perfectly
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
