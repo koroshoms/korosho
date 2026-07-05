@@ -1686,7 +1686,7 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
-  // --- EXACT A4 EAST AFRICAN EXAM LAYOUT ---
+  // --- EXACT REPLICA OF SCREENSHOT LAYOUT ---
   return `
     <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.15; box-sizing: border-box;">
       
@@ -1694,59 +1694,55 @@ function getExamPreviewHTML(draft, c, questions) {
       <div style="position: absolute; top: 8mm; left: 8mm; right: 8mm; bottom: 8mm; border: 2px solid #000; pointer-events: none; z-index: 10;"></div>
       
       <!-- Inner Border (1.8mm inside outer, 1px solid) -->
-      <div style="position: absolute; top: 9.8mm; left: 9.8mm; right: 9.8mm; bottom: 9.8mm; border: 1px solid #000; pointer-events: none; z-index: 10;"></div>
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 1px solid #000; pointer-events: none; z-index: 10;"></div>
 
-      <!-- Corner Guide Marks (0.5px light gray, 5mm length, 3mm separation) -->
+      <!-- Corner Guide Marks (L-Shaped, 5mm length, 3mm separation from border) -->
       <div style="position: absolute; top: 13mm; left: 13mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 13mm; left: 21mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 13mm; left: 13mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
       <div style="position: absolute; top: 13mm; right: 13mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 13mm; right: 21mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 13mm; right: 13mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
       <div style="position: absolute; bottom: 13mm; left: 13mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 13mm; left: 21mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 13mm; left: 13mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
       <div style="position: absolute; bottom: 13mm; right: 13mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 13mm; right: 21mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 13mm; right: 13mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
 
-      <!-- Content Area (19.8mm padding = 10mm from inner border) -->
-      <div style="padding: 19.8mm; position: relative; z-index: 5;">
+      <!-- Content Area (20mm padding from page edge = ~10mm inside inner border) -->
+      <div style="padding: 20mm; position: relative; z-index: 5;">
         
-        <!-- Header Area (78mm height) -->
-        <div style="height: 78mm; position: relative;">
-          
-          <!-- Logo Column (Left aligned, vertically centered) -->
-          <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 45mm; text-align: left;">
-            <img src="${LOGO_URL}" alt="Logo" style="width: 35mm; height: 35mm; object-fit: contain;">
+        <!-- Header Layout (Logo Left, Text Centered on Page Width) -->
+        <div style="position: relative; height: 90px; margin-bottom: 25px;">
+          <div style="position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 80px; height: 80px;">
+            <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
           </div>
-          
-          <!-- Centered Heading Block (Perfectly centered on page width, no wrap) -->
-          <div style="position: absolute; left: 0; width: 100%; text-align: center; padding-top: 14mm; box-sizing: border-box;">
-            <div style="font-size: 1.5em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-            <div style="margin-top: 5mm; font-size: 1.25em; font-weight: bold; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
-            <div style="margin-top: 4mm; font-size: 1.25em; font-weight: bold; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
-            <div style="margin-top: 4mm; font-size: 1.25em; font-weight: bold; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+          <div style="position: absolute; left: 0; width: 100%; text-align: center;">
+            <div style="font-size: 1.4em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+            <div style="font-size: 1.1em; font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+            <div style="font-size: 1.1em; font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
+            <div style="font-size: 1.1em; font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
           </div>
         </div>
 
-        <!-- Exam Title Block (11mm space below email) -->
-        <div style="margin-top: 11mm; text-align: center;">
-          <div style="font-size: 1.4em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
-          <div style="margin-top: 5mm; font-size: 1.3em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">${subjectName}</div>
-          <div style="margin-top: 3mm; font-size: 1.3em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">${className}</div>
+        <!-- Exam Title Block -->
+        <div style="text-align: center; margin-bottom: 25px;">
+          <div style="font-size: 1.3em; font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
+          <div style="font-size: 1.2em; font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
+          <div style="font-size: 1.2em; font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
         </div>
 
-        <!-- Information Row (16mm space below title) -->
-        <div style="margin-top: 16mm; display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; font-size: 1.3em; text-transform: uppercase; white-space: nowrap;">
+        <!-- Information Row -->
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1em; text-transform: uppercase; white-space: nowrap;">
           <span>TIME: ${timeAllowed}</span>
           <span>${dateStr}</span>
         </div>
         
-        <!-- Horizontal Rule (5mm space, 1.5px thick) -->
-        <hr style="margin-top: 5mm; border: 0; border-top: 1.5px solid #000;">
+        <!-- Horizontal Rule -->
+        <hr style="border: none; border-top: 1.5px solid #000; margin: 5px 0 15px 0;">
 
-        <!-- Pupil Name (6mm space, 58% width line) -->
-        <div style="margin-top: 6mm; font-size: 1.3em; font-weight: bold; text-transform: uppercase; display: flex; align-items: baseline; white-space: nowrap;">
+        <!-- Pupil Name -->
+        <div style="font-weight: bold; font-size: 1.1em; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap;">
           <span>PUPIL'S NAME&nbsp;</span>
           <span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
         </div>
