@@ -1686,33 +1686,33 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
-  // --- EXACT REPLICA: TRIPLE BORDER, LOGO BEHIND TEXT, 12PX HEADINGS ---
+  // --- EXACT REPLICA: EVENLY SPACED BORDERS, REDUCED OUTER MARGIN, FIXED SPACING ---
   return `
     <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; font-family: Arial, sans-serif; color: #000; line-height: 1.15; box-sizing: border-box;">
       
-      <!-- Triple Border Structure (Thin -> Thick -> Thin) -->
-      <div style="position: absolute; top: 8mm; left: 8mm; right: 8mm; bottom: 8mm; border: 1px solid #000; z-index: 10;"></div>
-      <div style="position: absolute; top: 9.5mm; left: 9.5mm; right: 9.5mm; bottom: 9.5mm; border: 3px solid #000; z-index: 10;"></div>
-      <div style="position: absolute; top: 13.5mm; left: 13.5mm; right: 13.5mm; bottom: 13.5mm; border: 1px solid #000; z-index: 10;"></div>
+      <!-- Triple Border Structure (Evenly Spaced: 10mm, 13mm, 16mm) -->
+      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 1px solid #000; z-index: 10;"></div>
+      <div style="position: absolute; top: 13mm; left: 13mm; right: 13mm; bottom: 13mm; border: 3px solid #000; z-index: 10;"></div>
+      <div style="position: absolute; top: 16mm; left: 16mm; right: 16mm; bottom: 16mm; border: 1px solid #000; z-index: 10;"></div>
 
       <!-- Corner Guide Marks (Inside the inner border) -->
-      <div style="position: absolute; top: 16.5mm; left: 16.5mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 16.5mm; left: 16.5mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 19mm; left: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 19mm; left: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
-      <div style="position: absolute; top: 16.5mm; right: 16.5mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 16.5mm; right: 16.5mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 19mm; right: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; top: 19mm; right: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
-      <div style="position: absolute; bottom: 16.5mm; left: 16.5mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 16.5mm; left: 16.5mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 19mm; left: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 19mm; left: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
       
-      <div style="position: absolute; bottom: 16.5mm; right: 16.5mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 16.5mm; right: 16.5mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 19mm; right: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
+      <div style="position: absolute; bottom: 19mm; right: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
 
-      <!-- Content Area -->
-      <div style="padding: 25mm; position: relative; z-index: 5;">
+      <!-- Content Area (Reduced padding to eliminate unused space) -->
+      <div style="padding: 22mm; position: relative; z-index: 5;">
         
         <!-- Header Area (Logo positioned absolutely "behind text", Text centered perfectly) -->
-        <div style="position: relative; min-height: 35mm; margin-bottom: 20px; font-size: 12px; line-height: 1.4;">
+        <div style="position: relative; min-height: 35mm; margin-bottom: 0; font-size: 12px; line-height: 1.4;">
           
           <!-- Logo: Absolute positioned, acts like MS Word "Behind Text" -->
           <div style="position: absolute; top: 0; left: 0; width: 35mm; height: 35mm; z-index: 1;">
@@ -1728,8 +1728,8 @@ function getExamPreviewHTML(draft, c, questions) {
           </div>
         </div>
 
-        <!-- Exam Title Block (Fixed 12px) -->
-        <div style="text-align: center; margin: 20px 0; font-size: 12px; line-height: 1.5;">
+        <!-- Exam Title Block (Fixed 12px. Space reduced to exactly two "Enter" presses / ~24px) -->
+        <div style="text-align: center; margin: 24px 0 20px 0; font-size: 12px; line-height: 1.5;">
           <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
           <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
           <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
@@ -1768,7 +1768,7 @@ function getExamPreviewHTML(draft, c, questions) {
       </div>
     </div>
   `;
- }
+}
 
 function toRoman(num) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
@@ -2049,27 +2049,47 @@ async function printExamPaper(exam = null) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Print Exam</title>
       <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #e2e8f0; }
-        .print-btn-container { text-align: center; margin: 20px 0; }
+        /* Force screen to display A4 cleanly */
+        body { 
+          margin: 0; 
+          padding: 0; 
+          font-family: Arial, sans-serif; 
+          background: #e2e8f0; 
+          display: flex;
+          justify-content: center;
+        }
+        .print-btn-container { text-align: center; margin: 20px 0; width: 100%; }
         .print-btn { 
           padding: 15px 30px; background: #047857; color: white; border: none; 
           border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; 
           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .paper-wrapper { background: white; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .paper-wrapper { 
+          background: white; 
+          width: 210mm; 
+          min-height: 297mm; 
+          box-shadow: 0 0 15px rgba(0,0,0,0.2); 
+        }
+        
+        /* Force Printer to ALWAYS use A4 size, no margins */
         @media print {
-          body { background: white; padding: 0; }
+          body { background: white; padding: 0; display: block; }
           .print-btn-container { display: none !important; }
-          .paper-wrapper { box-shadow: none; max-width: 100%; padding: 0; margin: 0; }
-          @page { size: A4; margin: 10mm; }
+          .paper-wrapper { box-shadow: none; width: 100%; min-height: 100vh; }
+          @page { 
+            size: A4; 
+            margin: 0; 
+          }
         }
       </style>
     </head>
     <body>
-      <div class="print-btn-container">
-        <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+      <div style="width: 100%;">
+        <div class="print-btn-container">
+          <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+        </div>
+        <div class="paper-wrapper">${examHTML}</div>
       </div>
-      <div class="paper-wrapper">${examHTML}</div>
     </body>
     </html>
   `;
@@ -2120,8 +2140,8 @@ async function printExamPaper(exam = null) {
       }
     });
   }
-}
-
+  }
+  
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
