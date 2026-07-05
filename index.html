@@ -6,6 +6,7 @@
 <title>Korosho English Medium School — Management Portal</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -130,27 +131,6 @@ select.form-input { cursor: pointer; }
 .question-block { background: #F8FAFC; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
 .progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
-
-/* ===== 100% FOOLPROOF PRINT CSS ===== */
-@media print {
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-  /* Physically remove the app from the page during printing */
-  body > *:not(#print-area) {
-    display: none !important;
-  }
-  #print-area {
-    display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    z-index: 9999;
-  }
-}
 </style>
 </head>
 <body>
@@ -229,13 +209,40 @@ const state = {
   currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [],
   examConfig: {
-    default: { defaultQuestions: 5, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:30 HOURS', instructions: 'Answer ALL questions.' },
+    default: { 
+      defaultQuestions: 5, 
+      fontType: 'Century Gothic', 
+      fontSize: 12, 
+      headingFontSize: 14, 
+      headingLineSpacing: 1.15,
+      lineSpacing: 1.5, 
+      totalMarks: 50, 
+      examTitle: 'MID-TERM EXAMINATION', 
+      timeAllowed: '1:30 HOURS', 
+      instructions: 'Answer ALL questions.',
+      borderStyle: 'double-box'
+    },
     overrides: {}
   },
   examQuestions: [], timetable: null,
   examDraft: { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true },
   resultsDraft: { subjectId: null, classId: null }
 };
+
+// MS Word Border CSS Generator
+function getBorderCSS(style) {
+  switch(style) {
+    case 'none': return 'border: none;';
+    case 'simple-box': return 'border: 1px solid #000;';
+    case 'double-box': return 'border: 3px double #000;';
+    case 'shadow-box': return 'border: 1px solid #000; box-shadow: 4px 4px 8px rgba(0,0,0,0.4);';
+    case '3d-box': return 'border: 2px outset #888;';
+    case 'triple-line': return 'border: 1px solid #000; box-shadow: 0 0 0 3px #fff, 0 0 0 4px #000;';
+    case 'dashed-box': return 'border: 2px dashed #000;';
+    case 'dotted-box': return 'border: 2px dotted #000;';
+    default: return 'border: 3px double #000;';
+  }
+}
 
 const savedConfig = localStorage.getItem('korosho_exam_config');
 if (savedConfig) {
@@ -1405,19 +1412,73 @@ function renderPublish() { return `<div class="card fade-up-1"><div class="secti
 function renderExamConfig() {
   const c = state.examConfig.default;
   const classes = state.classes;
+  const borderOptions = ['none', 'simple-box', 'double-box', 'shadow-box', '3d-box', 'triple-line', 'dashed-box', 'dotted-box'];
   
   const renderForm = (key, s) => `
-    <form id="exam-settings-form" data-key="${key}" class="grid md:grid-cols-2 gap-4" onsubmit="saveExamConfig(event)">
-      <div><label class="form-label">Number of Questions</label><input type="number" name="defaultQuestions" class="form-input" value="${s.defaultQuestions}" required></div>
-      <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
-      <div><label class="form-label">Exam Title</label><input type="text" name="examTitle" class="form-input" value="${s.examTitle}" required></div>
-      <div><label class="form-label">Time Allowed</label><input type="text" name="timeAllowed" class="form-input" value="${s.timeAllowed}" required></div>
-      <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
-      <div><label class="form-label">Font Size</label><select name="fontSize" class="form-input">${[10,11,12,13,14].map(n=>`<option ${n==s.fontSize?'selected':''}>${n}</option>`).join('')}</select></div>
-      <div><label class="form-label">Alignment</label><select name="alignment" class="form-input">${['left','center','right','justify'].map(a=>`<option ${a===s.alignment?'selected':''}>${a}</option>`).join('')}</select></div>
-      <div><label class="form-label">Line Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
-      <div class="md:col-span-2"><label class="form-label">General Instructions</label><textarea name="instructions" class="form-input" rows="2">${s.instructions}</textarea></div>
-      <div class="md:col-span-2"><button type="submit" class="btn-primary">Save Settings</button></div>
+    <form id="exam-settings-form" data-key="${key}" class="space-y-4" onsubmit="saveExamConfig(event)">
+      
+      <div class="border-b pb-4">
+        <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Header Settings</h4>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="form-label">Heading Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+          <div><label class="form-label">Heading Font Size (pt)</label><input type="number" name="headingFontSize" class="form-input" value="${s.headingFontSize||14}" required></div>
+          <div><label class="form-label">Heading Line Spacing</label><select name="headingLineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.headingLineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
+        </div>
+      </div>
+
+      <div class="border-b pb-4">
+        <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Body Settings (Instructions & Questions)</h4>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="form-label">Body Font Size (pt)</label><input type="number" name="fontSize" class="form-input" value="${s.fontSize||12}" required></div>
+          <div><label class="form-label">Body Line Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
+        </div>
+      </div>
+
+      <div class="border-b pb-4">
+        <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Page Layout (MS Word Borders)</h4>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="form-label">Page Border Style</label>
+            <select name="borderStyle" class="form-input" onchange="document.getElementById('preview-border').style.cssText = getBorderCSS(this.value);">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select>
+          </div>
+          <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
+        </div>
+      </div>
+
+      <div class="border-b pb-4">
+        <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Exam Details</h4>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div><label class="form-label">Number of Questions</label><input type="number" name="defaultQuestions" class="form-input" value="${s.defaultQuestions}" required></div>
+          <div><label class="form-label">Time Allowed</label><input type="text" name="timeAllowed" class="form-input" value="${s.timeAllowed}" required></div>
+          <div class="md:col-span-2"><label class="form-label">Default Exam Title</label><input type="text" name="examTitle" class="form-input" value="${s.examTitle}" required></div>
+          <div class="md:col-span-2"><label class="form-label">Default Instructions</label><textarea name="instructions" class="form-input" rows="2">${s.instructions}</textarea></div>
+        </div>
+      </div>
+
+      <div>
+        <label class="form-label">Live Preview</label>
+        <div style="width: 100%; height: 350px; background: #f1f5f9; display: flex; justify-content: center; overflow: hidden; border-radius: 8px; border: 1px solid #ddd;">
+          <div style="width: 210mm; height: 297mm; background: white; transform: scale(0.28); transform-origin: top left; box-shadow: 0 0 15px rgba(0,0,0,0.1); flex-shrink: 0;">
+            <div id="preview-border" style="width: 100%; height: 100%; padding: 15mm; box-sizing: border-box; ${getBorderCSS(s.borderStyle)}">
+              <div style="text-align: center; font-family: '${s.fontType}', 'Jost', sans-serif; font-size: ${s.headingFontSize}pt; line-height: ${s.headingLineSpacing};">
+                <strong>KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</strong><br>
+                <span style="font-size: 0.8em;">P.O. Box 03 – TANDAHIMBA – MTWARA</span><br>
+                <span style="font-size: 0.8em;">EMAIL: <span style="color:blue; text-decoration:underline;">koroshoschool@gmail.com</span></span><br><br>
+                <strong>EXAM TITLE</strong><br>
+                <strong>SCIENCE - STANDARD III</strong>
+              </div>
+              <hr style="margin: 15px 0; border-top: 1px solid #000;">
+              <div style="font-family: '${s.fontType}', 'Jost', sans-serif; font-size: ${s.fontSize}pt; line-height: ${s.lineSpacing};">
+                <strong>Instructions:</strong><br>
+                1. Answer all questions.<br>
+                2. Observe neatness.<br><br>
+                1. Sample question text here...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary w-full">Save Settings</button>
     </form>
   `;
 
@@ -1425,7 +1486,7 @@ function renderExamConfig() {
     <div class="space-y-5">
       <div class="card fade-up-1">
         <div class="section-title"><span><i class="fa-solid fa-sliders text-emerald-600 mr-2"></i> Default Exam Rules (All Classes)</span></div>
-        <p class="text-xs text-slate-500 mb-4">These settings apply to all classes unless you create a specific override below.</p>
+        <p class="text-xs text-slate-500 mb-4">Customize the page layout exactly like Microsoft Word. Changes apply to all classes unless overridden below.</p>
         ${renderForm('default', c)}
       </div>
       
@@ -1457,20 +1518,38 @@ function renderExamConfig() {
 function openClassSettingsModal(classId) {
   const cls = state.classes.find(c => c.id == classId);
   const s = getExamSettings(classId);
+  const borderOptions = ['none', 'simple-box', 'double-box', 'shadow-box', '3d-box', 'triple-line', 'dashed-box', 'dotted-box'];
   const content = `
     <div class="modal-header"><h3 class="font-bold text-lg">Exam Rules: ${cls.name}</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
-      <form id="exam-class-form" data-key="${classId}" class="space-y-3" onsubmit="saveExamConfig(event)">
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="form-label">Questions</label><input type="number" name="defaultQuestions" class="form-input" value="${s.defaultQuestions}" required></div>
-          <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
+      <form id="exam-class-form" data-key="${classId}" class="space-y-4" onsubmit="saveExamConfig(event)">
+        
+        <div class="border-b pb-4">
+          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Header Settings</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
+            <div><label class="form-label">Heading Size (pt)</label><input type="number" name="headingFontSize" class="form-input" value="${s.headingFontSize||14}" required></div>
+            <div><label class="form-label">Heading Spacing</label><select name="headingLineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.headingLineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
+          </div>
         </div>
-        <div><label class="form-label">Exam Title</label><input type="text" name="examTitle" class="form-input" value="${s.examTitle}" required></div>
-        <div class="grid grid-cols-2 gap-3">
-          <div><label class="form-label">Font Type</label><select name="fontType" class="form-input">${['Times New Roman','Arial','Calibri','Cambria','Century Gothic','Georgia'].map(f=>`<option ${f===s.fontType?'selected':''}>${f}</option>`).join('')}</select></div>
-          <div><label class="form-label">Font Size</label><select name="fontSize" class="form-input">${[10,11,12,13,14].map(n=>`<option ${n==s.fontSize?'selected':''}>${n}</option>`).join('')}</select></div>
+
+        <div class="border-b pb-4">
+          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Body Settings</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="form-label">Body Size (pt)</label><input type="number" name="fontSize" class="form-input" value="${s.fontSize||12}" required></div>
+            <div><label class="form-label">Body Spacing</label><select name="lineSpacing" class="form-input">${[1.0, 1.15, 1.5, 2.0].map(n=>`<option ${n==s.lineSpacing?'selected':''}>${n}</option>`).join('')}</select></div>
+          </div>
         </div>
-        <div class="modal-footer" style="padding:0; border:none; margin-top:16px;">
+
+        <div>
+          <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Page Layout</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="form-label">Border Style</label><select name="borderStyle" class="form-input">${borderOptions.map(b=>`<option value="${b}" ${b===s.borderStyle?'selected':''}>${b.replace('-', ' ').toUpperCase()}</option>`).join('')}</select></div>
+            <div><label class="form-label">Total Marks</label><input type="number" name="totalMarks" class="form-input" value="${s.totalMarks}" required></div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="padding:0; border:none; margin-top:20px;">
           <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
           <button type="submit" class="btn-primary">Save Rules</button>
         </div>
@@ -1494,9 +1573,13 @@ function saveExamConfig(e) {
   const fd = new FormData(form);
   const obj = {};
   for(const [k,v] of fd.entries()) obj[k] = v;
+  
   obj.defaultQuestions = parseInt(obj.defaultQuestions);
+  obj.totalMarks = parseInt(obj.totalMarks);
   obj.fontSize = parseInt(obj.fontSize);
+  obj.headingFontSize = parseInt(obj.headingFontSize);
   obj.lineSpacing = parseFloat(obj.lineSpacing);
+  obj.headingLineSpacing = parseFloat(obj.headingLineSpacing);
   
   if (key === 'default') {
     state.examConfig.default = obj;
@@ -1537,7 +1620,7 @@ function renderExamSet() {
             <i class="fa-solid fa-lock text-emerald-600"></i>
             <div>
               <div class="font-bold text-sm text-emerald-800">Formatting Rules Locked for this Class</div>
-              <div class="text-xs text-emerald-600">${settings.fontType} ${settings.fontSize}pt • ${settings.alignment} • ${settings.defaultQuestions} Questions • ${settings.totalMarks} Marks</div>
+              <div class="text-xs text-emerald-600">${settings.fontType} ${settings.fontSize}pt • ${settings.defaultQuestions} Questions • ${settings.totalMarks} Marks</div>
             </div>
           </div>
         </div>
@@ -1619,13 +1702,18 @@ function getExamPreviewHTML(draft, c, questions) {
   const timeAllowed = c.timeAllowed.toUpperCase();
   const dateStr = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase();
   const customInstr = draft.customInstruction || 'Please write the paper structure instruction in the Exam Details section.';
+  const borderCSS = getBorderCSS(c.borderStyle);
+  
+  const headingStyle = `font-family: '${c.fontType}', 'Jost', 'Trebuchet MS', sans-serif; font-size: ${c.headingFontSize}pt; line-height: ${c.headingLineSpacing};`;
+  const bodyStyle = `font-family: '${c.fontType}', 'Jost', 'Trebuchet MS', sans-serif; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
   
   let questionsHtml = '';
   let qCount = 0;
 
   questions.forEach((q, i) => {
     if (q.type === 'section') {
-      questionsHtml += `<div style="text-align: center; font-size: 12px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
+      // NO UNDERLINE ON SECTIONS
+      questionsHtml += `<div style="text-align: center; font-size: 1.4em; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
       questionsHtml += `<div style="margin-bottom: 20px; display: flex; page-break-inside: auto;">
@@ -1665,14 +1753,20 @@ function getExamPreviewHTML(draft, c, questions) {
           </tbody>
         </table>`;
       } else if (q.type === 'picture') {
+        // FIX: PICTURES ALIGN HORIZONTALLY IN ONE FLEX CONTAINER
+        let alignStyle = 'flex-start';
+        if (q.pictures && q.pictures.length > 0) {
+          alignStyle = q.pictures[0].align === 'center' ? 'center' : (q.pictures[0].align === 'right' ? 'flex-end' : 'flex-start');
+        }
+        questionsHtml += `<div style="display: flex; justify-content: ${alignStyle}; gap: 10px; margin: 10px 0; page-break-inside: avoid;">`;
         (q.pictures||[]).forEach(pic => {
-          const alignStyle = pic.align === 'center' ? 'center' : (pic.align === 'right' ? 'flex-end' : 'flex-start');
           if (pic.url) {
-            questionsHtml += `<div style="display: flex; justify-content: ${alignStyle}; margin: 10px 0; page-break-inside: avoid;"><img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/></div>`;
+            questionsHtml += `<img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/>`;
           } else {
-            questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;">[No picture attached]</div>`;
+            questionsHtml += `<div style="width: ${pic.width}px; height: ${pic.height}px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">No Image</div>`;
           }
         });
+        questionsHtml += `</div>`;
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'short') {
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
@@ -1686,85 +1780,58 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
-  // --- EXACT REPLICA: EVENLY SPACED BORDERS, REDUCED OUTER MARGIN, FIXED SPACING ---
+  // FIX: MARGIN REDUCED TO 12px (ONE ENTER). LOGO LEFT -5mm. FONT APPLIED TO HEADINGS/BODY.
   return `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; font-family: Arial, sans-serif; color: #000; line-height: 1.15; box-sizing: border-box;">
-      
-      <!-- Triple Border Structure (Evenly Spaced: 10mm, 13mm, 16mm) -->
-      <div style="position: absolute; top: 10mm; left: 10mm; right: 10mm; bottom: 10mm; border: 1px solid #000; z-index: 10;"></div>
-      <div style="position: absolute; top: 13mm; left: 13mm; right: 13mm; bottom: 13mm; border: 3px solid #000; z-index: 10;"></div>
-      <div style="position: absolute; top: 16mm; left: 16mm; right: 16mm; bottom: 16mm; border: 1px solid #000; z-index: 10;"></div>
-
-      <!-- Corner Guide Marks (Inside the inner border) -->
-      <div style="position: absolute; top: 19mm; left: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 19mm; left: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
-      
-      <div style="position: absolute; top: 19mm; right: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; top: 19mm; right: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
-      
-      <div style="position: absolute; bottom: 19mm; left: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 19mm; left: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
-      
-      <div style="position: absolute; bottom: 19mm; right: 19mm; width: 5mm; height: 0.5px; background: #ccc; z-index: 11;"></div>
-      <div style="position: absolute; bottom: 19mm; right: 19mm; width: 0.5px; height: 5mm; background: #ccc; z-index: 11;"></div>
-
-      <!-- Content Area (Reduced padding to eliminate unused space) -->
-      <div style="padding: 22mm; position: relative; z-index: 5;">
-        
-        <!-- Header Area (Logo positioned absolutely "behind text", Text centered perfectly) -->
-        <div style="position: relative; min-height: 35mm; margin-bottom: 0; font-size: 12px; line-height: 1.4;">
+    <div style="width: 210mm; min-height: 297mm; background: #fff; margin: 0 auto; position: relative; color: #000; box-sizing: border-box;">
+      <div style="padding: 10mm; position: relative; z-index: 5;">
+        <div style="${borderCSS} padding: 10mm; min-height: 277mm;">
           
-          <!-- Logo: Absolute positioned, acts like MS Word "Behind Text" -->
-          <div style="position: absolute; top: 0; left: 0; width: 35mm; height: 35mm; z-index: 1;">
-            <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+          <div style="position: relative; min-height: 35mm; margin-bottom: 10px; ${headingStyle}">
+            <div style="position: absolute; top: 0; left: -5mm; width: 35mm; height: 35mm; z-index: 1;">
+              <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <div style="position: relative; z-index: 2; width: 100%; text-align: center; padding-top: 2mm;">
+              <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+              <div style="font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+              <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
+              <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+            </div>
+          </div>
+
+          <div style="text-align: center; margin: 12px 0 20px 0; ${headingStyle}">
+            <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
+            <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
+            <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; font-weight: bold; text-transform: uppercase; white-space: nowrap; margin-top: 20px; ${headingStyle}">
+            <span>TIME: ${timeAllowed}</span>
+            <span>${dateStr}</span>
           </div>
           
-          <!-- Centered Heading Block (Full width, perfectly centered, sits above logo) -->
-          <div style="position: relative; z-index: 2; width: 100%; text-align: center; padding-top: 2mm;">
-            <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-            <div style="font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
-            <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
-            <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+          <hr style="border: none; border-top: 2px solid #000; margin: 5px 0 15px 0;">
+
+          <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap; ${headingStyle}">
+            <span>PUPIL'S NAME&nbsp;</span>
+            <span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
           </div>
-        </div>
 
-        <!-- Exam Title Block (Fixed 12px. Space reduced to exactly two "Enter" presses / ~24px) -->
-        <div style="text-align: center; margin: 24px 0 20px 0; font-size: 12px; line-height: 1.5;">
-          <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">${examTitle}</div>
-          <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${subjectName}</div>
-          <div style="font-weight: bold; text-transform: uppercase; margin-top: 5px; white-space: nowrap;">${className}</div>
-        </div>
+          <div style="${bodyStyle}">
+            <div style="margin-top: 30px;">
+              <h3 style="font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+              <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+                <li style="margin-bottom: 5px;">${customInstr}</li>
+                <li style="margin-bottom: 5px;">Answer all questions as per instructions in each section.</li>
+                <li style="margin-bottom: 5px;">Observe neatness in your work.</li>
+              </ul>
+            </div>
 
-        <!-- Information Row (Fixed 12px) -->
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; text-transform: uppercase; white-space: nowrap; margin-top: 20px;">
-          <span>TIME: ${timeAllowed}</span>
-          <span>${dateStr}</span>
-        </div>
-        
-        <!-- Horizontal Rule -->
-        <hr style="border: none; border-top: 2px solid #000; margin: 5px 0 15px 0;">
+            <div style="margin-top: 20px;">
+              ${questionsHtml}
+            </div>
+          </div>
 
-        <!-- Pupil Name (Fixed 12px) -->
-        <div style="font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 25px; display: flex; align-items: baseline; white-space: nowrap;">
-          <span>PUPIL'S NAME&nbsp;</span>
-          <span style="border-bottom: 1px solid #000; width: 58%; margin-left: 2mm;"></span>
         </div>
-
-        <!-- Instructions (Fixed 12px) -->
-        <div style="margin-top: 30px; font-size: 12px;">
-          <h3 style="font-size: 12px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-          <ul style="list-style-type: disc; padding-left: 25px; margin: 0; font-size: 12px;">
-            <li style="margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
-            <li style="margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
-            <li style="margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
-          </ul>
-        </div>
-
-        <!-- Questions Area (Admin Font Settings Applied Here ONLY) -->
-        <div style="margin-top: 20px; font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.15;">
-          ${questionsHtml}
-        </div>
-
       </div>
     </div>
   `;
@@ -1908,7 +1975,6 @@ function updateQuestionField(id, field, val) {
   } 
 }
 
-// --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); }
@@ -1946,7 +2012,6 @@ function removeMcqChoice(qId, itemId, cIdx) {
   }
 }
 
-// --- MATCHING HELPERS ---
 function addMatchingRow(qId) { 
   const q = state.examQuestions.find(x => x.id === qId); 
   if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); } 
@@ -1964,7 +2029,6 @@ function updateMatchingCol(qId, col, idx, val) {
   } 
 }
 
-// --- PICTURE HELPERS ---
 function addPictureImage(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); state.examDraft.isDirty = true; renderPage(); }
@@ -2037,10 +2101,8 @@ async function printExamPaper(exam = null) {
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // 1. Generate the Exam HTML
   const examHTML = getExamPreviewHTML(draft, c, questions);
 
-  // 2. Create a Standalone HTML Document with a Print Button
   const fullHTML = `
     <!DOCTYPE html>
     <html>
@@ -2049,7 +2111,6 @@ async function printExamPaper(exam = null) {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Print Exam</title>
       <style>
-        /* Force screen to display A4 cleanly */
         body { 
           margin: 0; 
           padding: 0; 
@@ -2070,8 +2131,6 @@ async function printExamPaper(exam = null) {
           min-height: 297mm; 
           box-shadow: 0 0 15px rgba(0,0,0,0.2); 
         }
-        
-        /* Force Printer to ALWAYS use A4 size, no margins */
         @media print {
           body { background: white; padding: 0; display: block; }
           .print-btn-container { display: none !important; }
@@ -2094,7 +2153,6 @@ async function printExamPaper(exam = null) {
     </html>
   `;
 
-  // 3. Open the clean HTML in a new tab
   const blob = new Blob([fullHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   
@@ -2108,7 +2166,6 @@ async function printExamPaper(exam = null) {
   
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  // 4. Save to Supabase (Only if dirty or if it's a new exam)
   if (!exam && state.examQuestions.length > 0) {
     if (!state.examDraft.isDirty) {
       showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info');
@@ -2135,13 +2192,13 @@ async function printExamPaper(exam = null) {
         showToast('Failed to send for review: ' + error.message, 'error');
       } else {
         showToast('Copy sent to Admin for review.', 'success');
-        state.examDraft.isDirty = false; // Mark as clean/saved
+        state.examDraft.isDirty = false; 
         fetchAllData();
       }
     });
   }
-  }
-  
+}
+
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
 
 function openModal(type, data) {
