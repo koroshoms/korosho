@@ -133,16 +133,22 @@ select.form-input { cursor: pointer; }
 
 /* ===== 100% FOOLPROOF PRINT CSS ===== */
 @media print {
-  body { background: white !important; }
-  #appShell, #loginPage, #modalHost, .toast-container, .sidebar, .header-bar, .page-content { 
-    display: none !important; 
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
-  #print-area { 
-    display: block !important; 
+  /* Physically remove the app from the page during printing */
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+  #print-area {
+    display: block !important;
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    z-index: 9999;
   }
 }
 </style>
@@ -1989,7 +1995,13 @@ async function printExamPaper(exam = null) {
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
   
-  // 1. Save to Supabase IN THE BACKGROUND (Do not await, so mobile print isn't blocked)
+  // 1. Generate HTML and inject it immediately
+  const htmlContent = getExamPreviewHTML(draft, c, questions);
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = htmlContent;
+  printArea.style.display = 'block';
+
+  // 2. Save to Supabase IN THE BACKGROUND (No 'await', so we don't block the print button)
   if (!exam && state.examQuestions.length > 0) {
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
@@ -2012,42 +2024,16 @@ async function printExamPaper(exam = null) {
     });
   }
 
-  // 2. Generate HTML
-  const htmlContent = getExamPreviewHTML(draft, c, questions);
-
-  // 3. Create a hidden Iframe to print from
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  iframe.style.zIndex = '-1';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow.document;
-  doc.open();
-  doc.write(`<html><head><title>Print Exam</title><style>@page { size: A4; margin: 0; } body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }</style></head><body>${htmlContent}</body></html>`);
-  doc.close();
-
-  // 4. Give the mobile browser a moment to render the iframe, then print
+  // 3. Trigger Print immediately (250ms delay allows mobile DOM to paint the exam paper)
   setTimeout(() => {
-    try {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-    } catch (e) {
-      console.error("Print failed", e);
-      showToast("Printing failed. Try downloading on a computer.", "error");
-    }
+    window.print();
     
-    // Cleanup the iframe after the print dialog is closed
+    // Clean up after the print dialog is closed
     setTimeout(() => {
-      if (document.body.contains(iframe)) {
-        document.body.removeChild(iframe);
-      }
-    }, 1000);
-  }, 800); // 800ms delay allows mobile DOM to paint the exam perfectly
+      printArea.innerHTML = '';
+      printArea.style.display = 'none';
+    }, 500);
+  }, 250);
 }
 
 function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
