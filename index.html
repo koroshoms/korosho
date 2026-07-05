@@ -229,11 +229,11 @@ const state = {
   currentUser: null, currentPage: 'dashboard',
   teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [],
   examConfig: {
-    default: { defaultQuestions: 10, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:30 HOURS', instructions: 'Answer ALL questions.' },
+    default: { defaultQuestions: 5, fontType: 'Times New Roman', fontSize: 12, alignment: 'left', lineSpacing: 1.15, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:30 HOURS', instructions: 'Answer ALL questions.' },
     overrides: {}
   },
   examQuestions: [], timetable: null,
-  examDraft: { classId: null, subjectId: null, title: '', customInstruction: '' },
+  examDraft: { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true },
   resultsDraft: { subjectId: null, classId: null }
 };
 
@@ -1625,39 +1625,42 @@ function getExamPreviewHTML(draft, c, questions) {
 
   questions.forEach((q, i) => {
     if (q.type === 'section') {
+      // Sections can break across pages, but keep their text together
       questionsHtml += `<div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
-      questionsHtml += `<div style="margin-bottom: 20px; page-break-inside: avoid; display: flex;">
+      // Main question block
+      questionsHtml += `<div style="margin-bottom: 20px; display: flex; page-break-inside: auto;">
         <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
         <div style="flex: 1;">
-          <div style="font-weight: bold;">
+          <div style="font-weight: bold; page-break-after: avoid;">
             ${q.text || 'Untitled question'} 
             <span style="float: right; font-weight: normal; font-size: 11px; color: #555;">(${q.marks||0} marks)</span>
           </div>`;
       
       if (q.subItems) {
-        questionsHtml += `<div style="margin-top: 5px; font-size: 14px; white-space: pre-wrap;">${q.subItems}</div>`;
+        questionsHtml += `<div style="margin-top: 5px; font-size: 14px; white-space: pre-wrap; page-break-inside: avoid;">${q.subItems}</div>`;
       }
 
       if(q.type === 'mcq'){
         questionsHtml += `<div style="margin-top: 10px;">`;
         (q.items||[]).forEach((item, idx) => {
-          questionsHtml += `<div style="margin-bottom: 10px;">
+          // Individual MCQ items are prevented from breaking in half
+          questionsHtml += `<div style="margin-bottom: 10px; page-break-inside: avoid;">
             <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
             <div style="padding-left: 20px; font-size: 13px;">`;
           item.choices.forEach((opt, cIdx) => {
-            if(opt) questionsHtml += `<div style="margin-bottom: 2px;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
+            if(opt) questionsHtml += `<div style="margin-bottom: 2px; page-break-inside: avoid;">${String.fromCharCode(65+cIdx)}) ${opt}</div>`;
           });
           questionsHtml += `</div></div>`;
         });
         questionsHtml += `</div>`;
       } else if (q.type === 'matching') {
-        questionsHtml += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px;">
-          <thead><tr><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column B</th></tr></thead>
+        questionsHtml += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; page-break-inside: auto;">
+          <thead style="display: table-header-group;"><tr><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column A</th><th style="border: 1px solid #000; padding: 5px; width: 50%; text-align: left;">Column B</th></tr></thead>
           <tbody>
             ${(q.colA||[]).map((item, idx) => `
-              <tr>
+              <tr style="page-break-inside: avoid;">
                 <td style="border: 1px solid #000; padding: 5px;">(${toRoman(idx+1)}) ${item}</td>
                 <td style="border: 1px solid #000; padding: 5px;">${String.fromCharCode(65+idx)}. ${q.colB[idx] || ''}</td>
               </tr>
@@ -1666,8 +1669,10 @@ function getExamPreviewHTML(draft, c, questions) {
         </table>`;
       } else if (q.type === 'picture') {
         (q.pictures||[]).forEach(pic => {
+          // Fixed Picture Alignment using Flexbox
+          const alignStyle = pic.align === 'center' ? 'center' : (pic.align === 'right' ? 'flex-end' : 'flex-start');
           if (pic.url) {
-            questionsHtml += `<div style="text-align:${pic.align}; margin: 10px 0;"><img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/></div>`;
+            questionsHtml += `<div style="display: flex; justify-content: ${alignStyle}; margin: 10px 0; page-break-inside: avoid;"><img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/></div>`;
           } else {
             questionsHtml += `<div style="margin:10px 0;font-style:italic;color:#999;font-size:12px;">[No picture attached]</div>`;
           }
@@ -1676,58 +1681,61 @@ function getExamPreviewHTML(draft, c, questions) {
       } else if (q.type === 'short') {
         questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
       } else if (q.type === 'long') {
-        for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px;"></div>`;
+        for(let l=0; l<4; l++) questionsHtml += `<div style="margin: 8px 0; border-bottom: 1px solid #000; height: 20px; page-break-inside: avoid;"></div>`;
       } else if (q.type === 'drawing') {
-        questionsHtml += `<div style="margin:6px 0; border:1px solid #000; height: ${q.boxHeight||100}px; width: ${q.boxWidth||100}%; background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px);"></div>`;
+        questionsHtml += `<div style="margin:6px 0; border:1px solid #000; height: ${q.boxHeight||100}px; width: ${q.boxWidth||100}%; background:repeating-linear-gradient(45deg,#fff,#fff 10px,#f5f5f5 10px,#f5f5f5 20px); page-break-inside: avoid;"></div>`;
       }
       
       questionsHtml += `</div></div>`; 
     }
   });
 
+  // Inject Admin Font Settings, Page Border, and Pagination Styles
   return `
-    <div style="width: 210mm; min-height: 297mm; background: #fff; padding: 20mm; font-family: Arial, Helvetica, sans-serif; color: #000; box-sizing: border-box;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; border: 3px double #000; padding: 15px;">
-        <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-          <img src="${LOGO_URL}" alt="Logo" style="width: 100px; height: 100px; object-fit: contain;">
-        </div>
-        <div style="flex: 1; text-align: center; padding: 0 20px;">
-          <div style="font-size: 20px; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-          <div style="font-size: 13px; line-height: 1.5;">
-            P.O. Box 03 – TANDAHIMBA – MTWARA<br>
-            TEL: +255715976760 / +255623638683 / +255655481995<br>
-            EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
+    <div style="font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.5;">
+      <div style="border: 3px double #000; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+          <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+            <img src="${LOGO_URL}" alt="Logo" style="width: 100px; height: 100px; object-fit: contain;">
           </div>
-          <div style="margin-top: 10px;">
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
-            <div style="font-size: 18px; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
+          <div style="flex: 1; text-align: center; padding: 0 20px;">
+            <div style="font-size: 20pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+            <div style="font-size: 12pt; line-height: 1.5;">
+              P.O. Box 03 – TANDAHIMBA – MTWARA<br>
+              TEL: +255715976760 / +255623638683 / +255655481995<br>
+              EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
+            </div>
+            <div style="margin-top: 10px;">
+              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
+              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
+              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div style="margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
-          <span>TIME: ${timeAllowed}</span>
-          <span>${dateStr}</span>
+        <div style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12pt; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
+            <span>TIME: ${timeAllowed}</span>
+            <span>${dateStr}</span>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
+          <div style="font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
+            PUPIL'S NAME ________________________________________________
+          </div>
         </div>
-        <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
-        <div style="font-size: 14px; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
-          PUPIL'S NAME ________________________________________________
+
+        <div style="margin-bottom: 30px;">
+          <h3 style="font-size: 14pt; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
+          <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
+            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
+            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
+            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
+          </ul>
         </div>
-      </div>
 
-      <div style="margin-bottom: 30px;">
-        <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-        <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
-          <li style="font-size: 14px; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
-        </ul>
-      </div>
-
-      <div style="font-size: 14px; margin-bottom: 20px;">
-        ${questionsHtml}
+        <div style="font-size: 12pt; margin-bottom: 20px;">
+          ${questionsHtml}
+        </div>
       </div>
     </div>
   `;
@@ -1857,6 +1865,7 @@ function addQuestion(type) {
   if (type === 'drawing') { newQ.boxHeight = 100; newQ.boxWidth = 100; }
   
   state.examQuestions.push(newQ); 
+  state.examDraft.isDirty = true;
   renderPage(); 
   showToast('Question added', 'success'); 
 }
@@ -1865,6 +1874,7 @@ function updateQuestionField(id, field, val) {
   const q = state.examQuestions.find(x => x.id === id); 
   if (q) {
     q[field] = val; 
+    state.examDraft.isDirty = true;
     updateExamPreview();
   } 
 }
@@ -1872,54 +1882,55 @@ function updateQuestionField(id, field, val) {
 // --- MCQ HELPERS ---
 function addMcqItem(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); renderPage(); }
+  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); }
 }
 function removeMcqItem(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); renderPage(); }
+  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); }
 }
 function updateMcqItem(qId, itemId, field, val) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') {
     const item = q.items.find(it => it.id === itemId);
-    if (item) { item[field] = val; updateExamPreview(); }
+    if (item) { item[field] = val; state.examDraft.isDirty = true; updateExamPreview(); }
   }
 }
 function updateMcqChoice(qId, itemId, cIdx, val) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') {
     const item = q.items.find(it => it.id === itemId);
-    if (item) { item.choices[cIdx] = val; updateExamPreview(); }
+    if (item) { item.choices[cIdx] = val; state.examDraft.isDirty = true; updateExamPreview(); }
   }
 }
 function addMcqChoice(qId, itemId) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') {
     const item = q.items.find(it => it.id === itemId);
-    if (item) { item.choices.push(''); renderPage(); }
+    if (item) { item.choices.push(''); state.examDraft.isDirty = true; renderPage(); }
   }
 }
 function removeMcqChoice(qId, itemId, cIdx) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.type === 'mcq') {
     const item = q.items.find(it => it.id === itemId);
-    if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); renderPage(); }
+    if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); state.examDraft.isDirty = true; renderPage(); }
   }
 }
 
 // --- MATCHING HELPERS ---
 function addMatchingRow(qId) { 
   const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.push(''); q.colB.push(''); renderPage(); } 
+  if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); } 
 }
 function removeMatchingRow(qId, idx) { 
   const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); renderPage(); } 
+  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } 
 }
 function updateMatchingCol(qId, col, idx, val) { 
   const q = state.examQuestions.find(x => x.id === qId); 
   if (q) {
     if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val;
+    state.examDraft.isDirty = true;
     updateExamPreview();
   } 
 }
@@ -1927,16 +1938,17 @@ function updateMatchingCol(qId, col, idx, val) {
 // --- PICTURE HELPERS ---
 function addPictureImage(qId) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); renderPage(); }
+  if (q) { q.pictures.push({ url: '', width: 150, height: 150, align: 'center' }); state.examDraft.isDirty = true; renderPage(); }
 }
 function removePictureImage(qId, idx) {
   const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.pictures.splice(idx, 1); renderPage(); }
+  if (q) { q.pictures.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); }
 }
 function updatePictureSetting(qId, idx, key, val) {
   const q = state.examQuestions.find(x => x.id === qId);
   if (q && q.pictures[idx]) {
     q.pictures[idx][key] = val;
+    state.examDraft.isDirty = true;
     updateExamPreview();
   }
 }
@@ -1948,6 +1960,7 @@ function uploadPictureImage(qId, idx, input) {
     const q = state.examQuestions.find(x => x.id === qId);
     if (q && q.pictures[idx]) {
       q.pictures[idx].url = e.target.result;
+      state.examDraft.isDirty = true;
       renderPage();
       showToast('Picture attached', 'success');
     }
@@ -1955,9 +1968,9 @@ function uploadPictureImage(qId, idx, input) {
   reader.readAsDataURL(file);
 }
 
-function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); renderPage(); } }
-function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); renderPage(); } }
-function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
+function addChoice(qid) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.push(''); state.examDraft.isDirty = true; renderPage(); } }
+function removeChoice(qid, idx) { const q = state.examQuestions.find(x => x.id === qid); if (q) { q.choices.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); } }
+function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); showToast('Question removed', 'info'); closeModal(); }); }
 
 function renderExamReview() {
   return `
@@ -2019,7 +2032,7 @@ async function printExamPaper(exam = null) {
           body { background: white; padding: 0; }
           .print-btn-container { display: none !important; }
           .paper-wrapper { box-shadow: none; max-width: 100%; padding: 0; margin: 0; }
-          @page { size: A4; margin: 0; }
+          @page { size: A4; margin: 10mm; }
         }
       </style>
     </head>
@@ -2036,7 +2049,6 @@ async function printExamPaper(exam = null) {
   const blob = new Blob([fullHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   
-  // Use a hidden link to open the new tab (bypasses popup blockers)
   const a = document.createElement('a');
   a.href = url;
   a.target = '_blank';
@@ -2045,11 +2057,15 @@ async function printExamPaper(exam = null) {
   a.click();
   document.body.removeChild(a);
   
-  // Clean up the URL object
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  // 4. Save to Supabase IN THE BACKGROUND (Does not block the new tab)
+  // 4. Save to Supabase (Only if dirty or if it's a new exam)
   if (!exam && state.examQuestions.length > 0) {
+    if (!state.examDraft.isDirty) {
+      showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info');
+      return;
+    }
+
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
       const cleanQ = { ...q };
@@ -2066,8 +2082,13 @@ async function printExamPaper(exam = null) {
       questions: questionsToSave,
       created_by: state.currentUser.id
     }]).then(({ error }) => {
-      if (error) showToast('Failed to send for review: ' + error.message, 'error');
-      else { showToast('Copy sent to Admin for review.', 'success'); fetchAllData(); }
+      if (error) {
+        showToast('Failed to send for review: ' + error.message, 'error');
+      } else {
+        showToast('Copy sent to Admin for review.', 'success');
+        state.examDraft.isDirty = false; // Mark as clean/saved
+        fetchAllData();
+      }
     });
   }
 }
