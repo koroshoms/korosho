@@ -1625,11 +1625,9 @@ function getExamPreviewHTML(draft, c, questions) {
 
   questions.forEach((q, i) => {
     if (q.type === 'section') {
-      // Sections can break across pages, but keep their text together
       questionsHtml += `<div style="text-align: center; font-size: 16px; font-weight: bold; text-transform: uppercase; margin: 20px 0 15px; text-decoration: underline; page-break-inside: avoid;">${q.text || 'SECTION'}</div>`;
     } else {
       qCount++;
-      // Main question block
       questionsHtml += `<div style="margin-bottom: 20px; display: flex; page-break-inside: auto;">
         <span style="font-weight: bold; margin-right: 8px; min-width: 15px;">${qCount}.</span>
         <div style="flex: 1;">
@@ -1645,7 +1643,6 @@ function getExamPreviewHTML(draft, c, questions) {
       if(q.type === 'mcq'){
         questionsHtml += `<div style="margin-top: 10px;">`;
         (q.items||[]).forEach((item, idx) => {
-          // Individual MCQ items are prevented from breaking in half
           questionsHtml += `<div style="margin-bottom: 10px; page-break-inside: avoid;">
             <div style="font-weight: normal; margin-bottom: 4px;">(${toRoman(idx+1)}) ${item.text || ''}</div>
             <div style="padding-left: 20px; font-size: 13px;">`;
@@ -1669,7 +1666,6 @@ function getExamPreviewHTML(draft, c, questions) {
         </table>`;
       } else if (q.type === 'picture') {
         (q.pictures||[]).forEach(pic => {
-          // Fixed Picture Alignment using Flexbox
           const alignStyle = pic.align === 'center' ? 'center' : (pic.align === 'right' ? 'flex-end' : 'flex-start');
           if (pic.url) {
             questionsHtml += `<div style="display: flex; justify-content: ${alignStyle}; margin: 10px 0; page-break-inside: avoid;"><img src="${pic.url}" style="width: ${pic.width}px; height: ${pic.height}px; object-fit: contain; border: 1px solid #ccc; padding: 4px;"/></div>`;
@@ -1690,51 +1686,71 @@ function getExamPreviewHTML(draft, c, questions) {
     }
   });
 
-  // Inject Admin Font Settings, Page Border, and Pagination Styles
+  // --- NEW HEADER & BORDER DESIGN ---
   return `
-    <div style="font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.5;">
-      <div style="border: 3px double #000; padding: 20px; margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-          <div style="width: 100px; height: 100px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
-            <img src="${LOGO_URL}" alt="Logo" style="width: 100px; height: 100px; object-fit: contain;">
-          </div>
-          <div style="flex: 1; text-align: center; padding: 0 20px;">
-            <div style="font-size: 20pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-            <div style="font-size: 12pt; line-height: 1.5;">
-              P.O. Box 03 – TANDAHIMBA – MTWARA<br>
-              TEL: +255715976760 / +255623638683 / +255655481995<br>
-              EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span>
-            </div>
-            <div style="margin-top: 10px;">
-              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${examTitle}</div>
-              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${subjectName}</div>
-              <div style="font-size: 16pt; font-weight: bold; text-transform: uppercase; line-height: 1.4;">${className}</div>
-            </div>
-          </div>
-        </div>
+    <div style="margin: 12mm; position: relative; font-family: Arial, Helvetica, sans-serif; color: #000;">
+      
+      <!-- Crop Marks (Light Gray L-Shapes) -->
+      <div style="position: absolute; top: -2mm; left: -2mm; width: 5mm; height: 5mm; border-top: 1px solid #ccc; border-left: 1px solid #ccc; z-index: 10;"></div>
+      <div style="position: absolute; top: -2mm; right: -2mm; width: 5mm; height: 5mm; border-top: 1px solid #ccc; border-right: 1px solid #ccc; z-index: 10;"></div>
+      <div style="position: absolute; bottom: -2mm; left: -2mm; width: 5mm; height: 5mm; border-bottom: 1px solid #ccc; border-left: 1px solid #ccc; z-index: 10;"></div>
+      <div style="position: absolute; bottom: -2mm; right: -2mm; width: 5mm; height: 5mm; border-bottom: 1px solid #ccc; border-right: 1px solid #ccc; z-index: 10;"></div>
 
-        <div style="margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12pt; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;">
+      <!-- Outer Border (2px solid) -->
+      <div style="border: 2px solid #000; padding: 3.5mm;">
+        
+        <!-- Inner Border (1px solid) -->
+        <div style="border: 1px solid #000; padding: 20px; min-height: 240mm;">
+          
+          <!-- Header Layout (Grid for perfect centering) -->
+          <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; margin-bottom: 25px;">
+            <div style="text-align: left;">
+              <img src="${LOGO_URL}" alt="Logo" style="width: 75px; height: 75px; object-fit: contain;">
+            </div>
+            <div style="text-align: center;">
+              <div style="font-size: 18px; font-weight: bold; text-transform: uppercase;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+              <div style="font-size: 15px; font-weight: bold; margin-top: 5px;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+              <div style="font-size: 14px; font-weight: bold; margin-top: 3px;">TEL: +255715976760/+255623638683/+255655481995</div>
+              <div style="font-size: 14px; font-weight: bold; margin-top: 3px;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+            </div>
+            <div></div> <!-- Empty spacer to balance the grid -->
+          </div>
+
+          <!-- Exam Title Block -->
+          <div style="margin-top: 25px; text-align: center; margin-bottom: 35px;">
+            <div style="font-size: 17px; font-weight: bold; text-transform: uppercase;">${examTitle}</div>
+            <div style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 5px;">${subjectName}</div>
+            <div style="font-size: 16px; font-weight: bold; text-transform: uppercase; margin-top: 5px;">${className}</div>
+          </div>
+
+          <!-- Exam Info Row -->
+          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 16px; font-weight: bold; text-transform: uppercase;">
             <span>TIME: ${timeAllowed}</span>
             <span>${dateStr}</span>
           </div>
-          <hr style="border: 0; border-top: 1px solid #000; margin: 5px 0;">
-          <div style="font-size: 12pt; font-weight: bold; margin-top: 15px; margin-bottom: 20px;">
-            PUPIL'S NAME ________________________________________________
+          <hr style="border: 0; border-top: 2px solid #000; margin-top: 5px; margin-bottom: 0;">
+
+          <!-- Candidate Details -->
+          <div style="margin-top: 10px; font-size: 16px; font-weight: bold; text-transform: uppercase; display: flex; align-items: baseline;">
+            <span>PUPIL'S NAME&nbsp;</span>
+            <span style="border-bottom: 1px solid #000; flex-grow: 1; margin-left: 5px;">&nbsp;</span>
           </div>
-        </div>
 
-        <div style="margin-bottom: 30px;">
-          <h3 style="font-size: 14pt; font-weight: bold; margin-bottom: 10px;">Instructions:</h3>
-          <ul style="list-style-type: disc; padding-left: 25px; margin: 0;">
-            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
-            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
-            <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
-          </ul>
-        </div>
+          <!-- Instructions -->
+          <div style="margin-top: 30px;">
+            <h3 style="font-size: 14pt; font-weight: bold; margin-bottom: 10px; font-family: Arial, Helvetica, sans-serif;">Instructions:</h3>
+            <ul style="list-style-type: disc; padding-left: 25px; margin: 0; font-family: Arial, Helvetica, sans-serif;">
+              <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">${customInstr}</li>
+              <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Answer all questions as per instructions in each section.</li>
+              <li style="font-size: 12pt; margin-bottom: 5px; line-height: 1.5;">Observe neatness in your work.</li>
+            </ul>
+          </div>
 
-        <div style="font-size: 12pt; margin-bottom: 20px;">
-          ${questionsHtml}
+          <!-- Questions Area (Respects Admin Font Settings) -->
+          <div style="font-family: '${c.fontType}', Arial, sans-serif; font-size: ${c.fontSize}pt; color: #000; line-height: 1.5; margin-top: 20px;">
+            ${questionsHtml}
+          </div>
+
         </div>
       </div>
     </div>
