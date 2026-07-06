@@ -133,48 +133,39 @@ select.form-input { cursor: pointer; }
 .progress-track { background: #E2E8F0; border-radius: 10px; height: 8px; overflow: hidden; }
 .progress-fill { background: linear-gradient(90deg, var(--primary), var(--primary-light)); height: 100%; border-radius: 10px; transition: width 0.4s; }
 
-/* ===== A4 PAGE STYLES (Word-like pagination & perfectly centered borders) ===== */
-.a4-page {
-  width: 210mm;
-  height: 297mm;
-  background: white;
-  box-sizing: border-box;
-  overflow: hidden;
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10mm; /* Creates perfectly equal outer margin for border centering */
-}
-.a4-page-content {
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  padding: 10mm; /* Inner printable area padding */
-  overflow: hidden;
-  position: relative;
-}
-.preview-scroll-container {
-  overflow: auto; /* Enables both horizontal and vertical scroll */
-  background: #525659;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  width: 100%;
-}
-.preview-pages-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
-  min-width: max-content;
-  width: max-content;
-  margin: 0 auto;
-}
-.preview-page-wrapper {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-}
+/* ===== EXAM A4 PAGE STYLES ===== */
+.a4-page { width: 210mm; height: 297mm; background: white; box-sizing: border-box; overflow: hidden; position: relative; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 10mm; }
+.a4-page-content { width: 100%; height: 100%; box-sizing: border-box; padding: 10mm; overflow: hidden; position: relative; }
+.preview-scroll-container { overflow: auto; background: #525659; border-radius: 8px; border: 1px solid var(--border); width: 100%; }
+.preview-pages-wrapper { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px; min-width: max-content; width: max-content; margin: 0 auto; }
+.preview-page-wrapper { box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+
+/* ===== REPORT CARD A4 PIXEL PERFECT STYLES ===== */
+.rep-page-container { background: #525659; padding: 20px; border-radius: 8px; overflow: auto; display: flex; justify-content: center; }
+.rep-a4-sheet { width: 210mm; height: 297mm; background: white; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; padding: 8mm; box-sizing: border-box; flex-shrink: 0; overflow: hidden; }
+.rep-border-outer { border: 4px solid #000; width: 100%; height: 100%; padding: 2mm; box-sizing: border-box; }
+.rep-border-inner { border: 1px solid #000; width: 100%; height: 100%; padding: 4mm; box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; display: flex; flex-direction: column; }
+.rep-header { display: flex; align-items: center; margin-bottom: 3mm; }
+.rep-logo { width: 60px; height: 60px; object-fit: contain; margin-right: 5mm; flex-shrink: 0; }
+.rep-school-info { flex: 1; text-align: center; }
+.rep-school-info h1 { font-size: 14pt; font-weight: bold; margin: 0; text-transform: uppercase; line-height: 1.2; }
+.rep-school-info p { margin: 0.5mm 0; font-weight: bold; font-size: 10pt; }
+.rep-school-info a { color: blue; text-decoration: underline; }
+.rep-title { text-align: center; margin: 2mm 0; }
+.rep-title h2 { font-size: 12pt; font-weight: bold; margin: 0; text-transform: uppercase; }
+.rep-title h3 { font-size: 11pt; font-weight: bold; margin: 0.5mm 0 0 0; text-transform: uppercase; }
+.rep-student-info { display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; padding: 0 1mm; }
+.rep-student-info b { font-weight: bold; }
+.rep-section-title { font-weight: bold; font-size: 11pt; margin: 2mm 0 1mm 0; }
+.rep-table { width: 100%; border-collapse: collapse; margin-bottom: 2mm; font-size: 9pt; }
+.rep-table th, .rep-table td { border: 1px solid #000; padding: 1.2mm; text-align: center; }
+.rep-table th { background: #e6e6e6; font-weight: bold; }
+.rep-table td.rep-subj { text-align: left; }
+.rep-table td.rep-comment { text-align: left; font-size: 8pt; }
+.rep-legend { font-size: 8pt; margin-bottom: 2mm; font-weight: bold; text-align: center; }
+.rep-instructions { font-size: 9pt; padding-left: 4mm; margin: 0; }
+.rep-instructions li { margin-bottom: 1mm; }
+.rep-signatures { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 9pt; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -254,23 +245,21 @@ const state = {
   teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [],
   examConfig: {
     default: { 
-      defaultQuestions: 5, 
-      fontType: 'Century Gothic', 
-      fontSize: 12, 
-      headingFontSize: 14, 
-      headingLineSpacing: 1.15,
-      lineSpacing: 1.5, 
-      totalMarks: 50, 
-      examTitle: 'MID-TERM EXAMINATION', 
-      timeAllowed: '1:30 HOURS', 
-      instructions: 'Answer ALL questions.',
-      borderStyle: 'double-box'
+      defaultQuestions: 5, fontType: 'Century Gothic', fontSize: 12, headingFontSize: 14, headingLineSpacing: 1.15,
+      lineSpacing: 1.5, totalMarks: 50, examTitle: 'MID-TERM EXAMINATION', timeAllowed: '1:30 HOURS', 
+      instructions: 'Answer ALL questions.', borderStyle: 'double-box',
+      reportTermHeading: 'MUHULA WA KWANZA 2026',
+      reportInstruction1: 'Shule imefungwa leo tarehe Jumatano, 03/06/2026 na itafunguliwa tarehe 08/06/2026.',
+      reportInstruction2: 'Mwanao aje na vifaa vyote muhimu shule itakapofunguliwa ikiwemo ulipaji wa ada kwa wakati.'
     },
     overrides: {}
   },
   examQuestions: [], timetable: null,
   examDraft: { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true },
-  resultsDraft: { subjectId: null, classId: null }
+  resultsDraft: { subjectId: null, classId: null },
+  selectedReportStudentId: null,
+  reportData: {},
+  isReportsPublished: localStorage.getItem('korosho_reports_published') === 'true'
 };
 
 function getBorderCSS(style) {
@@ -291,13 +280,13 @@ const savedConfig = localStorage.getItem('korosho_exam_config');
 if (savedConfig) {
   try {
     const parsed = JSON.parse(savedConfig);
-    state.examConfig.default = parsed.default || state.examConfig.default;
+    state.examConfig.default = { ...state.examConfig.default, ...parsed.default };
     state.examConfig.overrides = parsed.overrides || {};
   } catch(e) {}
 }
 
 function getExamSettings(classId) {
-  if (classId && state.examConfig.overrides[classId]) return state.examConfig.overrides[classId];
+  if (classId && state.examConfig.overrides[classId]) return { ...state.examConfig.default, ...state.examConfig.overrides[classId] };
   return state.examConfig.default;
 }
 
@@ -398,7 +387,22 @@ async function fetchAllData() {
     if (rErr) throw rErr;
     state.results = results || [];
   } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
+  
+  // Load Report Data
+  loadReportDataLocally();
+  
   if (!state.timetable) generateTimetable();
+}
+
+function loadReportDataLocally() {
+  const saved = localStorage.getItem('korosho_report_data');
+  if (saved) {
+    try { state.reportData = JSON.parse(saved); } catch(e) { state.reportData = {}; }
+  }
+}
+
+function saveReportDataLocally() {
+  localStorage.setItem('korosho_report_data', JSON.stringify(state.reportData));
 }
 
 const NAV_MENUS = {
@@ -1140,6 +1144,16 @@ function renderExamConfig() {
           <div class="md:col-span-2"><label class="form-label">Default Instructions</label><textarea name="instructions" class="form-input" rows="2">${s.instructions}</textarea></div>
         </div>
       </div>
+      
+      <div class="border-b pb-4">
+        <h4 class="font-bold text-sm text-slate-700 uppercase mb-3">Report Card Settings</h4>
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="md:col-span-2"><label class="form-label">Report Term Heading</label><input type="text" name="reportTermHeading" class="form-input" value="${s.reportTermHeading || 'MUHULA WA KWANZA 2026'}"></div>
+          <div class="md:col-span-2"><label class="form-label">Report Instruction 1</label><textarea name="reportInstruction1" class="form-input" rows="2">${s.reportInstruction1 || ''}</textarea></div>
+          <div class="md:col-span-2"><label class="form-label">Report Instruction 2</label><textarea name="reportInstruction2" class="form-input" rows="2">${s.reportInstruction2 || ''}</textarea></div>
+        </div>
+      </div>
+
       <div>
         <label class="form-label">Live Preview</label>
         <div style="width: 100%; height: 350px; background: #f1f5f9; display: flex; justify-content: center; overflow: hidden; border-radius: 8px; border: 1px solid #ddd;">
@@ -1239,7 +1253,7 @@ function saveExamConfig(e) {
   obj.headingFontSize = parseInt(obj.headingFontSize);
   obj.lineSpacing = parseFloat(obj.lineSpacing);
   obj.headingLineSpacing = parseFloat(obj.headingLineSpacing);
-  if (key === 'default') state.examConfig.default = obj;
+  if (key === 'default') state.examConfig.default = { ...state.examConfig.default, ...obj };
   else { if (!state.examConfig.overrides) state.examConfig.overrides = {}; state.examConfig.overrides[key] = obj; }
   localStorage.setItem('korosho_exam_config', JSON.stringify(state.examConfig));
   showToast('Settings saved', 'success');
@@ -1309,15 +1323,9 @@ function renderExamSet() {
   </div>`;
 }
 
-// ===== WORD-LIKE PAGINATION ENGINE =====
-const A4_WIDTH_MM = 210;
-const A4_HEIGHT_MM = 297;
-const PAGE_PADDING_OUTSIDE_MM = 10;
-const PAGE_PADDING_INSIDE_MM = 10;
+const A4_WIDTH_MM = 210, A4_HEIGHT_MM = 297, PAGE_PADDING_OUTSIDE_MM = 10, PAGE_PADDING_INSIDE_MM = 10;
 
-function getFontStack(fontType) {
-  return `'${fontType}', 'Century Gothic', 'Jost', 'Trebuchet MS', sans-serif`;
-}
+function getFontStack(fontType) { return `'${fontType}', 'Century Gothic', 'Jost', 'Trebuchet MS', sans-serif`; }
 
 function getPxPerMm() {
   const div = document.createElement('div');
@@ -1547,7 +1555,6 @@ function groupBlocksForPagination(blocks) {
 
 function paginateBlocks(blocks, c) {
   const groups = groupBlocksForPagination(blocks);
-  
   const pxPerMm = getPxPerMm();
   const printableWidthPx = (A4_WIDTH_MM - 2 * PAGE_PADDING_OUTSIDE_MM - 2 * PAGE_PADDING_INSIDE_MM) * pxPerMm;
   const printableHeightPx = (A4_HEIGHT_MM - 2 * PAGE_PADDING_OUTSIDE_MM - 2 * PAGE_PADDING_INSIDE_MM) * pxPerMm;
@@ -1565,10 +1572,6 @@ function paginateBlocks(blocks, c) {
 
   const measureWith = (extraBlocks) => {
     measurer.innerHTML = [...currentPageBlocks, ...extraBlocks].map(b => b.html).join('');
-    return measurer.scrollHeight;
-  };
-  const measureCurrent = () => {
-    measurer.innerHTML = currentPageBlocks.map(b => b.html).join('');
     return measurer.scrollHeight;
   };
 
@@ -1618,7 +1621,6 @@ function paginateBlocks(blocks, c) {
 function renderExamPagesHTML(pages, c) {
   const borderCSS = getBorderCSS(c.borderStyle);
   const bodyFontStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
-  
   return pages.map(blocks => {
     return `<div class="a4-page">
       <div class="a4-page-content" style="${borderCSS} ${bodyFontStyle}">
@@ -1639,11 +1641,7 @@ function updateExamPreview() {
   previewDiv.innerHTML = renderExamPagesHTML(pages, c);
 }
 
-function toRoman(num) {
-  const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
-  return romans[num - 1] || num;
-}
-
+function toRoman(num) { const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"]; return romans[num - 1] || num; }
 function getMentionPrefix(format, index) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
   const letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l"];
@@ -1658,7 +1656,6 @@ function getMentionPrefix(format, index) {
 
 function renderQuestionEditor(q, i) {
   const typeLabels = { mcq: 'Multiple Choice', short: 'Short Answer', long: 'Long Answer', drawing: 'Drawing', picture: 'Picture Question', section: 'Section Header', matching: 'Matching Items', mentioning: 'Mentioning' };
-  
   if (q.collapsed) {
     return `<div class="question-block collapsed">
       <div class="flex items-center justify-between">
@@ -1674,12 +1671,9 @@ function renderQuestionEditor(q, i) {
       </div>
     </div>`;
   }
-
   let extraFields = '';
-  
   if (q.type === 'section') {
     extraFields = `<div class="mt-3"><label class="form-label">Section Header Text</label><textarea class="form-input" rows="2" placeholder="e.g. SECTION A" onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
-    
     return `<div class="question-block">
       <div class="flex items-start justify-between mb-3">
         <span class="badge badge-blue">${typeLabels[q.type]}</span>
@@ -1691,9 +1685,7 @@ function renderQuestionEditor(q, i) {
       ${extraFields}
     </div>`;
   }
-  
   extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter main question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
-  
   if (q.type === 'mcq') {
     extraFields += `<div class="mt-4 border-t pt-3">
       <label class="form-label">Multiple Choice Items</label>
@@ -1719,14 +1711,8 @@ function renderQuestionEditor(q, i) {
   } else if (q.type === 'matching') {
     extraFields += `<div class="mt-3 border-t pt-3">
       <div class="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <label class="form-label">Table Width (%)</label>
-          <input type="number" class="form-input" min="20" max="100" value="${q.tableWidth || 100}" onchange="updateMatchingTableProp(${q.id}, 'tableWidth', this.value)">
-        </div>
-        <div>
-          <label class="form-label">Column A Width (%)</label>
-          <input type="number" class="form-input" min="10" max="90" value="${q.colAWidth || 50}" onchange="updateMatchingTableProp(${q.id}, 'colAWidth', this.value)">
-        </div>
+        <div><label class="form-label">Table Width (%)</label><input type="number" class="form-input" min="20" max="100" value="${q.tableWidth || 100}" onchange="updateMatchingTableProp(${q.id}, 'tableWidth', this.value)"></div>
+        <div><label class="form-label">Column A Width (%)</label><input type="number" class="form-input" min="10" max="90" value="${q.colAWidth || 50}" onchange="updateMatchingTableProp(${q.id}, 'colAWidth', this.value)"></div>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
@@ -1772,9 +1758,7 @@ function renderQuestionEditor(q, i) {
             <option value="bracket-letter" ${q.format==='bracket-letter'?'selected':''}>(a) (b) (c)</option>
           </select>
         </div>
-        <div><label class="form-label">Number of Items</label>
-          <input type="number" class="form-input" min="1" max="20" value="${(q.items||[]).length}" onchange="updateMentioningCount(${q.id}, this.value)" placeholder="Type a number e.g. 3">
-        </div>
+        <div><label class="form-label">Number of Items</label><input type="number" class="form-input" min="1" max="20" value="${(q.items||[]).length}" onchange="updateMentioningCount(${q.id}, this.value)" placeholder="Type a number e.g. 3"></div>
       </div>
       <label class="form-label">Items</label>
       ${(q.items||[]).map((item, idx) => `
@@ -1784,7 +1768,6 @@ function renderQuestionEditor(q, i) {
         </div>`).join('')}
     </div>`;
   }
-  
   return `<div class="question-block">
     <div class="flex items-start justify-between mb-3">
       <span class="badge badge-blue">${typeLabels[q.type]}</span>
@@ -1801,10 +1784,7 @@ function renderQuestionEditor(q, i) {
 function renderPictureEditor(q) {
   const slotOrder = ['left', 'center-left', 'center', 'center-right', 'right'];
   const slotLabels = { 'left': 'Left', 'center-left': 'C-Left', 'center': 'Center', 'center-right': 'C-Right', 'right': 'Right' };
-  
-  let html = `<div class="space-y-3 mt-3">
-    <label class="form-label">Picture Rows (each row has 5 slots: Left, [C-Left], Center, [C-Right], Right)</label>`;
-  
+  let html = `<div class="space-y-3 mt-3"><label class="form-label">Picture Rows (each row has 5 slots: Left, [C-Left], Center, [C-Right], Right)</label>`;
   (q.rows || []).forEach((row, rowIdx) => {
     html += `<div class="border rounded-lg p-3" style="background:#fff;">
       <div class="flex justify-between items-center mb-2">
@@ -1812,7 +1792,6 @@ function renderPictureEditor(q) {
         ${(q.rows || []).length > 1 ? `<button class="icon-btn" style="width:28px;height:28px;" onclick="removePictureRow(${q.id}, ${row.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button>` : ''}
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">`;
-    
     slotOrder.forEach(slotKey => {
       const slot = row.slots[slotKey];
       if (!slot) return;
@@ -1838,29 +1817,16 @@ function renderPictureEditor(q) {
         ` : '<p class="text-[10px] text-slate-400 italic">Disabled</p>'}
       </div>`;
     });
-    
     html += `</div></div>`;
   });
-  
-  html += `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row Below (Same Alignment)</button>
-  </div>`;
+  html += `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="addPictureRow(${q.id})"><i class="fa-solid fa-plus mr-1"></i> Add Row Below (Same Alignment)</button></div>`;
   return html;
 }
 
-function toggleQuestionCollapse(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q) { q.collapsed = !q.collapsed; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-
-function unhideAllQuestions() {
-  state.examQuestions.forEach(q => { q.collapsed = false; });
-  renderPage();
-  setTimeout(updateExamPreview, 50);
-}
-
+function toggleQuestionCollapse(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q) { q.collapsed = !q.collapsed; renderPage(); setTimeout(updateExamPreview, 50); } }
+function unhideAllQuestions() { state.examQuestions.forEach(q => { q.collapsed = false; }); renderPage(); setTimeout(updateExamPreview, 50); }
 function addQuestion(type) { 
-  const id = Date.now(); 
-  state.examQuestions.forEach(q => { q.collapsed = true; });
+  const id = Date.now(); state.examQuestions.forEach(q => { q.collapsed = true; });
   const newQ = { id, type, text: '', marks: 5, collapsed: false }; 
   if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; newQ.tableWidth = 100; newQ.colAWidth = 50; }
@@ -1884,180 +1850,31 @@ function addQuestion(type) {
   }
   if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
   if (type === 'section') { newQ.text = 'SECTION A'; }
-  
-  state.examQuestions.push(newQ); 
-  state.examDraft.isDirty = true;
-  renderPage(); 
-  setTimeout(updateExamPreview, 50);
+  state.examQuestions.push(newQ); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50);
   showToast(type === 'section' ? 'Section header added' : 'Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
 }
-
-function updateQuestionField(id, field, val) { 
-  const q = state.examQuestions.find(x => x.id === id); 
-  if (q) { q[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } 
-}
-
-function addMcqItem(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-function removeMcqItem(qId, itemId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-function updateMcqItem(qId, itemId, field, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
-}
-function updateMcqChoice(qId, itemId, cIdx, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices[cIdx] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
-}
-function addMcqChoice(qId, itemId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
-}
-function removeMcqChoice(qId, itemId, cIdx) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
-}
-
-function addMatchingRow(qId) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } 
-}
-function removeMatchingRow(qId, idx) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } 
-}
-function updateMatchingCol(qId, col, idx, val) { 
-  const q = state.examQuestions.find(x => x.id === qId); 
-  if (q) { if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val; state.examDraft.isDirty = true; updateExamPreview(); } 
-}
-function updateMatchingTableProp(qId, prop, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'matching') {
-    q[prop] = parseInt(val) || 100;
-    state.examDraft.isDirty = true;
-    updateExamPreview();
-  }
-}
-
-function addPictureRow(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') {
-    const lastRow = q.rows[q.rows.length - 1];
-    const newSlots = {};
-    Object.keys(lastRow.slots).forEach(key => {
-      newSlots[key] = {
-        enabled: lastRow.slots[key].enabled,
-        text: '',
-        url: '',
-        width: lastRow.slots[key].width,
-        height: lastRow.slots[key].height,
-        hasLine: lastRow.slots[key].hasLine
-      };
-    });
-    q.rows.push({ id: Date.now(), slots: newSlots });
-    state.examDraft.isDirty = true;
-    renderPage();
-    setTimeout(updateExamPreview, 50);
-    showToast('New row added below with same alignment', 'success');
-  }
-}
-function removePictureRow(qId, rowId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture' && q.rows.length > 1) {
-    q.rows = q.rows.filter(r => r.id !== rowId);
-    state.examDraft.isDirty = true;
-    renderPage();
-    setTimeout(updateExamPreview, 50);
-  }
-}
-function togglePictureSlot(qId, rowId, slotKey) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') {
-    const row = q.rows.find(r => r.id === rowId);
-    if (row && row.slots[slotKey]) {
-      row.slots[slotKey].enabled = !row.slots[slotKey].enabled;
-      state.examDraft.isDirty = true;
-      renderPage();
-      setTimeout(updateExamPreview, 50);
-    }
-  }
-}
-function updatePictureSlotProp(qId, rowId, slotKey, prop, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'picture') {
-    const row = q.rows.find(r => r.id === rowId);
-    if (row && row.slots[slotKey]) {
-      if (prop === 'width' || prop === 'height') row.slots[slotKey][prop] = parseInt(val) || 100;
-      else row.slots[slotKey][prop] = val;
-      state.examDraft.isDirty = true;
-      updateExamPreview();
-    }
-  }
-}
-function uploadPictureSlotImage(qId, rowId, slotKey, input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const q = state.examQuestions.find(x => x.id === qId);
-    if (q && q.type === 'picture') {
-      const row = q.rows.find(r => r.id === rowId);
-      if (row && row.slots[slotKey]) {
-        row.slots[slotKey].url = e.target.result;
-        state.examDraft.isDirty = true;
-        renderPage();
-        setTimeout(updateExamPreview, 50);
-        showToast('Picture attached', 'success');
-      }
-    }
-  };
-  reader.readAsDataURL(file);
-}
-
-function addDrawingItem(qId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 48 }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-function removeDrawingItem(qId, itemId) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-function updateDrawingItemProp(qId, itemId, prop, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'drawing') {
-    const item = q.items.find(it => it.id === itemId);
-    if (item) { item[prop] = (prop === 'boxHeight' || prop === 'boxWidth') ? parseInt(val) || 100 : val; state.examDraft.isDirty = true; updateExamPreview(); }
-  }
-}
-
-function updateMentioningCount(qId, count) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') {
-    count = parseInt(count) || 1;
-    if (count < 1) count = 1;
-    if (count > 20) count = 20;
-    const current = q.items.length;
-    if (count > current) { for (let i = current; i < count; i++) q.items.push({ id: Date.now() + i, text: '' }); }
-    else if (count < current) { q.items = q.items.slice(0, count); }
-    state.examDraft.isDirty = true;
-    renderPage();
-    setTimeout(updateExamPreview, 50);
-    showToast(`${count} item${count > 1 ? 's' : ''} displayed`, 'success');
-  }
-}
-function updateMentioningItemProp(qId, itemId, prop, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { const item = q.items.find(it => it.id === itemId); if (item) { item[prop] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
-}
-function updateMentioningFormat(qId, val) {
-  const q = state.examQuestions.find(x => x.id === qId);
-  if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); }
-}
-
+function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) { q[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
+function addMcqItem(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function removeMcqItem(qId, itemId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function updateMcqItem(qId, itemId, field, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } } }
+function updateMcqChoice(qId, itemId, cIdx, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices[cIdx] = val; state.examDraft.isDirty = true; updateExamPreview(); } } }
+function addMcqChoice(qId, itemId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item) { item.choices.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } } }
+function removeMcqChoice(qId, itemId, cIdx) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { const item = q.items.find(it => it.id === itemId); if (item && item.choices.length > 1) { item.choices.splice(cIdx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } } }
+function addMatchingRow(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q) { q.colA.push(''); q.colB.push(''); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function removeMatchingRow(qId, idx) { const q = state.examQuestions.find(x => x.id === qId); if (q) { q.colA.splice(idx, 1); q.colB.splice(idx, 1); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function updateMatchingCol(qId, col, idx, val) { const q = state.examQuestions.find(x => x.id === qId); if (q) { if (col === 'A') q.colA[idx] = val; else q.colB[idx] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
+function updateMatchingTableProp(qId, prop, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'matching') { q[prop] = parseInt(val) || 100; state.examDraft.isDirty = true; updateExamPreview(); } }
+function addPictureRow(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'picture') { const lastRow = q.rows[q.rows.length - 1]; const newSlots = {}; Object.keys(lastRow.slots).forEach(key => { newSlots[key] = { enabled: lastRow.slots[key].enabled, text: '', url: '', width: lastRow.slots[key].width, height: lastRow.slots[key].height, hasLine: lastRow.slots[key].hasLine }; }); q.rows.push({ id: Date.now(), slots: newSlots }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast('New row added below with same alignment', 'success'); } }
+function removePictureRow(qId, rowId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'picture' && q.rows.length > 1) { q.rows = q.rows.filter(r => r.id !== rowId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function togglePictureSlot(qId, rowId, slotKey) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'picture') { const row = q.rows.find(r => r.id === rowId); if (row && row.slots[slotKey]) { row.slots[slotKey].enabled = !row.slots[slotKey].enabled; state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } } }
+function updatePictureSlotProp(qId, rowId, slotKey, prop, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'picture') { const row = q.rows.find(r => r.id === rowId); if (row && row.slots[slotKey]) { if (prop === 'width' || prop === 'height') row.slots[slotKey][prop] = parseInt(val) || 100; else row.slots[slotKey][prop] = val; state.examDraft.isDirty = true; updateExamPreview(); } } }
+function uploadPictureSlotImage(qId, rowId, slotKey, input) { const file = input.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = e => { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'picture') { const row = q.rows.find(r => r.id === rowId); if (row && row.slots[slotKey]) { row.slots[slotKey].url = e.target.result; state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast('Picture attached', 'success'); } } }; reader.readAsDataURL(file); }
+function addDrawingItem(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'drawing') { q.items.push({ id: Date.now(), text: '', boxHeight: 100, boxWidth: 48 }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function removeDrawingItem(qId, itemId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'drawing') { q.items = q.items.filter(item => item.id !== itemId); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
+function updateDrawingItemProp(qId, itemId, prop, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'drawing') { const item = q.items.find(it => it.id === itemId); if (item) { item[prop] = (prop === 'boxHeight' || prop === 'boxWidth') ? parseInt(val) || 100 : val; state.examDraft.isDirty = true; updateExamPreview(); } } }
+function updateMentioningCount(qId, count) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mentioning') { count = parseInt(count) || 1; if (count < 1) count = 1; if (count > 20) count = 20; const current = q.items.length; if (count > current) { for (let i = current; i < count; i++) q.items.push({ id: Date.now() + i, text: '' }); } else if (count < current) { q.items = q.items.slice(0, count); } state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast(`${count} item${count > 1 ? 's' : ''} displayed`, 'success'); } }
+function updateMentioningItemProp(qId, itemId, prop, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mentioning') { const item = q.items.find(it => it.id === itemId); if (item) { item[prop] = val; state.examDraft.isDirty = true; updateExamPreview(); } } }
+function updateMentioningFormat(qId, val) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mentioning') { q.format = val; state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast('Question removed', 'info'); closeModal(); }); }
 
 function renderExamReview() {
@@ -2077,17 +1894,12 @@ function renderExamReview() {
   </div>`;
 }
 
-function reviewExamPrint(examId) {
-  const exam = state.exams.find(e => e.id === examId);
-  if (!exam) return;
-  printExamPaper(exam);
-}
+function reviewExamPrint(examId) { const exam = state.exams.find(e => e.id === examId); if (!exam) return; printExamPaper(exam); }
 
 async function printExamPaper(exam = null) {
   const draft = exam ? { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title, customInstruction: exam.customInstruction || '' } : state.examDraft;
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
-  
   const blocks = buildExamBlocks(draft, c, questions);
   const pages = paginateBlocks(blocks, c);
   const pagesHtml = renderExamPagesHTML(pages, c);
@@ -2110,98 +1922,384 @@ async function printExamPaper(exam = null) {
   .print-btn { padding: 14px 32px; background: #047857; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: ${getFontStack(c.fontType)}; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   .print-btn:hover { background: #065F46; }
   .a4-page {
-    width: 210mm;
-    height: 297mm;
-    background: white;
-    box-sizing: border-box;
-    overflow: hidden;
-    position: relative;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10mm;
+    width: 210mm; height: 297mm; background: white; box-sizing: border-box; overflow: hidden; position: relative; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; padding: 10mm;
   }
-  .a4-page-content {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
-    padding: 10mm;
-    overflow: hidden;
-    position: relative;
-    ${borderCSS}
-    ${bodyFontStyle}
-  }
+  .a4-page-content { width: 100%; height: 100%; box-sizing: border-box; padding: 10mm; overflow: hidden; position: relative; ${borderCSS} ${bodyFontStyle} }
   @media print {
     html, body { margin: 0; padding: 0; background: white; gap: 0; }
     body { display: block; }
     .print-btn-container { display: none !important; }
-    .a4-page {
-      page-break-after: always;
-      break-after: page;
-      box-shadow: none;
-    }
-    .a4-page:last-child {
-      page-break-after: auto;
-      break-after: auto;
-    }
+    .a4-page { page-break-after: always; break-after: page; box-shadow: none; }
+    .a4-page:last-child { page-break-after: auto; break-after: auto; }
   }
 </style>
 </head>
 <body>
-  <div class="print-btn-container">
-    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
-  </div>
+  <div class="print-btn-container"><button class="print-btn" onclick="window.print()">Print / Save as PDF</button></div>
   ${pagesHtml}
 </body>
 </html>`;
 
   const blob = new Blob([fullHTML], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.target = '_blank';
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 
   if (!exam && state.examQuestions.length > 0) {
-    if (!state.examDraft.isDirty) {
-      showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info');
-      return;
-    }
+    if (!state.examDraft.isDirty) { showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info'); return; }
     showToast('Sending copy to Admin for review...', 'info');
     const questionsToSave = state.examQuestions.map(q => {
-      const cleanQ = { ...q };
-      delete cleanQ.collapsed;
+      const cleanQ = { ...q }; delete cleanQ.collapsed;
       if (cleanQ.type === 'picture' && cleanQ.rows) {
         cleanQ.rows = cleanQ.rows.map(row => {
-          const slotsCopy = {};
-          Object.keys(row.slots).forEach(k => {
-            slotsCopy[k] = { ...row.slots[k] };
-            if (slotsCopy[k].url) slotsCopy[k].url = '';
-          });
+          const slotsCopy = {}; Object.keys(row.slots).forEach(k => { slotsCopy[k] = { ...row.slots[k] }; if (slotsCopy[k].url) slotsCopy[k].url = ''; });
           return { id: row.id, slots: slotsCopy };
         });
       }
       return cleanQ;
     });
-    supabase.from('exams').insert([{
-      title: draft.title || 'Untitled Exam',
-      class_id: draft.classId,
-      subject_id: draft.subjectId,
-      questions: questionsToSave,
-      created_by: state.currentUser.id
-    }]).then(({ error }) => {
+    supabase.from('exams').insert([{ title: draft.title || 'Untitled Exam', class_id: draft.classId, subject_id: draft.subjectId, questions: questionsToSave, created_by: state.currentUser.id }]).then(({ error }) => {
       if (error) showToast('Failed to send for review: ' + error.message, 'error');
       else { showToast('Copy sent to Admin for review.', 'success'); state.examDraft.isDirty = false; fetchAllData(); }
     });
   }
 }
 
-function renderReports() { return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500">Generate reports here.</p></div>`; }
+// ===== REPORTS SYSTEM (SWAHILI REPORT CARD EXACT REPLICA) =====
+function renderReports() {
+  if (state.students.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500 text-center py-6">No students available.</p></div>`;
+  if (!state.selectedReportStudentId) state.selectedReportStudentId = state.students[0].id;
+
+  // Check Publish Status for Non-Admins
+  if (state.currentUser.role !== 'admin' && !state.isReportsPublished) {
+    return `<div class="card fade-up-1 text-center p-12">
+      <i class="fa-solid fa-lock text-5xl text-slate-300 mb-4"></i>
+      <h3 class="text-xl font-bold text-slate-700">Reports Not Yet Published</h3>
+      <p class="text-slate-500 mt-2">The Admin has not published the reports yet. Please check back later.</p>
+    </div>`;
+  }
+
+  const isAdmin = state.currentUser.role === 'admin';
+  const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
+
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-up-1">
+    <div class="lg:col-span-1 space-y-4">
+      <div class="card">
+        <h4 class="font-bold mb-3"><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Select Student</h4>
+        <select class="form-input mb-4" onchange="selectReportStudent(this.value)">
+          ${state.students.map(s => `<option value="${s.id}" ${state.selectedReportStudentId == s.id ? 'selected' : ''}>${s.name} - ${s.classes?.name || 'N/A'}</option>`).join('')}
+        </select>
+        ${canEditReport ? `<button class="btn-ghost w-full mb-2" onclick="openReportEditModal(${state.selectedReportStudentId})"><i class="fa-solid fa-pen mr-1"></i> Edit Report Data</button>` : ''}
+        <button class="btn-primary w-full" onclick="printStudentReport()"><i class="fa-solid fa-print mr-1"></i> Print Report</button>
+        ${isAdmin ? `
+          <hr class="my-4 border-slate-200">
+          <button class="btn-primary w-full" style="background: ${state.isReportsPublished ? '#DC2626' : '#047857'};" onclick="toggleReportsPublish()">
+            <i class="fa-solid ${state.isReportsPublished ? 'fa-lock' : 'fa-globe'} mr-1"></i> 
+            ${state.isReportsPublished ? 'UNPUBLISH REPORTS' : 'PUBLISH REPORTS'}
+          </button>
+          <p class="text-xs text-slate-500 mt-2 text-center">${state.isReportsPublished ? 'Reports are visible to all staff.' : 'Reports are hidden from non-admin staff.'}</p>
+        ` : ''}
+      </div>
+    </div>
+    <div class="lg:col-span-2">
+      <div class="card p-4">
+        <div id="report-preview-wrapper" class="rep-page-container" style="height: 850px;">
+          ${generateReportHTML(state.selectedReportStudentId)}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleReportsPublish() {
+  state.isReportsPublished = !state.isReportsPublished;
+  localStorage.setItem('korosho_reports_published', state.isReportsPublished);
+  renderPage();
+  showToast(state.isReportsPublished ? 'Reports Published to all staff' : 'Reports Unpublished', 'success');
+}
+
+function selectReportStudent(id) {
+  state.selectedReportStudentId = id;
+  document.getElementById('report-preview-wrapper').innerHTML = generateReportHTML(id);
+}
+
+function formatClassName(name) {
+  if (!name) return '';
+  const upper = name.toUpperCase();
+  if (upper.includes('PRE-UNIT') || upper.includes('PRE UNIT') || upper.includes('AWALI')) return '(AWALI)';
+  let match = upper.match(/STANDARD\s*([1-6])/) || upper.match(/STD\s*([1-6])/);
+  if (match) {
+    return toRoman(parseInt(match[1]));
+  }
+  return name;
+}
+
+function getStudentPosition(student) {
+  if (!student.class_id) return { pos: 1, total: 1 };
+  const classStudents = state.students.filter(s => s.class_id == student.class_id);
+  let ranks = classStudents.map(cs => {
+    let total = 0, count = 0;
+    state.subjects.forEach(sub => {
+      const r = state.results.find(x => x.student_id == cs.id && x.subject_id == sub.id);
+      if (r) { total += Number(r.marks); count++; }
+    });
+    return { id: cs.id, avg: count > 0 ? total/count : 0 };
+  });
+  ranks.sort((a,b) => b.avg - a.avg);
+  const pos = ranks.findIndex(r => r.id == student.id) + 1;
+  return { pos: pos > 0 ? pos : 1, total: ranks.length };
+}
+
+function generateReportHTML(studentId) {
+  const student = state.students.find(s => s.id == studentId);
+  if (!student) return '<p class="text-white text-center p-6">Student not found.</p>';
+
+  const repData = state.reportData[studentId] || {};
+  const c = state.examConfig.default;
+
+  let totalMarks = 0, subjectCount = 0;
+  const subjectRows = state.subjects.map((sub, idx) => {
+    let marks = 0, grade = '-', comment = '-';
+    const result = state.results.find(r => r.student_id == student.id && r.subject_id == sub.id);
+    if (result) {
+      marks = result.marks;
+      grade = result.grade;
+      comment = getReportComment(grade);
+      totalMarks += Number(marks);
+      subjectCount++;
+    }
+    return `<tr><td>${idx + 1}</td><td class="rep-subj">${sub.name}</td><td>${marks}</td><td>${grade}</td><td class="rep-comment">${comment}</td></tr>`;
+  }).join('');
+
+  const average = subjectCount > 0 ? (totalMarks / subjectCount).toFixed(1) : '0';
+  const overallGrade = getGrade(parseFloat(average));
+  const { pos, total } = getStudentPosition(student);
+  const className = formatClassName(student.classes?.name);
+
+  return `
+    <div class="rep-a4-sheet">
+      <div class="rep-border-outer">
+        <div class="rep-border-inner">
+          <header class="rep-header">
+            <img src="${LOGO_URL}" class="rep-logo" alt="Logo">
+            <div class="rep-school-info">
+              <h1>KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h1>
+              <p>P.O. Box 03 – TANDAHIMBA – MTWARA</p>
+              <p>TEL: +255715976760 / +255623638683 / +255655481995</p>
+              <p>EMAIL: <a href="mailto:koroshoschool@gmail.com">koroshoschool@gmail.com</a></p>
+            </div>
+          </header>
+
+          <div class="rep-title">
+            <h2>TAARIFA YA MAENDELEO YA MWANAFUNZI</h2>
+            <h3>${c.reportTermHeading || 'MUHULA WA KWANZA 2026'}</h3>
+          </div>
+
+          <div class="rep-student-info">
+            <p style="flex: 1.5;">JINA LA MWANAFUNZI: <b>${student.name}</b></p>
+            <p style="flex: 0 0 80px;">JINSI: <b>${student.gender === 'F' ? 'KE' : 'ME'}</b></p>
+            <p style="flex: 1;">DARASA: <b>${className}</b></p>
+          </div>
+
+          <div class="rep-section-title">1. MATOKEO YA MASOMO</div>
+          <table class="rep-table">
+            <thead>
+              <tr><th style="width: 8%;">NA.</th><th style="width: 35%;">SOMO</th><th style="width: 15%;">ALAMA</th><th style="width: 15%;">DARAJA</th><th style="width: 27%;">MAONI</th></tr>
+            </thead>
+            <tbody>${subjectRows}</tbody>
+          </table>
+
+          <div class="rep-section-title">2. ALAMA NA NAFASI</div>
+          <table class="rep-table">
+            <tr>
+              <td style="width: 15%; text-align: left;">JUMLA</td>
+              <td style="width: 45%; text-align: left;">AMEPATA JUMLA YA ALAMA</td>
+              <td colspan="3">${totalMarks}</td>
+            </tr>
+            <tr>
+              <td style="text-align: left;">WASTANI</td>
+              <td style="text-align: left;">AMEPATA WASTANI WA</td>
+              <td style="width: 15%;">${average}</td>
+              <td style="width: 10%;">DARAJA</td>
+              <td style="width: 15%;">${overallGrade}</td>
+            </tr>
+            <tr>
+              <td style="text-align: left;">NAFSI</td>
+              <td style="text-align: left;">AMEKUWA MWANAFUNZI WA</td>
+              <td>${pos}</td>
+              <td>KATI YA</td>
+              <td>${total}</td>
+            </tr>
+            <tr>
+              <td style="text-align: left;">MADARAJA</td>
+              <td colspan="4" style="text-align: left; font-size: 8pt;">A:81-100 = VIZURI SANA, B:61-80 = VIZURI, C:41-60 = WASTANI, D:21-40 = DHAIFU, E:0-20 = DHAIFU SANA</td>
+            </tr>
+          </table>
+
+          <div class="rep-section-title">3. UPIMAJI KITABIA</div>
+          <table class="rep-table">
+            <thead><tr><th style="width: 15%;">NAMBA</th><th style="width: 60%;">TABIA</th><th style="width: 25%;">DARAJA</th></tr></thead>
+            <tbody>
+              <tr><td>901 - 903</td><td class="rep-subj">Kufanya kazi kwa bidii na kuthamini kazi</td><td>${repData.behavior1 || ''}</td></tr>
+              <tr><td>904</td><td class="rep-subj">Uangalizi wa mali za shule na mali za wenzake</td><td>${repData.behavior2 || ''}</td></tr>
+              <tr><td>905 - 908</td><td class="rep-subj">Heshima, Uongozi, Utii na Uaminifu</td><td>${repData.behavior3 || ''}</td></tr>
+              <tr><td colspan="3" style="text-align: center; font-weight: bold;">A = Vizuri sana, B = Vizuri, C = Wastani, D = Dhaifu, E = Dhaifu sana</td></tr>
+            </tbody>
+          </table>
+
+          <div class="rep-section-title">4. MAONI</div>
+          <table class="rep-table">
+            <tr><td style="width: 35%; text-align: left;">MAONI YA MWALIMU WA DARASA</td><td style="width: 65%; text-align: left;">${repData.teacher_comment || ''}</td></tr>
+            <tr><td style="text-align: left;">MAONI YA MTAALUMA</td><td style="text-align: left;">${repData.academic_comment || ''}</td></tr>
+            <tr><td style="text-align: left;">MAONI YA MWALIMU MKUU</td><td style="text-align: left;">${repData.head_comment || ''}</td></tr>
+          </table>
+
+          <div class="rep-section-title">5. MAELEKEZO</div>
+          <ol class="rep-instructions">
+            <li>${c.reportInstruction1 || 'Shule imefungwa leo tarehe Jumatano, 03/06/2026 na itafunguliwa tarehe 08/06/2026.'}</li>
+            <li>${c.reportInstruction2 || 'Mwanao aje na vifaa vyote muhimu shule itakapofunguliwa ikiwemo ulipaji wa ada kwa wakati.'}</li>
+          </ol>
+
+          <div class="rep-signatures">
+            <div>____________________<br>MWALIMU WA DARASA</div>
+            <div>____________________<br>MTAALUMA</div>
+            <div>____________________<br>MWALIMU MKUU</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function getReportComment(grade) {
+  switch(grade) {
+    case 'A': return 'VIZURI SANA';
+    case 'B': return 'VIZURI';
+    case 'C': return 'WASTANI';
+    case 'D': return 'DHAIFU';
+    case 'E': return 'DHAIFU SANA';
+    default: return '-';
+  }
+}
+
+function openReportEditModal(studentId) {
+  const data = state.reportData[studentId] || {};
+  const role = state.currentUser.role;
+  let fields = '';
+
+  if (role === 'teacher' || role === 'admin') {
+    fields += `<div class="grid grid-cols-3 gap-3">
+      <div><label class="form-label">Tabia (901-903)</label><input type="text" id="rd-b1" class="form-input" value="${data.behavior1 || ''}"></div>
+      <div><label class="form-label">Tabia (904)</label><input type="text" id="rd-b2" class="form-input" value="${data.behavior2 || ''}"></div>
+      <div><label class="form-label">Tabia (905-908)</label><input type="text" id="rd-b3" class="form-input" value="${data.behavior3 || ''}"></div>
+    </div>`;
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu wa Darasa</label><textarea id="rd-tc" class="form-input" rows="3">${data.teacher_comment || ''}</textarea></div>`;
+  }
+  if (role === 'academic' || role === 'admin') {
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mtaaluma</label><textarea id="rd-ac" class="form-input" rows="3">${data.academic_comment || ''}</textarea></div>`;
+  }
+  if (role === 'headteacher' || role === 'admin') {
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu Mkuu</label><textarea id="rd-hc" class="form-input" rows="3">${data.head_comment || ''}</textarea></div>`;
+  }
+
+  const content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Report Data</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <form id="report-edit-form" onsubmit="saveReportData(event, ${studentId})">
+        ${fields}
+        <div class="modal-footer" style="padding:0; border:none; margin-top:20px;">
+          <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Save Data</button>
+        </div>
+      </form>
+    </div>`;
+
+  document.getElementById('modalHost').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box">${content}</div></div>`;
+}
+
+function saveReportData(e, studentId) {
+  e.preventDefault();
+  const role = state.currentUser.role;
+  if (!state.reportData[studentId]) state.reportData[studentId] = {};
+  const data = state.reportData[studentId];
+
+  if (role === 'teacher' || role === 'admin') {
+    data.behavior1 = document.getElementById('rd-b1').value;
+    data.behavior2 = document.getElementById('rd-b2').value;
+    data.behavior3 = document.getElementById('rd-b3').value;
+    data.teacher_comment = document.getElementById('rd-tc').value;
+  }
+  if (role === 'academic' || role === 'admin') {
+    data.academic_comment = document.getElementById('rd-ac').value;
+  }
+  if (role === 'headteacher' || role === 'admin') {
+    data.head_comment = document.getElementById('rd-hc').value;
+  }
+
+  saveReportDataLocally();
+  closeModal();
+  renderPage();
+  showToast('Report data saved successfully', 'success');
+}
+
+function printStudentReport() {
+  const reportHTML = generateReportHTML(state.selectedReportStudentId);
+  const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Report</title>
+<style>
+  @page { size: A4 portrait; margin: 8mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: white; font-family: Arial, Helvetica, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; }
+  .print-btn-container { text-align: center; padding: 20px; position: sticky; top: 20px; z-index: 100; }
+  .print-btn { padding: 14px 32px; background: #047857; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  .rep-a4-sheet { width: 194mm; height: 281mm; background: white; box-sizing: border-box; overflow: hidden; }
+  .rep-border-outer { border: 4px solid #000; width: 100%; height: 100%; padding: 2mm; box-sizing: border-box; }
+  .rep-border-inner { border: 1px solid #000; width: 100%; height: 100%; padding: 4mm; box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #000; display: flex; flex-direction: column; }
+  .rep-header { display: flex; align-items: center; margin-bottom: 3mm; }
+  .rep-logo { width: 60px; height: 60px; object-fit: contain; margin-right: 5mm; flex-shrink: 0; }
+  .rep-school-info { flex: 1; text-align: center; }
+  .rep-school-info h1 { font-size: 14pt; font-weight: bold; margin: 0; text-transform: uppercase; line-height: 1.2; }
+  .rep-school-info p { margin: 0.5mm 0; font-weight: bold; font-size: 10pt; }
+  .rep-school-info a { color: blue; text-decoration: underline; }
+  .rep-title { text-align: center; margin: 2mm 0; }
+  .rep-title h2 { font-size: 12pt; font-weight: bold; margin: 0; text-transform: uppercase; }
+  .rep-title h3 { font-size: 11pt; font-weight: bold; margin: 0.5mm 0 0 0; text-transform: uppercase; }
+  .rep-student-info { display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt; padding: 0 1mm; }
+  .rep-student-info b { font-weight: bold; }
+  .rep-section-title { font-weight: bold; font-size: 11pt; margin: 2mm 0 1mm 0; }
+  .rep-table { width: 100%; border-collapse: collapse; margin-bottom: 2mm; font-size: 9pt; }
+  .rep-table th, .rep-table td { border: 1px solid #000; padding: 1.2mm; text-align: center; }
+  .rep-table th { background: #e6e6e6; font-weight: bold; }
+  .rep-table td.rep-subj { text-align: left; }
+  .rep-table td.rep-comment { text-align: left; font-size: 8pt; }
+  .rep-instructions { font-size: 9pt; padding-left: 4mm; margin: 0; }
+  .rep-instructions li { margin-bottom: 1mm; }
+  .rep-signatures { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 9pt; font-weight: bold; }
+  @media print {
+    body { display: block; }
+    .print-btn-container { display: none !important; }
+    .rep-a4-sheet { width: 100%; height: auto; min-height: 281mm; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="print-btn-container"><button class="print-btn" onclick="window.print()">Print / Save as PDF</button></div>
+  ${reportHTML}
+</body>
+</html>`;
+
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
 
 function openModal(type, data) {
   const host = document.getElementById('modalHost'); let content = '';
@@ -2356,4 +2454,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-  </html>
+</html>
