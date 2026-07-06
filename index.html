@@ -94,16 +94,20 @@ select.form-input { cursor: pointer; }
 @keyframes slideIn { from { transform: translateX(420px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 .timetable-wrapper { overflow-x: auto; }
-.timetable-grid { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; min-width: 800px; }
-.tt-cell { background: white; padding: 10px; min-height: 72px; font-size: 13px; }
-.tt-header { background: #F8FAFC; font-weight: 700; color: var(--muted); text-align: center; padding: 12px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-.tt-time { background: #F8FAFC; font-weight: 600; color: var(--muted); font-size: 11px; text-align: center; display: flex; align-items: center; justify-content: center; padding: 8px; }
-.tt-class { background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 6px; padding: 8px; font-size: 12px; height: 100%; cursor: pointer; transition: all 0.15s; }
-.tt-class:hover { background: #D1FAE5; transform: scale(1.02); }
-.tt-class .subj { font-weight: 700; color: var(--primary-dark); }
-.tt-class .tea { color: var(--muted); font-size: 10px; margin-top: 2px; }
-.tt-break { background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 6px; padding: 8px; font-size: 12px; color: #92400E; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; }
-
+.timetable-grid { display: grid; gap: 0; background: #000; border: 2px solid #000; border-radius: 0; overflow: hidden; min-width: 800px; font-family: Arial, Helvetica, sans-serif; }
+.tt-cell { background: white; padding: 0; min-height: 55px; font-size: 12px; border: 1px solid #000; text-align: center; display: flex; align-items: center; justify-content: center; }
+.tt-header { background: #f0f0f0; font-weight: bold; color: #000; text-align: center; padding: 8px; font-size: 12px; text-transform: uppercase; border: 1px solid #000; }
+.tt-time { background: #f0f0f0; font-weight: bold; color: #000; font-size: 11px; text-align: center; display: flex; align-items: center; justify-content: center; padding: 4px; border: 1px solid #000; }
+.tt-class { background: #fff; border: none; padding: 4px; font-size: 12px; height: 100%; width: 100%; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tt-class:hover { background: #f5f5f5; }
+.tt-class .subj { font-weight: 700; color: #000; }
+.tt-class .tea { color: #666; font-size: 9px; margin-top: 2px; }
+.tt-class-mine { background: #EFF6FF; border: none; padding: 4px; font-size: 12px; height: 100%; width: 100%; cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tt-class-mine:hover { background: #DBEAFE; }
+.tt-class-mine .subj { font-weight: 700; color: #1E40AF; }
+.tt-class-mine .tea { color: #3B82F6; font-size: 9px; margin-top: 2px; }
+.tt-break { background: #FFEBCD; border: 1px solid #000; border-radius: 0; padding: 4px; font-size: 12px; color: #8B4513; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; }
+  
 .notice-card { background: white; border-radius: 12px; border-left: 4px solid var(--primary); border-top: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 16px 18px; transition: all 0.2s; }
 .notice-card:hover { transform: translateX(2px); box-shadow: 0 8px 20px -8px rgba(0,0,0,0.08); }
 .notice-card.high { border-left-color: var(--danger); }
@@ -769,34 +773,58 @@ function generateTimetable() {
   const timeSlots = [
     { time: '08:00 - 08:40', type: 'lesson' }, { time: '08:40 - 09:20', type: 'lesson' },
     { time: '09:20 - 10:00', type: 'lesson' }, { time: '10:00 - 10:40', type: 'lesson' },
-    { time: '10:40 - 11:00', type: 'break', label: 'Short Break' },
+    { time: '10:40 - 11:00', type: 'break', label: 'BREAK' },
     { time: '11:00 - 11:40', type: 'lesson' }, { time: '11:40 - 12:20', type: 'lesson' },
     { time: '12:20 - 13:00', type: 'lesson' },
-    { time: '13:00 - 14:00', type: 'break', label: 'Lunch Break' },
-    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
+    { time: '13:00 - 14:00', type: 'break', label: 'LUNCH' },
+    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' },
+    { time: '15:20 - 15:30', type: 'break', label: 'BREAK' }
   ];
-  const subjectPool = state.subjects.length > 0 ? state.subjects : [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
+  
+  const subjectPool = state.subjects.length > 0 ? state.subjects : [
+    {id: 'eng', name: 'English', code: 'ENG', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'math', name: 'Mathematics', code: 'MATH', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'kisw', name: 'Kiswahili', code: 'KISW', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'sci', name: 'Science', code: 'SCI', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'civ', name: 'Civics', code: 'CIV', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'hist', name: 'History', code: 'HIST', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'geo', name: 'Geography', code: 'GEO', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'vsk', name: 'Vocational Skills', code: 'VSK', teacher_id: null, profiles: {full_name: '-'}},
+    {id: 'arts', name: 'Arts & Sports', code: 'ARTS', teacher_id: null, profiles: {full_name: '-'}}
+  ];
+  
   const teachers = state.teachers || [];
   const lessonSlots = timeSlots.filter(s => s.type === 'lesson').length;
   const totalPeriods = lessonSlots * days.length;
   const pool = [];
   const baseCount = Math.floor(totalPeriods / subjectPool.length);
   const remainder = totalPeriods % subjectPool.length;
+
   subjectPool.forEach((subj, idx) => { let count = baseCount + (idx < remainder ? 1 : 0); for(let i=0; i<count; i++) pool.push(subj); });
   for(let i=pool.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
+
   const timetable = { days, timeSlots, cells: {} };
   let poolIdx = 0;
+
   days.forEach(day => {
     let prevSubjectId = null;
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
-      if (slot.type === 'break') { timetable.cells[key] = { type: 'break', label: slot.label }; }
-      else {
+      if (slot.type === 'break') { 
+        timetable.cells[key] = { type: 'break', label: slot.label }; 
+      } else {
         let attempts = 0;
         let chosenSubj = pool[poolIdx % pool.length];
         while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
+        
         const teacher = teachers.find(t => t.id === chosenSubj.teacher_id);
-        timetable.cells[key] = { type: 'lesson', subj: chosenSubj.name, subjId: chosenSubj.id, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
+        timetable.cells[key] = { 
+          type: 'lesson', 
+          subj: chosenSubj.code || chosenSubj.name, // Use Code to match the image
+          subjId: chosenSubj.id,
+          tea: teacher ? teacher.full_name : '—',
+          teaId: teacher ? teacher.id : null
+        };
         prevSubjectId = chosenSubj.id;
         poolIdx++;
       }
@@ -807,23 +835,40 @@ function generateTimetable() {
 
 function renderTimetable() {
   const tt = state.timetable, isAdmin = ['admin','academic'].includes(state.currentUser.role);
-  let gridStyle = `grid-template-columns: 110px repeat(${tt.days.length}, 1fr);`;
-  let cells = `<div class="tt-header">Time / Day</div>`;
+  let gridStyle = `grid-template-columns: 120px repeat(${tt.days.length}, 1fr);`;
+  let cells = `<div class="tt-header">TIME / DAY</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
   tt.timeSlots.forEach((slot, sIdx) => {
-    cells += `<div class="tt-time">${slot.time}</div>`;
+    cells += `<div class="tt-time" style="${isAdmin ? 'cursor:pointer;text-decoration:underline;' : ''}" onclick="${isAdmin ? `editTimetableTime(${sIdx})` : ''}">${slot.time}</div>`;
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
       const cell = tt.cells[key];
-      if (cell.type === 'break') { cells += `<div class="tt-cell"><div class="tt-break"><i class="fa-solid fa-coffee mr-1"></i> ${cell.label}</div></div>`; }
-      else {
+      if (cell.type === 'break') { 
+        cells += `<div class="tt-cell"><div class="tt-break">${cell.label}</div></div>`; 
+      } else {
+        const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
+        const cellClass = isMine ? 'tt-class-mine' : 'tt-class';
         cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
-          <div class="tt-class"><div class="subj">${cell.subj}</div><div class="tea"><i class="fa-solid fa-user mr-1"></i> ${cell.tea.split(' ').slice(-1)[0]}</div></div>
+          <div class="${cellClass}">
+            <div class="subj">${cell.subj}</div>
+            <div class="tea">${cell.tea !== '—' ? cell.tea.split(' ').slice(-1)[0] : ''}</div>
+          </div>
         </div>`;
       }
     });
   });
-  return `<div class="card fade-up-1">
+  
+  const headerHtml = `
+    <div class="text-center mb-6">
+      <h2 class="text-xl font-bold text-slate-900" style="font-family: Arial, sans-serif;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
+      <p class="text-sm text-slate-700" style="font-family: Arial, sans-serif;">P.O. BOX 03, TANDAHIMBA – MTWARA</p>
+      <p class="text-xs text-slate-500" style="font-family: Arial, sans-serif;">TEL: +255715976760 / +255623638683 / +255655481995 | EMAIL: koroshoschool@gmail.com</p>
+      <h3 class="text-base font-bold mt-3 text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">2026 ACADEMIC YEAR (TERM I) CLASSES III - VI TIME TABLE</h3>
+    </div>
+  `;
+
+  return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
+    ${headerHtml}
     <div class="section-title"><span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
       ${isAdmin ? `<div class="flex flex-wrap gap-2">
         <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
