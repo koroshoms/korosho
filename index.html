@@ -881,13 +881,36 @@ function renderTimetable() {
 }
 
 function editTimetableTime(sIdx) { 
-  openModal('editTimetableTime', { sIdx, time: state.timetable.timeSlots[sIdx].time }); 
+  openModal('editTimetableTime', { sIdx, slot: state.timetable.timeSlots[sIdx] }); 
 }
 
-function saveTimetableTime(sIdx, time) {
+function saveTimetableTimeSlot(sIdx) {
+  const time = document.getElementById('tt-time-input').value;
   if (!time) return showToast('Time cannot be empty', 'error');
+  
+  const isBreak = document.querySelector('input[name="slotType"]:checked').value === 'break';
+  const label = document.getElementById('tt-break-label').value.trim().toUpperCase();
+  
+  // Update the time slot globally
   state.timetable.timeSlots[sIdx].time = time;
-  closeModal(); renderPage(); showToast('Time updated successfully', 'success');
+  
+  if (isBreak) {
+    state.timetable.timeSlots[sIdx].type = 'break';
+    state.timetable.timeSlots[sIdx].label = label || 'BREAK';
+    // Apply to all days
+    state.timetable.days.forEach(day => {
+      state.timetable.cells[`${day}-${sIdx}`] = { type: 'break', label: state.timetable.timeSlots[sIdx].label };
+    });
+  } else {
+    state.timetable.timeSlots[sIdx].type = 'lesson';
+    delete state.timetable.timeSlots[sIdx].label;
+    // Apply to all days (set to Free period so admin can edit individually)
+    state.timetable.days.forEach(day => {
+      state.timetable.cells[`${day}-${sIdx}`] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
+    });
+  }
+  
+  closeModal(); renderPage(); showToast('Time slot updated for all days', 'success');
 }
 function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
 function addTimetableColumn() {
@@ -2432,19 +2455,37 @@ function openModal(type, data) {
       <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
-  } else if (type === 'editTimetableTime') {
-    const { sIdx, time } = data;
-    content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    } else if (type === 'editTimetableTime') {
+    const { sIdx, slot } = data;
+    const isBreak = slot.type === 'break';
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot (All Days)</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
-      <div class="space-y-3">
-        <div><label class="form-label">Time (e.g. 08:00 - 08:40)</label><input type="text" class="form-input" id="tt-time-input" value="${time}"></div>
+      <div class="space-y-4">
+        <div>
+          <label class="form-label">Time (e.g. 08:00 - 08:40)</label>
+          <input type="text" class="form-input" id="tt-time-input" value="${slot.time}">
+        </div>
+        <div class="flex gap-6 items-center pt-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="slotType" value="lesson" ${!isBreak ? 'checked' : ''} onchange="document.getElementById('break-label-group').style.display='none'">
+            <span class="font-semibold text-sm">Lesson</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="slotType" value="break" ${isBreak ? 'checked' : ''} onchange="document.getElementById('break-label-group').style.display='block'">
+            <span class="font-semibold text-sm">Break</span>
+          </label>
+        </div>
+        <div id="break-label-group" style="display: ${isBreak ? 'block' : 'none'};">
+          <label class="form-label">Break Label (e.g. BREAK, LUNCH)</label>
+          <input type="text" class="form-input" id="tt-break-label" value="${slot.label || ''}">
+        </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" onclick="saveTimetableTime(${sIdx}, document.getElementById('tt-time-input').value)">Save Time</button>
+      <button class="btn-primary" onclick="saveTimetableTimeSlot(${sIdx})">Apply to All Days</button>
     </div>`;
-  } else if (type === 'editTimetable') {
+    } else if (type === 'editTimetable') {
     const { day, sIdx, cell } = data;
     const slot = state.timetable.timeSlots[sIdx];
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Session</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2463,6 +2504,7 @@ function openModal(type, data) {
             ${state.teachers.map(t => `<option value="${t.id}" ${cell.teaId === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
           </select>
         </div>
+        <p class="text-xs text-slate-500 mt-2"><i class="fa-solid fa-info-circle mr-1"></i> To change this time to a Break, click the time on the left.</p>
       </div>
     </div>
     <div class="modal-footer">
