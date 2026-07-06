@@ -777,8 +777,7 @@ function generateTimetable() {
     { time: '11:00 - 11:40', type: 'lesson' }, { time: '11:40 - 12:20', type: 'lesson' },
     { time: '12:20 - 13:00', type: 'lesson' },
     { time: '13:00 - 14:00', type: 'break', label: 'LUNCH' },
-    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' },
-    { time: '15:20 - 15:30', type: 'break', label: 'BREAK' }
+    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
   
   const subjectPool = state.subjects.length > 0 ? state.subjects : [
@@ -820,7 +819,7 @@ function generateTimetable() {
         const teacher = teachers.find(t => t.id === chosenSubj.teacher_id);
         timetable.cells[key] = { 
           type: 'lesson', 
-          subj: chosenSubj.code || chosenSubj.name, // Use Code to match the image
+          subj: chosenSubj.code || chosenSubj.name, 
           subjId: chosenSubj.id,
           tea: teacher ? teacher.full_name : '—',
           teaId: teacher ? teacher.id : null
@@ -868,16 +867,69 @@ function renderTimetable() {
   `;
 
   return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
-    ${headerHtml}
     <div class="section-title"><span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
-      ${isAdmin ? `<div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print Timetable</button>
+        ${isAdmin ? `
         <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
         <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
         <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
-      </div>` : ''}
+        ` : ''}
+      </div>
     </div>
-    <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+    <div id="timetable-print-area">
+      ${headerHtml}
+      <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+    </div>
   </div>`;
+}
+
+function printTimetable() {
+  const printArea = document.getElementById('timetable-print-area').innerHTML;
+  const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Print Timetable</title>
+<style>
+  @page { size: landscape; margin: 10mm; }
+  body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }
+  .text-center { text-align: center; }
+  .mb-6 { margin-bottom: 24px; }
+  .text-xl { font-size: 20px; }
+  .text-base { font-size: 16px; }
+  .text-sm { font-size: 14px; }
+  .text-xs { font-size: 12px; }
+  .font-bold { font-weight: bold; }
+  .mt-3 { margin-top: 12px; }
+  .timetable-grid { display: grid; gap: 0; background: #000; border: 2px solid #000; min-width: 800px; }
+  .tt-cell { background: white; padding: 0; min-height: 50px; font-size: 12px; border: 1px solid #000; text-align: center; display: flex; align-items: center; justify-content: center; }
+  .tt-header { background: #f0f0f0; font-weight: bold; color: #000; text-align: center; padding: 8px; font-size: 12px; text-transform: uppercase; border: 1px solid #000; }
+  .tt-time { background: #f0f0f0; font-weight: bold; color: #000; font-size: 11px; text-align: center; display: flex; align-items: center; justify-content: center; padding: 4px; border: 1px solid #000; }
+  .tt-class { background: #fff; border: none; padding: 4px; font-size: 12px; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .tt-class .subj { font-weight: 700; color: #000; }
+  .tt-class .tea { color: #666; font-size: 9px; margin-top: 2px; }
+  .tt-class-mine { background: #EFF6FF; }
+  .tt-break { background: #FFEBCD; border: 1px solid #000; padding: 4px; font-size: 12px; color: #8B4513; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; }
+</style>
+</head>
+<body>
+  ${printArea}
+  <script>
+    window.onload = function() { window.print(); };
+  <\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 function editTimetableTime(sIdx) { 
@@ -891,20 +943,17 @@ function saveTimetableTimeSlot(sIdx) {
   const isBreak = document.querySelector('input[name="slotType"]:checked').value === 'break';
   const label = document.getElementById('tt-break-label').value.trim().toUpperCase();
   
-  // Update the time slot globally
   state.timetable.timeSlots[sIdx].time = time;
   
   if (isBreak) {
     state.timetable.timeSlots[sIdx].type = 'break';
     state.timetable.timeSlots[sIdx].label = label || 'BREAK';
-    // Apply to all days
     state.timetable.days.forEach(day => {
       state.timetable.cells[`${day}-${sIdx}`] = { type: 'break', label: state.timetable.timeSlots[sIdx].label };
     });
   } else {
     state.timetable.timeSlots[sIdx].type = 'lesson';
     delete state.timetable.timeSlots[sIdx].label;
-    // Apply to all days (set to Free period so admin can edit individually)
     state.timetable.days.forEach(day => {
       state.timetable.cells[`${day}-${sIdx}`] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
     });
@@ -912,6 +961,7 @@ function saveTimetableTimeSlot(sIdx) {
   
   closeModal(); renderPage(); showToast('Time slot updated for all days', 'success');
 }
+
 function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
 function addTimetableColumn() {
   const lastIdx = state.timetable.timeSlots.length - 1;
@@ -2455,7 +2505,7 @@ function openModal(type, data) {
       <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
-    } else if (type === 'editTimetableTime') {
+  } else if (type === 'editTimetableTime') {
     const { sIdx, slot } = data;
     const isBreak = slot.type === 'break';
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot (All Days)</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2485,7 +2535,7 @@ function openModal(type, data) {
       <button class="btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveTimetableTimeSlot(${sIdx})">Apply to All Days</button>
     </div>`;
-    } else if (type === 'editTimetable') {
+  } else if (type === 'editTimetable') {
     const { day, sIdx, cell } = data;
     const slot = state.timetable.timeSlots[sIdx];
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Session</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2524,9 +2574,10 @@ function openModal(type, data) {
 }
 
 function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
+
 function openConfirmModal(title, message, onConfirm) {
   const host = document.getElementById('modalHost');
-  host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width:420px;"><div class="modal-header"><h3 class="font-bold text-lg"><i class="fa-solid fa-triangle-exclamation text-amber-500 mr-2"></i> ${title}</h3></div><div class="modal-body"><p class="text-sm text-slate-600">${message}</p></div><div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:linear-gradient(135deg,#DC2626,#EF4444);" id="confirmBtn">Confirm</button></div></div></div>`;
+  host.innerHTML = '<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width:420px;"><div class="modal-header"><h3 class="font-bold text-lg"><i class="fa-solid fa-triangle-exclamation text-amber-500 mr-2"></i> ' + title + '</h3></div><div class="modal-body"><p class="text-sm text-slate-600">' + message + '</p></div><div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" style="background:linear-gradient(135deg,#DC2626,#EF4444);" id="confirmBtn">Confirm</button></div></div></div>';
   document.getElementById('confirmBtn').onclick = onConfirm;
 }
 
@@ -2603,4 +2654,4 @@ function showToast(message, type = 'success') {
 checkSession();
 </script>
 </body>
-</html>
+  </html>
