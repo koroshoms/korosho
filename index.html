@@ -880,6 +880,15 @@ function renderTimetable() {
   </div>`;
 }
 
+function editTimetableTime(sIdx) { 
+  openModal('editTimetableTime', { sIdx, time: state.timetable.timeSlots[sIdx].time }); 
+}
+
+function saveTimetableTime(sIdx, time) {
+  if (!time) return showToast('Time cannot be empty', 'error');
+  state.timetable.timeSlots[sIdx].time = time;
+  closeModal(); renderPage(); showToast('Time updated successfully', 'success');
+}
 function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
 function addTimetableColumn() {
   const lastIdx = state.timetable.timeSlots.length - 1;
@@ -2423,6 +2432,18 @@ function openModal(type, data) {
       <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
+  } else if (type === 'editTimetableTime') {
+    const { sIdx, time } = data;
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="space-y-3">
+        <div><label class="form-label">Time (e.g. 08:00 - 08:40)</label><input type="text" class="form-input" id="tt-time-input" value="${time}"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveTimetableTime(${sIdx}, document.getElementById('tt-time-input').value)">Save Time</button>
+    </div>`;
   } else if (type === 'editTimetable') {
     const { day, sIdx, cell } = data;
     const slot = state.timetable.timeSlots[sIdx];
