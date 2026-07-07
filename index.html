@@ -2533,8 +2533,8 @@ function openModal(type, data) {
       <div><label class="form-label">Full Name</label><input type="text" class="form-input" id="t-name" placeholder="e.g. Shadafi"></div>
       <div><label class="form-label">Email Address</label><input type="email" class="form-input" id="t-email" placeholder="e.g. shadafi@korosho.ac.tz"></div>
       <div><label class="form-label">Phone Number</label><input type="text" class="form-input" id="t-phone" placeholder="+255 7XX"></div>
-      <div class="grid grid-cols-2 gap-3"><div><label class="form-label">Role</label><select class="form-input" id="t-role"><option value="teacher">Teacher</option><option value="academic">Academic Master</option><option value="headteacher">Headteacher</option></select></div><div><label class="form-label">Temporary Password</label><input type="password" class="form-input" id="t-password" placeholder="Min 6 characters" required></div></div>
-    </div></div>
+                    <div class="grid grid-cols-2 gap-3"><div><label class="form-label">Role</label><select class="form-input" id="t-role"><option value="teacher">Teacher</option><option value="academic">Academic Master</option><option value="headteacher">Headteacher</option></select></div><div class="flex items-end pb-2"><span class="text-xs text-slate-500 p-2 bg-slate-100 rounded-md">Auto Password: <b>KOROSHO2026</b></span></div></div>
+      </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveTeacher()">Create Account</button></div>`;
   } else if (type === 'assignTeacher') {
     const cls = state.classes.find(c => c.id === data);
@@ -2664,13 +2664,12 @@ async function saveClass() {
 }
 
 async function saveTeacher() {
-  const email = document.getElementById('t-email').value.trim();
-  const password = document.getElementById('t-password').value;
+    const email = document.getElementById('t-email').value.trim();
+  const password = 'KOROSHO2026';
   const fullName = document.getElementById('t-name').value.trim();
   const phone = document.getElementById('t-phone').value.trim();
   const role = document.getElementById('t-role').value;
-  
-  if (!email || !password || !fullName) return showToast('Please fill all required fields', 'error');
+  if (!email || !fullName) return showToast('Please fill all required fields', 'error');
   
   const { data: { session: adminSession } } = await supabase.auth.getSession();
   if (!adminSession) return showToast('Admin session lost. Please log in again.', 'error');
