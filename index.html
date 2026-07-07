@@ -3195,10 +3195,13 @@ function renderAssignments() {
 
   const classAssignments = state.classSubjects.filter(cs => cs.class_id == assignmentDraft.classId);
   
-  return `<div class="card fade-up-1">
+   return `<div class="card fade-up-1">
     <div class="section-title">
       <span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments & Periods</span>
-      <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Load Subjects</button>
+      <div class="flex gap-2">
+        <button class="btn-ghost btn-sm" style="color: #DC2626; border-color: #DC2626;" onclick="clearClassSubjects()"><i class="fa-solid fa-trash mr-1"></i> Clear Subjects</button>
+        <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Load Subjects</button>
+      </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div>
@@ -3371,6 +3374,25 @@ async function toggleTimetablePublish(classId) {
   renderPage();
   showToast(newStatus ? 'Timetable Published! Teachers can now see it.' : 'Timetable Unpublished.', 'success');
 }
+  
+  // ===== CLEAR SUBJECTS FOR A CLASS =====
+async function clearClassSubjects() {
+  const classId = assignmentDraft.classId;
+  if (!classId) return;
+  
+  openConfirmModal('Clear Subjects', 'Are you sure you want to remove ALL subjects linked to this class?', async () => {
+    const { error } = await supabase.from('class_subjects').delete().eq('class_id', classId);
+    if (error) return showToast('Error clearing subjects: ' + error.message, 'error');
+    
+    // Futa kwenye state ya local
+    state.classSubjects = state.classSubjects.filter(a => a.class_id != classId);
+    
+    closeModal();
+    renderPage();
+    showToast('All subjects cleared for this class.', 'success');
+  });
+}
+  
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
 if ('serviceWorker' in navigator) {
