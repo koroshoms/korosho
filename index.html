@@ -844,7 +844,7 @@ function generateTimetable() {
   
   // Fallback if no subjects are assigned yet to avoid breaking the timetable
   if (subjectPool.length === 0) {
-    subject = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
+  subjectPool = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
   }
   
   const teachers = state.teachers || [];
