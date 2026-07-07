@@ -298,6 +298,7 @@ const state = {
   examDraft: { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true },
   resultsDraft: { subjectId: null, classId: null },
   selectedReportClassId: null,
+  classSubjects: [],
   selectedReportStudentId: null,
   reportData: {},
   isClassReportsPublished: false
@@ -428,6 +429,12 @@ async function fetchAllData() {
     if (rErr) throw rErr;
     state.results = results || [];
   } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
+  
+    try {
+    const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
+    if (csErr) throw csErr;
+    state.classSubjects = classSubjects || [];
+  } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
   
     try {
     const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
@@ -1188,8 +1195,12 @@ async function loadNectaReport() {
 }
 
 function renderResultsEntry() {
-  const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
-  const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+  const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
+  const mySubjectIds = [...new Set(myAssignments.map(a => a.subject_id))];
+  
+  const myClasses = state.classes.filter(c => myClassIds.includes(c.id));
+  const mySubjects = state.subjects.filter(s => mySubjectIds.includes(s.id));
   if (myClasses.length === 0 || mySubjects.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
   if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
   if (!state.resultsDraft.classId) state.resultsDraft.classId = myClasses[0].id;
@@ -2972,6 +2983,72 @@ async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
   
   const gradeCell = document.getElementById(gradeCellId);
   if (gradeCell) gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
+}
+  // ===== SUBJECT ASSIGNMENTS SYSTEM =====
+let assignmentDraft = { classId: null };
+
+function renderAssignments() {
+  const isAdmin = ['admin', 'academic'].includes(state.currentUser.role);
+  if (!isAdmin) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">Access Denied.</p></div>`;
+  if (state.classes.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
+  if (!assignmentDraft.classId) assignmentDraft.classId = state.classes[0].id;
+
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments</span></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="form-label">Select Class</label>
+        <select class="form-input" onchange="assignmentDraft.classId=this.value; renderPage();">
+          ${state.classes.map(c => `<option value="${c.id}" ${assignmentDraft.classId==c.id?'selected':''}>${c.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="space-y-3">
+      ${state.subjects.map(sub => {
+        const assignment = state.classSubjects.find(a => a.class_id == assignmentDraft.classId && a.subject_id == sub.id);
+        const assignedTeacherId = assignment ? assignment.teacher_id : '';
+        return `<div class="flex items-center justify-between p-3 rounded-lg border" style="border-color:var(--border)">
+          <div class="font-semibold text-slate-800">${sub.name}</div>
+          <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="saveAssignment(${sub.id}, this.value)">
+            <option value="">— Unassigned —</option>
+            ${state.teachers.map(t => `<option value="${t.id}" ${assignedTeacherId === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
+          </select>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+async function saveAssignment(subjectId, teacherId) {
+  const classId = assignmentDraft.classId;
+  if (!classId) return;
+
+  const existing = state.classSubjects.find(a => a.class_id == classId && a.subject_id == subjectId);
+  
+  if (existing) {
+    if (!teacherId) {
+      // If unassigned, delete the record
+      const { error } = await supabase.from('class_subjects').delete().eq('id', existing.id);
+      if (error) return showToast('Error unassigning: ' + error.message, 'error');
+      state.classSubjects = state.classSubjects.filter(a => a.id !== existing.id);
+      showToast('Teacher unassigned', 'info');
+    } else {
+      // Update existing record
+      const { data, error } = await supabase.from('class_subjects').update({ teacher_id: teacherId }).eq('id', existing.id).select().single();
+      if (error) return showToast('Error updating: ' + error.message, 'error');
+      existing.teacher_id = teacherId;
+      showToast('Assignment updated', 'success');
+    }
+  } else {
+    if (!teacherId) return; // Don't create empty records
+    // Insert new record
+    const { data, error } = await supabase.from('class_subjects').insert([{ 
+      class_id: classId, subject_id: subjectId, teacher_id: teacherId 
+    }]).select().single();
+    if (error) return showToast('Error assigning: ' + error.message, 'error');
+    state.classSubjects.push(data);
+    showToast('Teacher assigned successfully', 'success');
+  }
 }
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
