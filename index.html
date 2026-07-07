@@ -2677,7 +2677,16 @@ async function assignTeacher(clsId) {
 async function saveSubject() {
   const name = document.getElementById('sub-name').value.trim();
   if (!name) return showToast('Please enter subject name', 'error');
-  const { error } = await supabase.from('subjects').insert([{ name, code: document.getElementById('sub-code').value, teacher_id: document.getElementById('sub-teacher').value }]);
+  
+  // Get the selected value. If it's an empty string, convert it to null.
+  const teacherId = document.getElementById('sub-teacher').value || null;
+  
+  const { error } = await supabase.from('subjects').insert([{ 
+    name, 
+    code: document.getElementById('sub-code').value, 
+    teacher_id: teacherId 
+  }]);
+  
   if (error) return showToast(error.message, 'error');
   closeModal(); await fetchAllData(); renderPage(); showToast(`Subject ${name} added`, 'success');
 }
