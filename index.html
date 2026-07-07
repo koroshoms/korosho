@@ -301,6 +301,7 @@ const state = {
   classSubjects: [],
   timetableClassId: null,
   timetables: {},
+  timetableStatus: [],
   studentFilterClassId: null,
   selectedReportStudentId: null,
   reportData: {},
@@ -439,11 +440,17 @@ async function fetchAllData() {
     state.classSubjects = classSubjects || [];
   } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
   
-    try {
+  try {
     const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
     if (csErr) throw csErr;
     state.classSubjects = classSubjects || [];
   } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
+  
+  try {
+    const { data: ttStatus, error: ttsErr } = await supabase.from('timetable_status').select('*');
+    if (ttsErr) throw ttsErr;
+    state.timetableStatus = ttStatus || [];
+  } catch (e) { console.warn("Timetable Status fetch failed:", e.message); state.timetableStatus = []; }
   
   loadReportDataLocally();
   
@@ -1034,7 +1041,6 @@ function renderTimetable() {
   if (['admin', 'academic'].includes(state.currentUser.role)) {
     availableClassIds = state.classes.map(c => c.id);
   } else {
-    // Teachers only see classes where they teach
     availableClassIds = [...new Set(state.classSubjects.filter(a => a.teacher_id === state.currentUser.id).map(a => a.class_id))];
   }
   
@@ -1045,10 +1051,33 @@ function renderTimetable() {
     state.timetableClassId = availableClassIds[0];
   }
   
+  const isAdmin = ['admin','academic'].includes(state.currentUser.role);
+  
+  // Angalia kama ratiba imepublishwa
+  const statusObj = state.timetableStatus.find(s => s.class_id == state.timetableClassId);
+  const isPublished = statusObj ? statusObj.is_published : false;
+
+  // Kama sio admin na haijapublishwa, funga ukurasa
+  if (!isAdmin && !isPublished) {
+    return `<div class="card fade-up-1 text-center p-12">
+      <i class="fa-solid fa-lock text-5xl text-slate-300 mb-4"></i>
+      <h3 class="text-xl font-bold text-slate-700">Timetable Not Yet Published</h3>
+      <p class="text-slate-500 mt-2">The Admin has not published the timetable for this class yet. Please check back later.</p>
+    </div>`;
+  }
+
   let tt = state.timetables && state.timetables[state.timetableClassId] ? state.timetables[state.timetableClassId] : generateTimetable(state.timetableClassId);
   if (!tt) tt = generateTimetable(state.timetableClassId);
 
-  const isAdmin = ['admin','academic'].includes(state.currentUser.role);
+  // Kitufe cha Publish kwa Admin
+  let publishBtnHtml = '';
+  if (isAdmin) {
+    publishBtnHtml = `<button class="btn-primary" style="background: ${isPublished ? '#DC2626' : '#047857'};" onclick="toggleTimetablePublish(${state.timetableClassId})">
+      <i class="fa-solid ${isPublished ? 'fa-lock' : 'fa-globe'} mr-1"></i> 
+      ${isPublished ? 'UNPUBLISH' : 'PUBLISH'}
+    </button>`;
+  }
+
   let gridStyle = `grid-template-columns: 120px repeat(${tt.days.length}, 1fr);`;
   let cells = `<div class="tt-header">TIME / DAY</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
@@ -1062,7 +1091,6 @@ function renderTimetable() {
       } else {
         const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
         const cellClass = isMine ? 'tt-class-mine' : 'tt-class';
-        // Show First Name only
         const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
         cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
           <div class="${cellClass}">
@@ -1086,14 +1114,13 @@ function renderTimetable() {
   return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
     <div class="section-title">
       <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Timetable</span>
-      <div class="flex flex-wrap gap-2">
+      <div class="flex flex-wrap gap-2 items-center">
         <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.timetableClassId=this.value; renderPage();">
           ${availableClasses.map(c => `<option value="${c.id}" ${state.timetableClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
         </select>
-        <button class="btn-primary" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print</button>
+        ${publishBtnHtml}
+        <button class="btn-ghost" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print</button>
         ${isAdmin ? `
-        <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
-        <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
         <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
         ` : ''}
       </div>
@@ -3321,6 +3348,27 @@ async function saveAssignmentMeta(subjectId, field, value) {
   const { error } = await supabase.from('class_subjects').update(updateObj).eq('id', existing.id);
   if (error) return showToast(error.message, 'error');
   existing[field] = parseInt(value) || 0;
+}
+  // ===== TIMETABLE PUBLISH LOGIC =====
+async function toggleTimetablePublish(classId) {
+  const existing = state.timetableStatus.find(s => s.class_id == classId);
+  const newStatus = existing ? !existing.is_published : true;
+  
+  const { error } = await supabase.from('timetable_status').upsert({ 
+    class_id: classId, 
+    is_published: newStatus 
+  }, { onConflict: 'class_id' });
+  
+  if (error) return showToast(error.message, 'error');
+  
+  if (existing) {
+    existing.is_published = newStatus;
+  } else {
+    state.timetableStatus.push({ class_id: classId, is_published: newStatus });
+  }
+  
+  renderPage();
+  showToast(newStatus ? 'Timetable Published! Teachers can now see it.' : 'Timetable Unpublished.', 'success');
 }
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
