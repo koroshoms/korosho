@@ -429,6 +429,12 @@ async function fetchAllData() {
     state.results = results || [];
   } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
   
+    try {
+    const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
+    if (csErr) throw csErr;
+    state.classSubjects = classSubjects || [];
+  } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
+  
   loadReportDataLocally();
   
   if (!state.timetable) generateTimetable();
@@ -451,6 +457,7 @@ const NAV_MENUS = {
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Management' },
     { id: 'teachers', label: 'Teachers', icon: 'fa-chalkboard-user' }, { id: 'students', label: 'Students', icon: 'fa-user-graduate' },
     { id: 'classes', label: 'Classes', icon: 'fa-school' }, { id: 'subjects', label: 'Subjects', icon: 'fa-book' },
+    { id: 'assignments', label: 'Subject Assignments', icon: 'fa-link' },
     { id: 'import', label: 'Bulk Import', icon: 'fa-file-csv' },
     { section: 'Academic' }, { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' },
     { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
@@ -546,6 +553,7 @@ function renderPage() {
   else if (page === 'reports') host.innerHTML = renderReports();
   else if (page === 'attendance') host.innerHTML = renderAttendance();
   else if (page === 'import') host.innerHTML = renderBulkImport();
+  else if (page === 'assignments') host.innerHTML = renderAssignments();
 }
 
 function renderDashboard() {
