@@ -2994,9 +2994,13 @@ function renderAssignments() {
   if (state.classes.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   if (!assignmentDraft.classId) assignmentDraft.classId = state.classes[0].id;
 
-    return `<div class="card fade-up-1">
-      <div class="section-title">
+  // Get ONLY the subjects already linked to this specific class
+  const classAssignments = state.classSubjects.filter(cs => cs.class_id == assignmentDraft.classId);
+  
+  return `<div class="card fade-up-1">
+    <div class="section-title">
       <span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments</span>
+      <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Load Subjects for this Class</button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div>
@@ -3006,19 +3010,28 @@ function renderAssignments() {
         </select>
       </div>
     </div>
-    <div class="space-y-3">
-      ${state.subjects.map(sub => {
-        const assignment = state.classSubjects.find(a => a.class_id == assignmentDraft.classId && a.subject_id == sub.id);
-        const assignedTeacherId = assignment ? assignment.teacher_id : '';
-        return `<div class="flex items-center justify-between p-3 rounded-lg border" style="border-color:var(--border)">
-          <div class="font-semibold text-slate-800">${sub.name}</div>
-          <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="saveAssignment(${sub.id}, this.value)">
-            <option value="">— Unassigned —</option>
-            ${state.teachers.map(t => `<option value="${t.id}" ${assignedTeacherId === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
-          </select>
-        </div>`;
-      }).join('')}
-    </div>
+    
+    ${classAssignments.length === 0 ? `
+      <div class="text-center py-8 text-slate-500">
+        <i class="fa-solid fa-circle-info text-3xl mb-3 text-slate-400"></i>
+        <p>No subjects linked to this class yet.</p>
+        <p class="text-xs mt-2">Click <b>Auto-Load Subjects</b> above to instantly add the default subjects for this class level, then assign teachers.</p>
+      </div>
+    ` : `
+      <div class="space-y-3">
+        ${classAssignments.map(assignment => {
+          const subject = state.subjects.find(s => s.id == assignment.subject_id);
+          if (!subject) return '';
+          return `<div class="flex items-center justify-between p-3 rounded-lg border" style="border-color:var(--border)">
+            <div class="font-semibold text-slate-800">${subject.name}</div>
+            <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="saveAssignment(${subject.id}, this.value)">
+              <option value="">— Unassigned —</option>
+              ${state.teachers.map(t => `<option value="${t.id}" ${assignment.teacher_id === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
+            </select>
+          </div>`;
+        }).join('')}
+      </div>
+    `}
   </div>`;
 }
 
