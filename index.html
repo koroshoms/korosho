@@ -699,29 +699,53 @@ function renderDashboard() {
 function renderTeacherTodaySchedule(user) {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
   if (!['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].includes(today)) return '<p class="text-sm text-slate-500">No school today.</p>';
+  
   const sessions = [];
-  if (state.timetable) {
-    state.timetable.timeSlots.forEach((slot, sIdx) => {
-      if (slot.type === 'break') return;
-      const cell = state.timetable.cells[`${today}-${sIdx}`];
-      if (cell && cell.type === 'lesson' && cell.teaId === user.id) sessions.push({ ...cell, time: slot.time, sIdx });
-    });
-  }
+  
+  // Pata madarasa yote ambayo mwalimu amepangiwa kufundisha
+  const myClassIds = [...new Set(state.classSubjects.filter(a => a.teacher_id === user.id).map(a => a.class_id))];
+  
+  myClassIds.forEach(classId => {
+    // Hakikisha ratiba ya darasa hilo imetengenezwa
+    let tt = state.timetables && state.timetables[classId] ? state.timetables[classId] : generateTimetable(classId);
+    if (tt) {
+      tt.timeSlots.forEach((slot, sIdx) => {
+        if (slot.type === 'break') return;
+        const cell = tt.cells[`${today}-${sIdx}`];
+        // Kama kipindi hiki mwalimu ndiye anafundisha, ongeza kwenye orodha
+        if (cell && cell.type === 'lesson' && cell.teaId === user.id) {
+          const cls = state.classes.find(c => c.id == classId);
+          sessions.push({ ...cell, time: slot.time, sIdx, className: cls ? cls.name : '' });
+        }
+      });
+    }
+  });
+
+  // Panga kipindi kufuatana na muda
+  sessions.sort((a, b) => a.sIdx - b.sIdx);
+
   if (sessions.length === 0) return '<p class="text-sm text-slate-500">You have no teaching sessions today.</p>';
+  
   const now = new Date();
   const currentMins = now.getHours() * 60 + now.getMinutes();
+  
   return `<div class="space-y-2">${sessions.map(s => {
     const [start, end] = s.time.split(' - ');
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
     const startMins = sh * 60 + sm;
     const endMins = eh * 60 + em;
+    
     let status = { label: 'Upcoming', color: 'gray', icon: 'fa-clock' };
     if (currentMins > endMins) status = { label: 'Completed', color: 'green', icon: 'fa-check-circle' };
     else if (currentMins >= startMins && currentMins <= endMins) status = { label: 'In Progress', color: 'amber', icon: 'fa-spinner fa-spin' };
+    
     return `<div class="flex items-center gap-3 p-3 rounded-lg border ${status.color === 'amber' ? 'bg-amber-50' : status.color === 'green' ? 'bg-green-50' : 'bg-slate-50'}" style="border-color:var(--border)">
       <div class="text-xs font-mono font-bold w-20 text-slate-600">${s.time}</div>
-      <div class="flex-1"><div class="font-semibold text-sm">${s.subj}</div><div class="text-xs text-slate-500">Period ${s.sIdx + 1}</div></div>
+      <div class="flex-1">
+        <div class="font-semibold text-sm">${s.subj} <span class="text-xs text-slate-500">(${s.className})</span></div>
+        <div class="text-xs text-slate-500">Period ${s.sIdx + 1}</div>
+      </div>
       <div class="badge badge-${status.color}"><i class="fa-solid ${status.icon} mr-1"></i> ${status.label}</div>
     </div>`;
   }).join('')}</div>`;
