@@ -914,55 +914,114 @@ function generateTimetable(classId) {
     { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
   
-  // Get subjects assigned to THIS specific class
-  const classAssignments = state.classSubjects.filter(a => a.class_id == classId && a.teacher_id);
-  const assignedSubjectIds = [...new Set(classAssignments.map(a => a.subject_id))];
-  let subjectPool = state.subjects.filter(s => assignedSubjectIds.includes(s.id));
-  
-  if (subjectPool.length === 0) {
-    subjectPool = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
-  }
-  
   const teachers = state.teachers || [];
-  const lessonSlots = timeSlots.filter(s => s.type === 'lesson').length;
-  const totalPeriods = lessonSlots * days.length;
-  const pool = [];
-  const baseCount = Math.floor(totalPeriods / subjectPool.length);
-  const remainder = totalPeriods % subjectPool.length;
-
-  subjectPool.forEach((subj, idx) => { let count = baseCount + (idx < remainder ? 1 : 0); for(let i=0; i<count; i++) pool.push(subj); });
-  for(let i=pool.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [pool[i],pool[j]] = [pool[j],pool[i]]; }
-
+  const classAssignments = state.classSubjects.filter(a => a.class_id == classId);
+  
+  // 1. Unda orodha ya "Blocks" kulingana na periods_per_week na double_periods_per_week
+  let blocks = [];
+  classAssignments.forEach(a => {
+    const subject = state.subjects.find(s => s.id == a.subject_id);
+    if (!subject) return;
+    
+    const pPw = a.periods_per_week || 0;
+    const dPw = a.double_periods_per_week || 0;
+    const sPw = pPw - (2 * dPw); // Single periods = Total - (2 * Doubles)
+    
+    // Ongeza Double periods (blocks of 2)
+    for (let i = 0; i < dPw; i++) {
+      if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 2, teacherId: a.teacher_id });
+    }
+    // Ongeza Single periods (blocks of 1)
+    for (let i = 0; i < sPw; i++) {
+      if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 1, teacherId: a.teacher_id });
+    }
+  });
+  
+  // Changanya blocks (Shuffle)
+  for(let i=blocks.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [blocks[i],blocks[j]] = [blocks[j],blocks[i]]; }
+  
   const timetable = { days, timeSlots, cells: {} };
-  let poolIdx = 0;
-
+  
+  // Jaza grid na breaks na free periods
   days.forEach(day => {
-    let prevSubjectId = null;
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
-      if (slot.type === 'break') { 
-        timetable.cells[key] = { type: 'break', label: slot.label }; 
+      if (slot.type === 'break') {
+        timetable.cells[key] = { type: 'break', label: slot.label };
       } else {
-        let attempts = 0;
-        let chosenSubj = pool[poolIdx % pool.length];
-        while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
-        
-        // Find the teacher assigned to this subject IN THIS CLASS
-        const assignment = classAssignments.find(a => a.subject_id === chosenSubj.id);
-        const teacherId = assignment ? assignment.teacher_id : null;
-        const teacher = teachers.find(t => t.id === teacherId);
-        
-        timetable.cells[key] = { 
-          type: 'lesson', 
-          subj: chosenSubj.code || chosenSubj.name, 
-          subjId: chosenSubj.id,
-          tea: teacher ? teacher.full_name : '—',
-          teaId: teacher ? teacher.id : null
-        };
-        prevSubjectId = chosenSubj.id;
-        poolIdx++;
+        timetable.cells[key] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
       }
     });
+  });
+  
+  let remainingBlocks = [...blocks];
+  let daysTaught = {}; // Kumbuka ni masomo gani yameshafundishwa siku hiyo
+  
+  // 2. Weka Blocks kwenye grid kufuata sheria
+  days.forEach(day => {
+    for (let s = 0; s < timeSlots.length; s++) {
+      if (remainingBlocks.length === 0) break;
+      
+      const slot = timeSlots[s];
+      if (slot.type !== 'lesson') continue;
+      
+      const key = `${day}-${s}`;
+      if (timetable.cells[key].subjId !== null) continue; // Nafasi imechukuliwa
+      
+      // Tafuta block inayofaa
+      for (let b = 0; b < remainingBlocks.length; b++) {
+        const block = remainingBlocks[b];
+        const daySubjKey = `${day}-${block.subjectId}`;
+        
+        // Sheria 1: Somo lisiwejwe mara mbili siku hiyo hiyo
+        if (daysTaught[daySubjKey]) continue;
+        
+        const subject = state.subjects.find(sub => sub.id === block.subjectId);
+        const teacher = teachers.find(t => t.id === block.teacherId);
+        const cellData = { type: 'lesson', subj: subject.code || subject.name, subjId: subject.id, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
+        
+        // Sheria 2: Kama ni Double period (size 2), nafasi inayofuata lazima iwe lesson na iwe wazi
+        if (block.size === 2) {
+          if (s + 1 >= timeSlots.length) continue; // Hakuna nafasi inayofuata
+          const nextSlot = timeSlots[s+1];
+          if (nextSlot.type !== 'lesson') continue; // Nafasi inayofuata ni break
+          const nextKey = `${day}-${s+1}`;
+          if (timetable.cells[nextKey].subjId !== null) continue; // Nafasi imechukuliwa
+          
+          // Weka Double period
+          timetable.cells[key] = cellData;
+          timetable.cells[nextKey] = cellData;
+          daysTaught[daySubjKey] = true;
+          remainingBlocks.splice(b, 1);
+          break; // Nafasi imejazwa, nenda kwenye sIdx inayofuata
+        } else {
+          // Weka Single period
+          timetable.cells[key] = cellData;
+          daysTaught[daySubjKey] = true;
+          remainingBlocks.splice(b, 1);
+          break;
+        }
+      }
+    }
+  });
+  
+  // 3. Kama bado kuna blocks zilizobaki (za kubahatisha), zibweke kwa nguvu kwenye nafasi zilizosalia
+  remainingBlocks.forEach(block => {
+    const subject = state.subjects.find(sub => sub.id === block.subjectId);
+    const teacher = teachers.find(t => t.id === block.teacherId);
+    const cellData = { type: 'lesson', subj: subject.code || subject.name, subjId: subject.id, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
+    
+    for (let d = 0; d < days.length; d++) {
+      for (let s = 0; s < timeSlots.length; s++) {
+        const slot = timeSlots[s];
+        if (slot.type !== 'lesson') continue;
+        const key = `${days[d]}-${s}`;
+        if (timetable.cells[key].subjId === null) {
+          timetable.cells[key] = cellData;
+          break;
+        }
+      }
+    }
   });
   
   if (!state.timetables) state.timetables = {};
@@ -3107,13 +3166,12 @@ function renderAssignments() {
   if (state.classes.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   if (!assignmentDraft.classId) assignmentDraft.classId = state.classes[0].id;
 
-  // Get ONLY the subjects already linked to this specific class
   const classAssignments = state.classSubjects.filter(cs => cs.class_id == assignmentDraft.classId);
   
   return `<div class="card fade-up-1">
     <div class="section-title">
-      <span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments</span>
-      <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Load Subjects for this Class</button>
+      <span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments & Periods</span>
+      <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Load Subjects</button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div>
@@ -3128,19 +3186,36 @@ function renderAssignments() {
       <div class="text-center py-8 text-slate-500">
         <i class="fa-solid fa-circle-info text-3xl mb-3 text-slate-400"></i>
         <p>No subjects linked to this class yet.</p>
-        <p class="text-xs mt-2">Click <b>Auto-Load Subjects</b> above to instantly add the default subjects for this class level, then assign teachers.</p>
+        <p class="text-xs mt-2">Click <b>Auto-Load Subjects</b> above, then assign teachers and periods.</p>
       </div>
     ` : `
+      <div class="grid grid-cols-12 gap-2 mb-3 px-3 text-xs font-bold text-slate-500 uppercase hidden md:grid">
+        <div class="col-span-4">Subject</div>
+        <div class="col-span-2 text-center">Periods/Wk</div>
+        <div class="col-span-2 text-center">Double/Wk</div>
+        <div class="col-span-4">Assigned Teacher</div>
+      </div>
       <div class="space-y-3">
         ${classAssignments.map(assignment => {
           const subject = state.subjects.find(s => s.id == assignment.subject_id);
           if (!subject) return '';
-          return `<div class="flex items-center justify-between p-3 rounded-lg border" style="border-color:var(--border)">
-            <div class="font-semibold text-slate-800">${subject.name}</div>
-            <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="saveAssignment(${subject.id}, this.value)">
-              <option value="">— Unassigned —</option>
-              ${state.teachers.map(t => `<option value="${t.id}" ${assignment.teacher_id === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
-            </select>
+          return `
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center p-3 rounded-lg border" style="border-color:var(--border)">
+            <div class="md:col-span-4 font-semibold text-slate-800 mb-2 md:mb-0">${subject.name}</div>
+            <div class="md:col-span-2 flex items-center gap-2">
+              <label class="md:hidden text-xs text-slate-500 md:hidden">Periods/Wk:</label>
+              <input type="number" min="0" max="20" value="${assignment.periods_per_week || 0}" class="form-input" style="width: 70px; padding: 8px; text-align: center;" onchange="saveAssignmentMeta(${subject.id}, 'periods_per_week', this.value)">
+            </div>
+            <div class="md:col-span-2 flex items-center gap-2">
+              <label class="md:hidden text-xs text-slate-500 md:hidden">Double/Wk:</label>
+              <input type="number" min="0" max="10" value="${assignment.double_periods_per_week || 0}" class="form-input" style="width: 70px; padding: 8px; text-align: center;" onchange="saveAssignmentMeta(${subject.id}, 'double_periods_per_week', this.value)">
+            </div>
+            <div class="md:col-span-4">
+              <select class="form-input" style="padding: 8px;" onchange="saveAssignment(${subject.id}, this.value)">
+                <option value="">— Unassigned —</option>
+                ${state.teachers.map(t => `<option value="${t.id}" ${assignment.teacher_id === t.id ? 'selected' : ''}>${t.full_name}</option>`).join('')}
+              </select>
+            </div>
           </div>`;
         }).join('')}
       </div>
@@ -3226,6 +3301,26 @@ async function autoAssignSubjects() {
   
   showToast('Subjects auto-assigned! Now select teachers for each.', 'success');
   renderPage();
+}
+async function saveAssignmentMeta(subjectId, field, value) {
+  const classId = assignmentDraft.classId;
+  let existing = state.classSubjects.find(a => a.class_id == classId && a.subject_id == subjectId);
+  
+  if (!existing) {
+    const { data, error } = await supabase.from('class_subjects').insert([{ 
+      class_id: classId, subject_id: subjectId, teacher_id: null, periods_per_week: 0, double_periods_per_week: 0 
+    }]).select().single();
+    if (error) return showToast(error.message, 'error');
+    state.classSubjects.push(data);
+    existing = data;
+  }
+  
+  const updateObj = {};
+  updateObj[field] = parseInt(value) || 0;
+  
+  const { error } = await supabase.from('class_subjects').update(updateObj).eq('id', existing.id);
+  if (error) return showToast(error.message, 'error');
+  existing[field] = parseInt(value) || 0;
 }
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
