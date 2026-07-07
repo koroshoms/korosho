@@ -2542,11 +2542,18 @@ function openModal(type, data) {
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="assignTeacher(${cls.id})">Assign</button></div>`;
   } else if (type === 'addSubject') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Subject</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="modal-body"><div class="space-y-3"><div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
+    <div class="modal-body"><div class="space-y-3">
+      <div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
       <div><label class="form-label">Subject Code</label><input type="text" class="form-input" id="sub-code" placeholder="e.g. CIV"></div>
-      <div><label class="form-label">Assigned Teacher</label><select class="form-input" id="sub-teacher">${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}</select></div>
+      <div>
+        <label class="form-label">Assigned Teacher (Optional)</label>
+        <select class="form-input" id="sub-teacher">
+          <option value="">— None / Unassigned —</option>
+          ${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}
+        </select>
+      </div>
     </div></div>
-    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;}
   } else if (type === 'editTimetableTime') {
     const { sIdx, slot } = data;
     const isBreak = slot.type === 'break';
