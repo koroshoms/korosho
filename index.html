@@ -421,7 +421,9 @@ const NAV_MENUS = {
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Management' },
     { id: 'teachers', label: 'Teachers', icon: 'fa-chalkboard-user' }, { id: 'students', label: 'Students', icon: 'fa-user-graduate' },
     { id: 'classes', label: 'Classes', icon: 'fa-school' }, { id: 'subjects', label: 'Subjects', icon: 'fa-book' },
+    { id: 'import', label: 'Bulk Import', icon: 'fa-file-csv' },
     { section: 'Academic' }, { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' },
+    { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
     { id: 'results', label: 'Results', icon: 'fa-chart-line' }, { id: 'publish', label: 'Publish Results', icon: 'fa-cloud-arrow-up' },
     { id: 'exam-config', label: 'Exam Configuration', icon: 'fa-sliders' }, { id: 'exam-review', label: 'Review Exams', icon: 'fa-check-double' },
     { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
@@ -435,13 +437,15 @@ const NAV_MENUS = {
   academic: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Academic' },
-    { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Results', icon: 'fa-chart-line' },
+    { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
+    { id: 'results', label: 'Results', icon: 'fa-chart-line' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
   ],
   teacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Teaching' },
-    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Enter Results', icon: 'fa-chart-line' },
+    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
+    { id: 'results', label: 'Enter Results', icon: 'fa-chart-line' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'My Reports', icon: 'fa-file-lines' }
   ]
 };
@@ -510,6 +514,8 @@ function renderPage() {
   else if (page === 'exam-set') { host.innerHTML = renderExamSet(); setTimeout(updateExamPreview, 50); }
   else if (page === 'exam-review') host.innerHTML = renderExamReview();
   else if (page === 'reports') host.innerHTML = renderReports();
+  else if (page === 'attendance') host.innerHTML = renderAttendance();
+  else if (page === 'import') host.innerHTML = renderBulkImport();
 }
 
 function renderDashboard() {
@@ -2657,6 +2663,165 @@ function showToast(message, type = 'success') {
   setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease-out reverse'; setTimeout(() => toast.remove(), 280); }, 3000);
 }
 
+// ===== SMART ATTENDANCE SYSTEM =====
+let attendanceDraft = { classId: null, date: new Date().toISOString().split('T')[0], records: {} };
+
+function renderAttendance() {
+  const myClasses = state.classes.filter(c => state.currentUser.role === 'admin' || state.currentUser.role === 'academic' || c.class_teacher_id === state.currentUser.id);
+  if (myClasses.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes assigned to you for attendance.</p></div>`;
+  if (!attendanceDraft.classId) attendanceDraft.classId = myClasses[0].id;
+
+  const students = state.students.filter(s => s.class_id == attendanceDraft.classId);
+
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-clipboard-check text-emerald-600 mr-2"></i> Smart Attendance</span></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div>
+        <label class="form-label">Select Class</label>
+        <select class="form-input" onchange="attendanceDraft.classId=this.value; attendanceDraft.records={}; renderPage(); setTimeout(loadAttendance, 50);">
+          ${myClasses.map(c => `<option value="${c.id}" ${attendanceDraft.classId==c.id?'selected':''}>${c.name}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" value="${attendanceDraft.date}" onchange="attendanceDraft.date=this.value; attendanceDraft.records={}; renderPage(); setTimeout(loadAttendance, 50);">
+      </div>
+    </div>
+    <div class="space-y-3" id="attendance-list">
+      ${students.length === 0 ? '<p class="text-center text-slate-500 py-6">No students in this class.</p>' : students.map(s => `
+        <div class="flex items-center justify-between p-3 rounded-lg border" style="border-color:var(--border)">
+          <div class="font-semibold text-slate-800">${s.name}</div>
+          <div class="flex gap-2" id="att-btns-${s.id}">
+            <button class="btn-ghost text-xs" style="padding: 6px 12px;" onclick="setAttendance(${s.id}, 'present')">Present</button>
+            <button class="btn-ghost text-xs" style="padding: 6px 12px;" onclick="setAttendance(${s.id}, 'absent')">Absent</button>
+            <button class="btn-ghost text-xs" style="padding: 6px 12px;" onclick="setAttendance(${s.id}, 'late')">Late</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    ${students.length > 0 ? `<button class="btn-primary w-full mt-6" onclick="saveAttendance()"><i class="fa-solid fa-save mr-1"></i> Save Attendance</button>` : ''}
+  </div>`;
+}
+
+async function loadAttendance() {
+  if (!attendanceDraft.classId) return;
+  const { data } = await supabase.from('attendance').select('*').eq('class_id', attendanceDraft.classId).eq('date', attendanceDraft.date);
+  if (data) {
+    data.forEach(r => { 
+      attendanceDraft.records[r.student_id] = r.status; 
+      updateAttendanceBtns(r.student_id, r.status);
+    });
+  }
+}
+
+function setAttendance(studentId, status) {
+  attendanceDraft.records[studentId] = status;
+  updateAttendanceBtns(studentId, status);
+}
+
+function updateAttendanceBtns(studentId, status) {
+  const host = document.getElementById(`att-btns-${studentId}`);
+  if (!host) return;
+  const btns = [
+    { s: 'present', c: '#047857' },
+    { s: 'absent', c: '#DC2626' },
+    { s: 'late', c: '#F59E0B' }
+  ];
+  host.innerHTML = btns.map(b => `<button class="btn-ghost text-xs" style="padding: 6px 12px; ${attendanceDraft.records[studentId] === b.s ? `background:${b.c};color:white;border-color:${b.c}` : ''}" onclick="setAttendance(${studentId}, '${b.s}')">${b.s.charAt(0).toUpperCase() + b.s.slice(1)}</button>`).join('');
+}
+
+async function saveAttendance() {
+  const recordsToSave = Object.keys(attendanceDraft.records).map(studentId => ({
+    student_id: parseInt(studentId),
+    class_id: parseInt(attendanceDraft.classId),
+    date: attendanceDraft.date,
+    status: attendanceDraft.records[studentId],
+    recorded_by: state.currentUser.id
+  }));
+
+  if (recordsToSave.length === 0) return showToast('No attendance marked yet.', 'warn');
+
+  const { error } = await supabase.from('attendance').upsert(recordsToSave, { onConflict: 'student_id,date' });
+  if (error) return showToast('Error saving attendance: ' + error.message, 'error');
+  showToast('Attendance saved successfully!', 'success');
+}
+
+
+// ===== CSV BULK IMPORT SYSTEM =====
+function renderBulkImport() {
+  return `<div class="card fade-up-1 max-w-2xl mx-auto">
+    <div class="section-title"><span><i class="fa-solid fa-file-csv text-emerald-600 mr-2"></i> Bulk Import Students</span></div>
+    <p class="text-sm text-slate-600 mb-4">Upload a CSV file to add multiple students at once. This saves time instead of adding them one by one.</p>
+    
+    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6">
+      <h4 class="font-bold text-sm mb-2">CSV File Format Rules:</h4>
+      <p class="text-xs text-slate-500 mb-2">The first row must be the headers. The columns must be in this exact order:</p>
+      <code class="text-xs bg-white p-2 block rounded border border-slate-200 text-emerald-700">name, class_name, gender, age, parent_name, parent_phone</code>
+      <p class="text-xs text-slate-500 mt-2">* <b>class_name</b> must match exactly a class already in the system (e.g., Standard III).</p>
+      <p class="text-xs text-slate-500">* <b>gender</b> must be 'M' or 'F'.</p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Upload CSV File</label>
+        <input type="file" id="csv-file" accept=".csv" class="form-input" style="padding: 10px;">
+      </div>
+      <button class="btn-primary w-full" onclick="processCSV()"><i class="fa-solid fa-upload mr-1"></i> Process & Import Students</button>
+    </div>
+  </div>`;
+}
+
+async function processCSV() {
+  const fileInput = document.getElementById('csv-file');
+  if (!fileInput.files.length) return showToast('Please select a CSV file', 'error');
+  
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  
+  reader.onload = async (e) => {
+    const text = e.target.result;
+    const rows = text.split('\n').filter(r => r.trim() !== '');
+    
+    if (rows.length < 2) return showToast('CSV file is empty or missing data', 'error');
+    
+    // Skip header row (row[0])
+    const studentsToInsert = [];
+    let skipped = 0;
+    
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, '')); // remove quotes if exists
+      if (cols.length < 6) { skipped++; continue; }
+      
+      const [name, className, gender, age, parentName, parentPhone] = cols;
+      
+      // Find class ID
+      const cls = state.classes.find(c => c.name.toLowerCase() === className.toLowerCase());
+      if (!cls) {
+        showToast(`Row ${i+1}: Class "${className}" not found. Skipping.`, 'warn');
+        skipped++;
+        continue;
+      }
+      
+      studentsToInsert.push({
+        name, class_id: cls.id, gender: gender.toUpperCase().startsWith('F') ? 'F' : 'M',
+        age: Number(age) || 10, parent_name: parentName, parent_phone: parentPhone
+      });
+    }
+    
+    if (studentsToInsert.length === 0) return showToast('No valid students to import. Check CSV format.', 'error');
+    
+    showToast(`Importing ${studentsToInsert.length} students...`, 'info');
+    const { error } = await supabase.from('students').insert(studentsToInsert);
+    
+    if (error) return showToast('Import failed: ' + error.message, 'error');
+    
+    showToast(`Success! ${studentsToInsert.length} students imported. ${skipped} rows skipped.`, 'success');
+    await fetchAllData();
+    navigateTo('students');
+  };
+  
+  reader.readAsText(file);
+}  
 checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
 if ('serviceWorker' in navigator) {
