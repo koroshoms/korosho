@@ -800,10 +800,11 @@ function renderSubjects() {
       ${state.subjects.map((s, i) => {
         const colors = [{bg:'#ECFDF5',fg:'#047857',border:'#A7F3D0'},{bg:'#FFFBEB',fg:'#D97706',border:'#FDE68A'},{bg:'#EFF6FF',fg:'#1E40AF',border:'#BFDBFE'},{bg:'#FAF5FF',fg:'#9333EA',border:'#E9D5FF'}];
         const c = colors[i % colors.length];
-        return `<div class="border rounded-xl p-4 hover:shadow-md transition-all fade-up-${(i%6)+1}" style="border-color:${c.border};">
+        return `<div class="border rounded-xl p-4 hover:shadow-md transition-all fade-up-${(i%6)+1} flex flex-col" style="border-color:${c.border};">
           <div class="flex items-start justify-between mb-3"><div class="w-11 h-11 rounded-xl flex items-center justify-center font-bold" style="background:${c.bg};color:${c.fg};">${s.code}</div></div>
           <h4 class="font-bold text-slate-900">${s.name}</h4>
-          <p class="text-xs text-slate-500 mt-1"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${s.profiles?.full_name || 'Unassigned'}</p>
+          <p class="text-xs text-slate-500 mt-1 mb-4"><i class="fa-solid fa-chalkboard-user mr-1"></i> ${s.profiles?.full_name || 'Unassigned'}</p>
+          <button class="btn-ghost w-full mt-auto" onclick="openModal('assignSubjectTeacher', ${s.id})"><i class="fa-solid fa-user-pen mr-1"></i> ${s.teacher_id ? 'Change Teacher' : 'Assign Teacher'}</button>
         </div>`;
       }).join('')}
     </div>
@@ -2554,7 +2555,19 @@ function openModal(type, data) {
       </div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;}
-  } else if (type === 'editTimetableTime') {
+  } else if (type === 'assignSubjectTeacher') {
+    const sub = state.subjects.find(s => s.id === data);
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Manage Subject Teacher</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <p class="text-sm text-slate-600 mb-4">Assign or change the teacher for <strong>${sub.name}</strong>.</p>
+      <label class="form-label">Select Teacher</label>
+      <select class="form-input" id="assign-sub-teacher">
+        <option value="">— None / Unassigned —</option>
+        ${state.teachers.map(t=>`<option value="${t.id}" ${t.id===sub.teacher_id?'selected':''}>${t.full_name} (${t.role})</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubjectTeacher(${sub.id})">Save Assignment</button></div>`;}
+ } else if (type === 'editTimetableTime') {
     const { sIdx, slot } = data;
     const isBreak = slot.type === 'break';
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot (All Days)</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2691,6 +2704,18 @@ async function saveSubject() {
   closeModal(); await fetchAllData(); renderPage(); showToast(`Subject ${name} added`, 'success');
 }
 
+  async function saveSubjectTeacher(subjectId) {
+  // Get the selected value. If empty string, convert to null.
+  const teacherId = document.getElementById('assign-sub-teacher').value || null;
+  
+  const { error } = await supabase.from('subjects').update({ teacher_id: teacherId }).eq('id', subjectId);
+  
+  if (error) return showToast(error.message, 'error');
+  closeModal(); 
+  await fetchAllData(); 
+  renderPage(); 
+  showToast('Subject teacher updated successfully', 'success');
+}
 async function saveNotice() {
   const title = document.getElementById('n-title').value.trim(), body = document.getElementById('n-body').value.trim();
   if (!title || !body) return showToast('Please fill all fields', 'error');
