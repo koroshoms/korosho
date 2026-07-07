@@ -911,14 +911,15 @@ function generateTimetable(classId) {
   if (!classId) return null;
   
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  const timeSlots = [
-    { time: '08:00 - 08:40', type: 'lesson' }, { time: '08:40 - 09:20', type: 'lesson' },
-    { time: '09:20 - 10:00', type: 'lesson' }, { time: '10:00 - 10:40', type: 'lesson' },
-    { time: '10:40 - 11:00', type: 'break', label: 'BREAK' },
-    { time: '11:00 - 11:40', type: 'lesson' }, { time: '11:40 - 12:20', type: 'lesson' },
-    { time: '12:20 - 13:00', type: 'lesson' },
-    { time: '13:00 - 14:00', type: 'break', label: 'LUNCH' },
-    { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
+    const timeSlots = [
+    { time: '08:20 - 09:00', type: 'lesson' }, { time: '09:00 - 09:40', type: 'lesson' },
+    { time: '09:40 - 10:20', type: 'lesson' },
+    { time: '10:20 - 10:40', type: 'break', label: 'BREAK' },
+    { time: '10:40 - 11:20', type: 'lesson' }, { time: '11:20 - 12:00', type: 'lesson' },
+    { time: '12:00 - 12:40', type: 'lesson' },
+    { time: '12:40 - 13:20', type: 'break', label: 'LUNCHBREAK' },
+    { time: '13:20 - 14:00', type: 'lesson' }, { time: '14:00 - 14:40', type: 'lesson' },
+    { time: '14:40 - 15:20', type: 'lesson' }
   ];
   
   const teachers = state.teachers || [];
