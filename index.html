@@ -2566,8 +2566,8 @@ function openModal(type, data) {
         ${state.teachers.map(t=>`<option value="${t.id}" ${t.id===sub.teacher_id?'selected':''}>${t.full_name} (${t.role})</option>`).join('')}
       </select>
     </div>
-    <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubjectTeacher(${sub.id})">Save Assignment</button></div>`;}
- } else if (type === 'editTimetableTime') {
+      <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubjectTeacher(${sub.id})">Save Assignment</button></div>`;
+    } else if (type === 'editTimetableTime') {
     const { sIdx, slot } = data;
     const isBreak = slot.type === 'break';
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Time Slot (All Days)</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -2921,41 +2921,33 @@ async function logAction(action, details) {
   } catch (e) { console.error("Audit log failed:", e); }
 }
 
-// ===== CONTINUOUS ASSESSMENT (CA) & RESULTS LOGIC UPDATE =====
-// We replace the old saveResult function with one that handles CA marks, Exam marks, and logs the action
-async function saveResult(studentId, subjectId, caMarksStr, examMarksStr, gradeCellId) {
-  let caMarks = parseInt(caMarksStr) || 0;
-  let examMarks = parseInt(examMarksStr) || 0;
+// ===== RESULTS LOGIC =====
+async function saveResult(studentId, subjectId, marksStr, gradeCellId) {
+  let marks = parseInt(marksStr);
+  if (isNaN(marks)) marks = 0;
+  if (marks < 0) marks = 0;
+  if (marks > 100) marks = 100;
   
-  if (caMarks < 0) caMarks = 0; if (caMarks > 40) caMarks = 40; // Assuming CA is out of 40
-  if (examMarks < 0) examMarks = 0; if (examMarks > 60) examMarks = 60; // Assuming Exam is out of 60
-  
-  const totalMarks = caMarks + examMarks;
-  const grade = getGrade(totalMarks);
-  
-  const student = state.students.find(s => s.id == studentId);
-  const subject = state.subjects.find(s => s.id == subjectId);
-
+  const grade = getGrade(marks);
   const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
+  
   if (existing) {
-    const { error } = await supabase.from('results').update({ ca_marks: caMarks, marks: examMarks, grade: grade }).eq('id', existing.id);
+    const { error } = await supabase.from('results').update({ marks, grade }).eq('id', existing.id);
     if (error) return showToast(error.message, 'error');
-    existing.ca_marks = caMarks; existing.marks = examMarks; existing.grade = grade;
+    existing.marks = marks; existing.grade = grade;
     showToast('Result updated', 'success');
-    logAction('UPDATE_RESULT', `${student?.name} - ${subject?.name}: CA=${caMarks}, Exam=${examMarks}, Grade=${grade}`);
   } else {
     const { data, error } = await supabase.from('results').insert([{ 
-      student_id: studentId, subject_id: subjectId, ca_marks: caMarks, marks: examMarks, grade: grade,
-      exam_name: 'Term Assessment', term: 'Term II', year: '2025', published: false, created_by: state.currentUser.id 
+      student_id: studentId, subject_id: subjectId, marks, grade, 
+      exam_name: 'Term II Assessment', term: 'Term II', year: '2025', published: false, created_by: state.currentUser.id 
     }]).select().single();
     if (error) return showToast(error.message, 'error');
     state.results.push(data);
     showToast('Result saved', 'success');
-    logAction('INSERT_RESULT', `${student?.name} - ${subject?.name}: CA=${caMarks}, Exam=${examMarks}, Grade=${grade}`);
   }
-
+  
   const gradeCell = document.getElementById(gradeCellId);
-  if (gradeCell) gradeCell.innerHTML = `<span class="badge badge-blue">${grade} (${totalMarks})</span>`;
+  if (gradeCell) gradeCell.innerHTML = `<span class="badge badge-blue">${grade}</span>`;
 }
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
