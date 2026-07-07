@@ -2669,15 +2669,32 @@ async function saveTeacher() {
   const fullName = document.getElementById('t-name').value.trim();
   const phone = document.getElementById('t-phone').value.trim();
   const role = document.getElementById('t-role').value;
+  
   if (!email || !password || !fullName) return showToast('Please fill all required fields', 'error');
+  
   const { data: { session: adminSession } } = await supabase.auth.getSession();
   if (!adminSession) return showToast('Admin session lost. Please log in again.', 'error');
+  
   const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
   if (authError) return showToast('Auth Error: ' + authError.message, 'error');
+  
+  // Restore admin session because signUp() logs the admin in as the new user
   await supabase.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
-  const { error: profileError } = await supabase.from('profiles').insert([{ id: authData.user.id, full_name: fullName, email: email, phone: phone, role: role }]);
+  
+  // UPDATE the automatically created profile instead of INSERTing a new one
+  const { error: profileError } = await supabase.from('profiles').update({ 
+    full_name: fullName, 
+    phone: phone, 
+    role: role 
+  }).eq('id', authData.user.id);
+  
   if (profileError) showToast('Auth created, but profile failed: ' + profileError.message, 'error');
-  else { showToast(`${role} added successfully!`, 'success'); closeModal(); await fetchAllData(); renderPage(); }
+  else { 
+    showToast(`${role} added successfully!`, 'success'); 
+    closeModal(); 
+    await fetchAllData(); 
+    renderPage(); 
+  }
 }
 
 async function assignTeacher(clsId) {
