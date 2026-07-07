@@ -1,4 +1,4 @@
-const CACHE_NAME = 'korosho-ems-v2'; // Increased version number to force update
+const CACHE_NAME = 'korosho-ems-v3'; // Increased version number to force update
 const urlsToCache = [
   './',
   './index.html',
