@@ -838,17 +838,14 @@ function generateTimetable() {
     { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
   
-  const subjectPool = state.subjects.length > 0 ? state.subjects : [
-    {id: 'eng', name: 'English', code: 'ENG', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'math', name: 'Mathematics', code: 'MATH', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'kisw', name: 'Kiswahili', code: 'KISW', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'sci', name: 'Science', code: 'SCI', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'civ', name: 'Civics', code: 'CIV', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'hist', name: 'History', code: 'HIST', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'geo', name: 'Geography', code: 'GEO', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'vsk', name: 'Vocational Skills', code: 'VSK', teacher_id: null, profiles: {full_name: '-'}},
-    {id: 'arts', name: 'Arts & Sports', code: 'ARTS', teacher_id: null, profiles: {full_name: '-'}}
-  ];
+    // Only use subjects that have been assigned to teachers in the class_subjects table
+  const assignedSubjectIds = [...new Set(state.classSubjects.filter(a => a.teacher_id).map(a => a.subject_id))];
+  let subjectPool = state.subjects.filter(s => assignedSubjectIds.includes(s.id));
+  
+  // Fallback if no subjects are assigned yet to avoid breaking the timetable
+  if (subjectPool.length === 0) {
+    subject = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
+  }
   
   const teachers = state.teachers || [];
   const lessonSlots = timeSlots.filter(s => s.type === 'lesson').length;
@@ -874,7 +871,13 @@ function generateTimetable() {
         let chosenSubj = pool[poolIdx % pool.length];
         while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
         
-        const teacher = teachers.find(t => t.id === chosenSubj.teacher_id);
+      // Try to find a teacher assigned to this subject in any class
+        const assignment = state.classSubjects.find(a => a.subject_id === chosenSubj.id && a.teacher_id);
+        const teacherId = assignment ? assignment.teacher_id : (chosenSubj.teacher_id || null);
+        const teacher = teachers.find(t => t.id === teacherId);        // Try to find a teacher assigned to this subject in any class
+        const assignment = state.classSubjects.find(a => a.subject_id === chosenSubj.id && a.teacher_id);
+        const teacherId = assignment ? assignment.teacher_id : (chosenSubj.teacher_id || null);
+        const teacher = teachers.find(t => t.id === teacherId);
         timetable.cells[key] = { 
           type: 'lesson', 
           subj: chosenSubj.code || chosenSubj.name, 
@@ -2993,8 +2996,11 @@ function renderAssignments() {
   if (state.classes.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   if (!assignmentDraft.classId) assignmentDraft.classId = state.classes[0].id;
 
-  return `<div class="card fade-up-1">
-    <div class="section-title"><span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments</span></div>
+    return `<div class="card fade-up-1">
+    <div class="section-title">
+      <span><i class="fa-solid fa-link text-emerald-600 mr-2"></i> Subject Assignments</span>
+      <button class="btn-ghost btn-sm" onclick="autoAssignSubjects()"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Auto-Assign Default Subjects</button>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div>
         <label class="form-label">Select Class</label>
@@ -3049,6 +3055,52 @@ async function saveAssignment(subjectId, teacherId) {
     state.classSubjects.push(data);
     showToast('Teacher assigned successfully', 'success');
   }
+}
+  // ===== AUTO-ASSIGN DEFAULT SUBJECTS =====
+async function autoAssignSubjects() {
+  const classId = assignmentDraft.classId;
+  const cls = state.classes.find(c => c.id == classId);
+  if (!cls) return;
+  
+  const className = cls.name.toUpperCase();
+  let defaultSubjects = [];
+  
+  if (className.includes('PRE-UNIT') || className.includes('PRE UNIT') || className.includes('AWALI')) {
+    defaultSubjects = ["Early life skills", "Early literacy skills", "Early Arithmetic, Science and ICT skills", "Health and Environment", "Reading", "Creative Art and Sports"];
+  } else if (className.includes('I') || className.includes('II')) {
+    defaultSubjects = ["Arithmetic", "Writing", "Reading skills", "Kusoma", "Health and Environment", "Culture, Arts and Sports"];
+  } else if (className.includes('III') || className.includes('IV') || className.includes('V')) {
+    defaultSubjects = ["Mathematics", "English", "Geography and the environment", "Science", "Historia ya Tanzania na Maadili", "Kiswahili", "Arts and Sports"];
+  } else if (className.includes('VI')) {
+    defaultSubjects = ["Mathematics", "English", "Kiswahili", "Science and Technology", "Social Studies", "Civic and Moral Education", "Vocational Skills"];
+  } else {
+    return showToast('Could not determine class level from name: ' + cls.name, 'error');
+  }
+  
+  showToast('Auto-assigning subjects...', 'info');
+  
+  for (const subjName of defaultSubjects) {
+    // 1. Check if subject exists in global list
+    let subject = state.subjects.find(s => s.name === subjName);
+    if (!subject) {
+      // Insert subject if missing
+      const { data: newSubj, error: subErr } = await supabase.from('subjects').insert([{ name: subjName, code: subjName.substring(0,3).toUpperCase() }]).select().single();
+      if (subErr) { console.warn("Failed to add subject:", subjName, subErr.message); continue; }
+      state.subjects.push(newSubj);
+      subject = newSubj;
+    }
+    
+    // 2. Check if assignment exists for this class
+    const existing = state.classSubjects.find(a => a.class_id == classId && a.subject_id == subject.id);
+    if (!existing) {
+      // Insert assignment (without teacher initially)
+      const { data: newAssign, error: assignErr } = await supabase.from('class_subjects').insert([{ class_id: classId, subject_id: subject.id, teacher_id: null }]).select().single();
+      if (!assignErr) state.classSubjects.push(newAssign);
+    }
+  }
+  
+  showToast('Subjects auto-assigned! Now select teachers for each.', 'success');
+  renderPage();
 }
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
