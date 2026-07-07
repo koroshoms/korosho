@@ -1,4 +1,4 @@
-const CACHE_NAME = 'korosho-ems-v1';
+const CACHE_NAME = 'korosho-ems-v2'; // Increased version number to force update
 const urlsToCache = [
   './',
   './index.html',
@@ -10,7 +10,7 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Force the waiting service worker to become the active one
 });
 
 self.addEventListener('activate', event => {
@@ -19,13 +19,13 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+            return caches.delete(cacheName); // Delete old caches
           }
         })
       );
     })
   );
-  return self.clients.claim();
+  return self.clients.claim(); // Take control of all open clients immediately
 });
 
 self.addEventListener('fetch', event => {
@@ -34,12 +34,30 @@ self.addEventListener('fetch', event => {
     return;
   }
   
+  // Network First Strategy for HTML files
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request).then(networkResponse => {
+        // If we get a valid response, clone it and put it in the cache
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // If the network fails (offline), serve from cache
+        return caches.match(event.request);
+      })
+    );
+    return;
+  }
+  
+  // Cache First Strategy for other assets (icons, css)
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Return cached version or fetch from network
-        return response || fetch(event.request);
-      }
-    )
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request);
+    })
   );
 });
