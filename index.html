@@ -507,8 +507,8 @@ async function initApp() {
   document.getElementById('headerAvatar').textContent = initials;
   document.getElementById('headerName').textContent = u.name;
   document.getElementById('headerRole').textContent = u.role;
-  buildNav();
   await fetchAllData();
+  buildNav();
   navigateTo('dashboard');
   supabase.channel('public:published_results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
