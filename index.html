@@ -3282,6 +3282,7 @@ async function saveAssignment(subjectId, teacherId) {
   }
 }
  // ===== AUTO-ASSIGN DEFAULT SUBJECTS =====
+// ===== AUTO-ASSIGN DEFAULT SUBJECTS =====
 async function autoAssignSubjects() {
   const classId = assignmentDraft.classId;
   const cls = state.classes.find(c => c.id == classId);
@@ -3290,7 +3291,6 @@ async function autoAssignSubjects() {
   const className = cls.name.toUpperCase();
   let defaultSubjects = [];
   
-  // Check in reverse order (VI, V, IV, III, II, I) to prevent "I" matching inside "III"
   if (className.includes('PRE') || className.includes('AWALI')) {
     defaultSubjects = ["Early life skills", "Early literacy skills", "Early Arithmetic, Science and ICT skills", "Health and Environment", "Reading", "Creative Art and Sports"];
   } else if (className.includes('VI')) {
@@ -3303,30 +3303,31 @@ async function autoAssignSubjects() {
     return showToast('Could not determine class level from name: ' + cls.name, 'error');
   }
   
-  showToast('Auto-assigning subjects...', 'info');
+  showToast('Syncing subjects...', 'info');
   
   for (const subjName of defaultSubjects) {
-    // 1. Smart Check: Find subject ignoring spaces and uppercase/lowercase
     let subject = state.subjects.find(s => s.name.toLowerCase().replace(/\s/g, '') === subjName.toLowerCase().replace(/\s/g, ''));
     
     if (!subject) {
-      // Insert subject if missing
       const { data: newSubj, error: subErr } = await supabase.from('subjects').insert([{ name: subjName, code: subjName.substring(0,3).toUpperCase() }]).select().single();
       if (subErr) { console.warn("Failed to add subject:", subjName, subErr.message); continue; }
       state.subjects.push(newSubj);
       subject = newSubj;
     }
     
-    // 2. Check if assignment exists for this class
-    const existing = state.classSubjects.find(a => a.class_id == classId && a.subject_id == subject.id);
-    if (!existing) {
-      // Insert assignment (without teacher initially)
-      const { data: newAssign, error: assignErr } = await supabase.from('class_subjects').insert([{ class_id: classId, subject_id: subject.id, teacher_id: null }]).select().single();
-      if (!assignErr) state.classSubjects.push(newAssign);
-    }
+    // Tumia upsert na ignoreDuplicates kuepuka makosa ya database
+    await supabase.from('class_subjects').upsert([{ 
+      class_id: classId, 
+      subject_id: subject.id 
+    }], { onConflict: 'class_id,subject_id', ignoreDuplicates: true });
   }
   
-  showToast('Subjects auto-assigned! Now select teachers for each.', 'success');
+  // Refresh state kutoka kwenye database ili kuwa na data sahihi kabisa
+  const { data: updatedAssignments } = await supabase.from('class_subjects').select('*').eq('class_id', classId);
+  state.classSubjects = state.classSubjects.filter(a => a.class_id != classId);
+  if (updatedAssignments) state.classSubjects.push(...updatedAssignments);
+  
+  showToast('Subjects synced successfully! No duplicates created.', 'success');
   renderPage();
 }
 async function saveAssignmentMeta(subjectId, field, value) {
