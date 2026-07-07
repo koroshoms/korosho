@@ -522,7 +522,16 @@ async function initApp() {
 }
 
 function buildNav() {
-  const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
+  let menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
+  
+  // Ficha kitufe cha "My Students" kwa walimu wasiopangiwa kuwa Walimu wa Darasa
+  if (state.currentUser.role === 'teacher') {
+    const isClassTeacher = state.classes.some(c => c.class_teacher_id === state.currentUser.id);
+    if (!isClassTeacher) {
+      menu = menu.filter(item => item.id !== 'students');
+    }
+  }
+
   const host = document.getElementById('navMenu');
   host.innerHTML = menu.map(item => {
     if (item.section) return `<div class="nav-section">${item.section}</div>`;
@@ -755,29 +764,46 @@ async function deleteTeacher(id) {
 }
 
 function renderStudents() {
-  if (!state.studentFilterClassId) {
-    if (state.currentUser.role === 'teacher') {
-      const myClass = state.classes.find(c => c.class_teacher_id === state.currentUser.id);
-      state.studentFilterClassId = myClass ? myClass.id : 'all';
-    } else {
-      state.studentFilterClassId = 'all';
+  let canViewAll = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
+  let displayClassId = state.studentFilterClassId;
+
+  // Walimu wa kawaida wataona darasa lao tu
+  if (!canViewAll) {
+    const myClass = state.classes.find(c => c.class_teacher_id === state.currentUser.id);
+    if (!myClass) {
+      // Mwalimu ambaye hajapangiwa darasa
+      return `<div class="card fade-up-1 text-center py-12">
+        <i class="fa-solid fa-circle-exclamation text-4xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-bold text-slate-700">No Class Assigned</h3>
+        <p class="text-slate-500 mt-2">You have not been assigned as a Class Teacher yet. Please contact the Admin.</p>
+      </div>`;
     }
+    displayClassId = myClass.id;
+    state.studentFilterClassId = myClass.id;
+  } else {
+    // Admin na wenzake wanaweza kuchagua darasa lolote au yote
+    if (!displayClassId) displayClassId = 'all';
   }
 
-  const filteredStudents = state.studentFilterClassId === 'all' ? state.students : state.students.filter(s => s.class_id == state.studentFilterClassId);
+  const filteredStudents = displayClassId === 'all' ? state.students : state.students.filter(s => s.class_id == displayClassId);
+
+  // Kuonesha kichaguzi cha darasa (dropdown) kwa Admin tu
+  const classSelector = canViewAll ? `
+    <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.studentFilterClassId=this.value; renderPage();">
+      <option value="all">All Classes</option>
+      ${state.classes.map(c => `<option value="${c.id}" ${displayClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
+    </select>
+  ` : '';
 
   return `<div class="card fade-up-1">
     <div class="section-title"> 
       <span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span>
       <div class="flex gap-3 items-center">
-        <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.studentFilterClassId=this.value; renderPage();">
-          <option value="all">All Classes</option>
-          ${state.classes.map(c => `<option value="${c.id}" ${state.studentFilterClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
-        </select>
-        <button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add</button>
+        ${classSelector}
+        ${canViewAll ? '<button class="btn-primary" onclick="openModal(\'addStudent\')"><i class="fa-solid fa-plus mr-1"></i> Add</button>' : ''}
       </div>
     </div>
-    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th><th>Actions</th></tr></thead><tbody>
+    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th>${canViewAll ? '<th>Actions</th>' : ''}</tr></thead><tbody>
       ${filteredStudents.length === 0 ? '<tr><td colspan="7" class="text-center text-slate-500 py-6">No students found.</td></tr>' : filteredStudents.map(s => {
         const initials = (s.name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
         return `<tr>
@@ -785,7 +811,7 @@ function renderStudents() {
           <td><span class="badge badge-blue">${s.classes?.name || 'N/A'}</span></td>
           <td>${s.gender==='F'?'<span class="badge badge-purple">Female</span>':'<span class="badge badge-blue">Male</span>'}</td>
           <td>${s.age}</td><td>${s.parent_name}</td><td><span class="text-xs text-slate-600">${s.parent_phone}</span></td>
-          <td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteStudent(${s.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>
+          ${canViewAll ? `<td><button class="icon-btn" style="width:32px;height:32px;" onclick="deleteStudent(${s.id})"><i class="fa-solid fa-trash text-xs text-red-500"></i></button></td>` : ''}
         </tr>`;
       }).join('')}
     </tbody></table></div>
