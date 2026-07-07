@@ -871,14 +871,12 @@ function generateTimetable() {
         let chosenSubj = pool[poolIdx % pool.length];
         while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
         
-      // Try to find a teacher assigned to this subject in any class
-        const assignment = state.classSubjects.find(a => a.subject_id === chosenSubj.id && a.teacher_id);
-        const teacherId = assignment ? assignment.teacher_id : (chosenSubj.teacher_id || null);
-        const teacher = teachers.find(t => t.id === teacherId);        // Try to find a teacher assigned to this subject in any class
+              // Try to find a teacher assigned to this subject in any class
         const assignment = state.classSubjects.find(a => a.subject_id === chosenSubj.id && a.teacher_id);
         const teacherId = assignment ? assignment.teacher_id : (chosenSubj.teacher_id || null);
         const teacher = teachers.find(t => t.id === teacherId);
-        timetable.cells[key] = { 
+        
+        timetable.cells[key] = {  
           type: 'lesson', 
           subj: chosenSubj.code || chosenSubj.name, 
           subjId: chosenSubj.id,
