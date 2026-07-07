@@ -299,6 +299,9 @@ const state = {
   resultsDraft: { subjectId: null, classId: null },
   selectedReportClassId: null,
   classSubjects: [],
+  timetableClassId: null,
+  timetables: {},
+  studentFilterClassId: null,
   selectedReportStudentId: null,
   reportData: {},
   isClassReportsPublished: false
@@ -485,10 +488,11 @@ const NAV_MENUS = {
     { id: 'results', label: 'Results', icon: 'fa-chart-line' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
   ],
-  teacher: [
+    teacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Teaching' },
-    { id: 'timetable', label: 'My Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
+    { id: 'students', label: 'My Students', icon: 'fa-user-graduate' },
+    { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
     { id: 'results', label: 'Enter Results', icon: 'fa-chart-line' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'My Reports', icon: 'fa-file-lines' }
   ]
@@ -751,10 +755,30 @@ async function deleteTeacher(id) {
 }
 
 function renderStudents() {
+  if (!state.studentFilterClassId) {
+    if (state.currentUser.role === 'teacher') {
+      const myClass = state.classes.find(c => c.class_teacher_id === state.currentUser.id);
+      state.studentFilterClassId = myClass ? myClass.id : 'all';
+    } else {
+      state.studentFilterClassId = 'all';
+    }
+  }
+
+  const filteredStudents = state.studentFilterClassId === 'all' ? state.students : state.students.filter(s => s.class_id == state.studentFilterClassId);
+
   return `<div class="card fade-up-1">
-    <div class="section-title"><span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span><button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add Student</button></div>
+    <div class="section-title"> 
+      <span><i class="fa-solid fa-user-graduate text-emerald-600 mr-2"></i> Students Directory</span>
+      <div class="flex gap-3 items-center">
+        <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.studentFilterClassId=this.value; renderPage();">
+          <option value="all">All Classes</option>
+          ${state.classes.map(c => `<option value="${c.id}" ${state.studentFilterClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
+        </select>
+        <button class="btn-primary" onclick="openModal('addStudent')"><i class="fa-solid fa-plus mr-1"></i> Add</button>
+      </div>
+    </div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student</th><th>Class</th><th>Gender</th><th>Age</th><th>Parent</th><th>Contact</th><th>Actions</th></tr></thead><tbody>
-      ${state.students.map(s => {
+      ${filteredStudents.length === 0 ? '<tr><td colspan="7" class="text-center text-slate-500 py-6">No students found.</td></tr>' : filteredStudents.map(s => {
         const initials = (s.name || "Unknown").split(" ").map(n => n[0]).join("").slice(0,2).toUpperCase();
         return `<tr>
           <td><div class="flex items-center gap-3"><div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#D97706,#F59E0B);">${initials}</div><div class="font-semibold text-slate-900">${s.name}</div></div></td>
@@ -826,7 +850,9 @@ function renderSubjects() {
   </div>`;
 }
 
-function generateTimetable() {
+function generateTimetable(classId) {
+  if (!classId) return null;
+  
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const timeSlots = [
     { time: '08:00 - 08:40', type: 'lesson' }, { time: '08:40 - 09:20', type: 'lesson' },
@@ -838,13 +864,13 @@ function generateTimetable() {
     { time: '14:00 - 14:40', type: 'lesson' }, { time: '14:40 - 15:20', type: 'lesson' }
   ];
   
-    // Only use subjects that have been assigned to teachers in the class_subjects table
-  const assignedSubjectIds = [...new Set(state.classSubjects.filter(a => a.teacher_id).map(a => a.subject_id))];
+  // Get subjects assigned to THIS specific class
+  const classAssignments = state.classSubjects.filter(a => a.class_id == classId && a.teacher_id);
+  const assignedSubjectIds = [...new Set(classAssignments.map(a => a.subject_id))];
   let subjectPool = state.subjects.filter(s => assignedSubjectIds.includes(s.id));
   
-  // Fallback if no subjects are assigned yet to avoid breaking the timetable
   if (subjectPool.length === 0) {
-  subjectPool = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
+    subjectPool = [{id: 'free', name: 'Free', code: 'FREE', teacher_id: null, profiles: {full_name: '-'}}];
   }
   
   const teachers = state.teachers || [];
@@ -871,12 +897,12 @@ function generateTimetable() {
         let chosenSubj = pool[poolIdx % pool.length];
         while (chosenSubj.id === prevSubjectId && attempts < 10 && pool.length > 1) { poolIdx++; chosenSubj = pool[poolIdx % pool.length]; attempts++; }
         
-              // Try to find a teacher assigned to this subject in any class
-        const assignment = state.classSubjects.find(a => a.subject_id === chosenSubj.id && a.teacher_id);
-        const teacherId = assignment ? assignment.teacher_id : (chosenSubj.teacher_id || null);
+        // Find the teacher assigned to this subject IN THIS CLASS
+        const assignment = classAssignments.find(a => a.subject_id === chosenSubj.id);
+        const teacherId = assignment ? assignment.teacher_id : null;
         const teacher = teachers.find(t => t.id === teacherId);
         
-        timetable.cells[key] = {  
+        timetable.cells[key] = { 
           type: 'lesson', 
           subj: chosenSubj.code || chosenSubj.name, 
           subjId: chosenSubj.id,
@@ -888,11 +914,32 @@ function generateTimetable() {
       }
     });
   });
-  state.timetable = timetable;
+  
+  if (!state.timetables) state.timetables = {};
+  state.timetables[classId] = timetable;
+  return timetable;
 }
 
 function renderTimetable() {
-  const tt = state.timetable, isAdmin = ['admin','academic'].includes(state.currentUser.role);
+  let availableClassIds = [];
+  if (['admin', 'academic'].includes(state.currentUser.role)) {
+    availableClassIds = state.classes.map(c => c.id);
+  } else {
+    // Teachers only see classes where they teach
+    availableClassIds = [...new Set(state.classSubjects.filter(a => a.teacher_id === state.currentUser.id).map(a => a.class_id))];
+  }
+  
+  const availableClasses = state.classes.filter(c => availableClassIds.includes(c.id));
+  if (availableClasses.length === 0) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">You have no classes assigned to view the timetable.</p></div>`;
+  
+  if (!state.timetableClassId || !availableClassIds.includes(parseInt(state.timetableClassId))) {
+    state.timetableClassId = availableClassIds[0];
+  }
+  
+  let tt = state.timetables && state.timetables[state.timetableClassId] ? state.timetables[state.timetableClassId] : generateTimetable(state.timetableClassId);
+  if (!tt) tt = generateTimetable(state.timetableClassId);
+
+  const isAdmin = ['admin','academic'].includes(state.currentUser.role);
   let gridStyle = `grid-template-columns: 120px repeat(${tt.days.length}, 1fr);`;
   let cells = `<div class="tt-header">TIME / DAY</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
@@ -906,29 +953,35 @@ function renderTimetable() {
       } else {
         const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
         const cellClass = isMine ? 'tt-class-mine' : 'tt-class';
+        // Show First Name only
+        const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
         cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
           <div class="${cellClass}">
             <div class="subj">${cell.subj}</div>
-            <div class="tea">${cell.tea !== '—' ? cell.tea.split(' ').slice(-1)[0] : ''}</div>
+            <div class="tea">${teacherName}</div>
           </div>
         </div>`;
       }
     });
   });
   
+  const selectedClass = state.classes.find(c => c.id == state.timetableClassId);
   const headerHtml = `
     <div class="text-center mb-6">
       <h2 class="text-xl font-bold text-slate-900" style="font-family: Arial, sans-serif;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
       <p class="text-sm text-slate-700" style="font-family: Arial, sans-serif;">P.O. BOX 03, TANDAHIMBA – MTWARA</p>
-      <p class="text-xs text-slate-500" style="font-family: Arial, sans-serif;">TEL: +255715976760 / +255623638683 / +255655481995 | EMAIL: koroshoschool@gmail.com</p>
-      <h3 class="text-base font-bold mt-3 text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">2026 ACADEMIC YEAR (TERM I) CLASSES III - VI TIME TABLE</h3>
+      <h3 class="text-base font-bold mt-3 text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">${selectedClass ? selectedClass.name.toUpperCase() : 'CLASS'} TIMETABLE - 2026 TERM I</h3>
     </div>
   `;
 
   return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
-    <div class="section-title"><span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Weekly Timetable</span>
+    <div class="section-title">
+      <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Timetable</span>
       <div class="flex flex-wrap gap-2">
-        <button class="btn-primary" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print Timetable</button>
+        <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.timetableClassId=this.value; renderPage();">
+          ${availableClasses.map(c => `<option value="${c.id}" ${state.timetableClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
+        </select>
+        <button class="btn-primary" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print</button>
         ${isAdmin ? `
         <button class="btn-ghost" onclick="addTimetableColumn()"><i class="fa-solid fa-plus mr-1"></i> Add Period</button>
         <button class="btn-ghost" onclick="addTimetableRow()"><i class="fa-solid fa-plus mr-1"></i> Add Day</button>
@@ -1050,13 +1103,23 @@ function addTimetableRow() {
   });
   renderPage(); showToast(`${dayName} added to timetable`, 'success');
 }
-function regenerateTimetable() { openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable. Continue?', () => { generateTimetable(); renderPage(); showToast('Timetable regenerated', 'success'); }); }
 function saveTimetableCell(day, sIdx, subjId, teaId) {
   const key = `${day}-${sIdx}`;
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  
   const subj = state.subjects.find(s => s.id == subjId);
   const teacher = state.teachers.find(t => t.id == teaId);
-  state.timetable.cells[key] = { type: 'lesson', subj: subj ? subj.name : 'Free', subjId: subj ? subj.id : null, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
+  tt.cells[key] = { type: 'lesson', subj: subj ? subj.name : 'Free', subjId: subj ? subj.id : null, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
   closeModal(); renderPage(); showToast('Session updated', 'success');
+}
+
+function regenerateTimetable() { 
+  openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable for this class. Continue?', () => { 
+    generateTimetable(state.timetableClassId); 
+    renderPage(); 
+    showToast('Timetable regenerated', 'success'); 
+  }); 
 }
 
 let resultsViewMode = 'dashboard';
