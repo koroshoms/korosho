@@ -176,6 +176,33 @@ select.form-input { cursor: pointer; }
 .rep-instructions { font-size: 9pt; padding-left: 4mm; margin: 0; }
 .rep-instructions li { margin-bottom: 1mm; }
 .rep-signatures { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 9pt; font-weight: bold; }
+ 
+  /* ===== DARK MODE STYLES ===== */
+body.dark-mode { background: #0F172A; color: #E2E8F0; }
+body.dark-mode .card { background: #1E293B; border-color: #334155; }
+body.dark-mode .stat-card { background: #1E293B; border-color: #334155; }
+body.dark-mode .stat-card::before { background: linear-gradient(135deg, #10B981, transparent); opacity: 0.2; }
+body.dark-mode .text-slate-900, body.dark-mode .text-slate-800 { color: #F1F5F9 !important; }
+body.dark-mode .text-slate-700, body.dark-mode .text-slate-600 { color: #CBD5E1 !important; }
+body.dark-mode .text-slate-500 { color: #94A3B8 !important; }
+body.dark-mode .form-input { background: #0F172A; border-color: #334155; color: white; }
+body.dark-mode .btn-ghost { background: #1E293B; border-color: #334155; color: #E2E8F0; }
+body.dark-mode .btn-ghost:hover { background: #334155; }
+body.dark-mode .data-table thead th { background: #0F172A; color: #94A3B8; border-color: #334155; }
+body.dark-mode .data-table tbody td { border-color: #334155; }
+body.dark-mode .data-table tbody tr:hover { background: #1E293B; }
+body.dark-mode .notice-card { background: #1E293B; border-color: #334155; }
+body.dark-mode .question-block { background: #1E293B; border-color: #334155; }
+body.dark-mode .tt-class { background: #1E293B; }
+body.dark-mode .tt-class .subj { color: #F1F5F9; }
+body.dark-mode .tt-class .tea { color: #94A3B8; }
+body.dark-mode .tt-header, body.dark-mode .tt-time { background: #0F172A; color: #F1F5F9; border-color: #334155; }
+body.dark-mode .tt-cell { background: #1E293B; border-color: #334155; }
+body.dark-mode .modal-box { background: #1E293B; }
+body.dark-mode .modal-header { border-color: #334155; }
+body.dark-mode .modal-footer { border-color: #334155; }
+body.dark-mode .tt-class-mine { background: #0F172A; }
+  
 </style>
 </head>
 <body>
@@ -228,7 +255,10 @@ select.form-input { cursor: pointer; }
         <div><h2 class="text-lg font-bold text-slate-900" id="pageTitle">Dashboard</h2><p class="text-xs text-slate-500" id="pageBreadcrumb">Home / Dashboard</p></div>
       </div>
       <div class="flex items-center gap-3">
-        <button class="icon-btn" onclick="navigateTo('notices')"><i class="fa-solid fa-bell"></i><span class="dot"></span></button>
+        <div class="flex items-center gap-3">
+  <button class="icon-btn" onclick="toggleDarkMode()" id="dark-mode-btn" title="Toggle Dark Mode"><i class="fa-solid fa-moon"></i></button>
+  <button class="icon-btn" onclick="navigateTo('notices')"><i class="fa-solid fa-bell"></i><span class="dot"></span></button>
+</div>
         <div class="hidden sm:flex items-center gap-2 pl-3 ml-1 border-l border-slate-200">
           <div class="avatar" id="headerAvatar" style="width:36px;height:36px;font-size:13px;">S</div>
           <div class="hidden md:block"><div class="text-sm font-semibold text-slate-900" id="headerName">User</div><div class="text-[11px] text-slate-500 capitalize" id="headerRole">role</div></div>
@@ -1163,7 +1193,7 @@ function renderResultsEntry() {
       <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
       <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; renderPage();">${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
     </div>
-    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead><tbody>
+        <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead><tbody>
       ${studentsInClass.length === 0 ? '<tr><td colspan="4" class="text-center text-slate-500 py-6">No students in this class.</td></tr>' : studentsInClass.map(st => {
         const existingResult = state.results.find(r => r.student_id == st.id && r.subject_id == selectedSubjectId);
         const marks = existingResult ? existingResult.marks : '';
@@ -2822,7 +2852,71 @@ async function processCSV() {
   
   reader.readAsText(file);
 }  
-checkSession();
+// ===== DARK MODE LOGIC =====
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkMode', isDark);
+  document.getElementById('dark-mode-btn').innerHTML = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+  showToast(isDark ? 'Dark Mode Enabled' : 'Light Mode Enabled', 'info');
+}
+// Load dark mode on startup
+if (localStorage.getItem('darkMode') === 'true') {
+  document.body.classList.add('dark-mode');
+  setTimeout(() => {
+    const btn = document.getElementById('dark-mode-btn');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+  }, 100);
+}
+
+// ===== AUDIT LOG LOGIC =====
+async function logAction(action, details) {
+  try {
+    await supabase.from('audit_logs').insert([{
+      user_id: state.currentUser.id,
+      action: action,
+      details: details
+    }]);
+  } catch (e) { console.error("Audit log failed:", e); }
+}
+
+// ===== CONTINUOUS ASSESSMENT (CA) & RESULTS LOGIC UPDATE =====
+// We replace the old saveResult function with one that handles CA marks, Exam marks, and logs the action
+async function saveResult(studentId, subjectId, caMarksStr, examMarksStr, gradeCellId) {
+  let caMarks = parseInt(caMarksStr) || 0;
+  let examMarks = parseInt(examMarksStr) || 0;
+  
+  if (caMarks < 0) caMarks = 0; if (caMarks > 40) caMarks = 40; // Assuming CA is out of 40
+  if (examMarks < 0) examMarks = 0; if (examMarks > 60) examMarks = 60; // Assuming Exam is out of 60
+  
+  const totalMarks = caMarks + examMarks;
+  const grade = getGrade(totalMarks);
+  
+  const student = state.students.find(s => s.id == studentId);
+  const subject = state.subjects.find(s => s.id == subjectId);
+
+  const existing = state.results.find(r => r.student_id == studentId && r.subject_id == subjectId);
+  if (existing) {
+    const { error } = await supabase.from('results').update({ ca_marks: caMarks, marks: examMarks, grade: grade }).eq('id', existing.id);
+    if (error) return showToast(error.message, 'error');
+    existing.ca_marks = caMarks; existing.marks = examMarks; existing.grade = grade;
+    showToast('Result updated', 'success');
+    logAction('UPDATE_RESULT', `${student?.name} - ${subject?.name}: CA=${caMarks}, Exam=${examMarks}, Grade=${grade}`);
+  } else {
+    const { data, error } = await supabase.from('results').insert([{ 
+      student_id: studentId, subject_id: subjectId, ca_marks: caMarks, marks: examMarks, grade: grade,
+      exam_name: 'Term Assessment', term: 'Term II', year: '2025', published: false, created_by: state.currentUser.id 
+    }]).select().single();
+    if (error) return showToast(error.message, 'error');
+    state.results.push(data);
+    showToast('Result saved', 'success');
+    logAction('INSERT_RESULT', `${student?.name} - ${subject?.name}: CA=${caMarks}, Exam=${examMarks}, Grade=${grade}`);
+  }
+
+  const gradeCell = document.getElementById(gradeCellId);
+  if (gradeCell) gradeCell.innerHTML = `<span class="badge badge-blue">${grade} (${totalMarks})</span>`;
+}
+  checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
