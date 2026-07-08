@@ -1652,10 +1652,15 @@ function saveExamConfig(e) {
 }
 
 function renderExamSet() {
-  const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
-  const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+  const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
+  const mySubjectIds = [...new Set(myAssignments.map(a => a.subject_id))];
+  
+  const myClasses = state.classes.filter(c => myClassIds.includes(c.id));
+  const mySubjects = state.subjects.filter(s => mySubjectIds.includes(s.id));
+  
   if (state.currentUser.role === 'teacher' && (myClasses.length === 0 || mySubjects.length === 0)) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to teach any subject in any class yet. Please contact the Admin.</p></div>`;
   }
   const availableClasses = state.currentUser.role === 'teacher' ? myClasses : state.classes;
   const availableSubjects = state.currentUser.role === 'teacher' ? mySubjects : state.subjects;
