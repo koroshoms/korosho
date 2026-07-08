@@ -1745,19 +1745,22 @@ function buildExamBlocks(draft, c, questions) {
   const headingStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.headingFontSize}pt; line-height: ${c.headingLineSpacing};`;
   const bodyStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
 
-    blocks.push({
+  blocks.push({
     type: 'header',
-    html: `<div style="display: flex; align-items: center; gap: 10px; min-height: 35mm; margin-bottom: 5px; ${headingStyle}">
-      <div style="flex-shrink: 0; width: 35mm; height: 35mm;">
-        <img src="${LOGO_URL}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;">
-      </div>
-      <div style="flex: 1; text-align: center; padding-right: 35mm;">
-        <div style="font-weight: bold; text-transform: uppercase;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
-        <div style="font-weight: bold; margin-top: 5px;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
-        <div style="font-weight: bold; margin-top: 3px;">TEL: +255715976760/+255623638683/+255655481995</div>
-        <div style="font-weight: bold; margin-top: 3px;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
-      </div>
-    </div>`
+    html: `<table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; ${headingStyle}">
+      <tr>
+        <td style="width: 25mm; vertical-align: middle; text-align: left;">
+          <img src="${LOGO_URL}" alt="Logo" style="width: 25mm; height: 25mm; object-fit: contain;">
+        </td>
+        <td style="text-align: center; vertical-align: middle;">
+          <div style="font-weight: bold; text-transform: uppercase; white-space: nowrap;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</div>
+          <div style="font-weight: bold; margin-top: 5px; white-space: nowrap;">P.O. Box 03 – TANDAHIMBA – MTWARA</div>
+          <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">TEL: +255715976760/+255623638683/+255655481995</div>
+          <div style="font-weight: bold; margin-top: 3px; white-space: nowrap;">EMAIL: <span style="color: #0000EE; text-decoration: underline;">koroshoschool@gmail.com</span></div>
+        </td>
+        <td style="width: 25mm;">&nbsp;</td>
+      </tr>
+    </table>`
   });
 
   blocks.push({
