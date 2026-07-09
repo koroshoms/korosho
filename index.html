@@ -3430,55 +3430,38 @@ async function saveAssignment(subjectId, teacherId) {
     showToast('Teacher assigned successfully', 'success');
   }
 }
- // ===== AUTO-ASSIGN DEFAULT SUBJECTS =====
-// ===== AUTO-ASSIGN DEFAULT SUBJECTS =====
+
+// ===== SYNC SUBJECTS FROM DASHBOARD =====
 async function autoAssignSubjects() {
   const classId = assignmentDraft.classId;
-  const cls = state.classes.find(c => c.id == classId);
-  if (!cls) return;
+  if (!classId) return;
   
-  const className = cls.name.toUpperCase();
-  let defaultSubjects = [];
+  // Pata masomo yote yaliyowekwa kwenye dashboard kwa darasa hili
+  const subjectsForClass = state.subjects.filter(sub => sub.class_ids && sub.class_ids.includes(parseInt(classId)));
   
-  if (className.includes('PRE') || className.includes('AWALI')) {
-    defaultSubjects = ["Early life skills", "Early literacy skills", "Early Arithmetic, Science and ICT skills", "Health and Environment", "Reading", "Creative Art and Sports"];
-  } else if (className.includes('VI')) {
-    defaultSubjects = ["Mathematics", "English", "Kiswahili", "Science and Technology", "Social Studies", "Civic and Moral Education", "Vocational Skills"];
-  } else if (className.includes('V') || className.includes('IV') || className.includes('III')) {
-    defaultSubjects = ["Mathematics", "English", "Geography and the environment", "Science", "Historia ya Tanzania na Maadili", "Kiswahili", "Arts and Sports"];
-  } else if (className.includes('II') || className.includes('I')) {
-    defaultSubjects = ["Arithmetic", "Writing", "Reading skills", "Kusoma", "Health and Environment", "Culture, Arts and Sports"];
-  } else {
-    return showToast('Could not determine class level from name: ' + cls.name, 'error');
+  if (subjectsForClass.length === 0) {
+    return showToast('No subjects assigned to this class from the Subjects page yet. Please add them first.', 'warn');
   }
   
-  showToast('Syncing subjects...', 'info');
+  showToast('Syncing subjects to this class...', 'info');
   
-  for (const subjName of defaultSubjects) {
-    let subject = state.subjects.find(s => s.name.toLowerCase().replace(/\s/g, '') === subjName.toLowerCase().replace(/\s/g, ''));
-    
-    if (!subject) {
-      const { data: newSubj, error: subErr } = await supabase.from('subjects').insert([{ name: subjName, code: subjName.substring(0,3).toUpperCase() }]).select().single();
-      if (subErr) { console.warn("Failed to add subject:", subjName, subErr.message); continue; }
-      state.subjects.push(newSubj);
-      subject = newSubj;
-    }
-    
-    // Tumia upsert na ignoreDuplicates kuepuka makosa ya database
+  for (const subject of subjectsForClass) {
+    // Weka kwenye class_subjects ikiwa halipo bila kuduplicate
     await supabase.from('class_subjects').upsert([{ 
       class_id: classId, 
       subject_id: subject.id 
     }], { onConflict: 'class_id,subject_id', ignoreDuplicates: true });
   }
   
-  // Refresh state kutoka kwenye database ili kuwa na data sahihi kabisa
+  // Refresh state kutoka kwenye database ili kuwa na data sahihi
   const { data: updatedAssignments } = await supabase.from('class_subjects').select('*').eq('class_id', classId);
   state.classSubjects = state.classSubjects.filter(a => a.class_id != classId);
   if (updatedAssignments) state.classSubjects.push(...updatedAssignments);
   
-  showToast('Subjects synced successfully! No duplicates created.', 'success');
+  showToast('Subjects synced successfully! Now assign teachers and periods.', 'success');
   renderPage();
 }
+  
 async function saveAssignmentMeta(subjectId, field, value) {
   const classId = assignmentDraft.classId;
   let existing = state.classSubjects.find(a => a.class_id == classId && a.subject_id == subjectId);
