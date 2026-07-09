@@ -301,6 +301,7 @@ const state = {
   classSubjects: [],
   timetableClassId: null,
   timetables: {},
+  teacherSchedules: {},
   timetableStatus: [],
   studentFilterClassId: null,
   selectedReportStudentId: null,
@@ -911,7 +912,7 @@ function generateTimetable(classId) {
   if (!classId) return null;
   
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-    const timeSlots = [
+  const timeSlots = [
     { time: '08:20 - 09:00', type: 'lesson' }, { time: '09:00 - 09:40', type: 'lesson' },
     { time: '09:40 - 10:20', type: 'lesson' },
     { time: '10:20 - 10:40', type: 'break', label: 'BREAK' },
@@ -925,7 +926,6 @@ function generateTimetable(classId) {
   const teachers = state.teachers || [];
   const classAssignments = state.classSubjects.filter(a => a.class_id == classId);
   
-  // 1. Unda orodha ya "Blocks" kulingana na periods_per_week na double_periods_per_week
   let blocks = [];
   classAssignments.forEach(a => {
     const subject = state.subjects.find(s => s.id == a.subject_id);
@@ -933,24 +933,20 @@ function generateTimetable(classId) {
     
     const pPw = a.periods_per_week || 0;
     const dPw = a.double_periods_per_week || 0;
-    const sPw = pPw - (2 * dPw); // Single periods = Total - (2 * Doubles)
+    const sPw = pPw - (2 * dPw);
     
-    // Ongeza Double periods (blocks of 2)
     for (let i = 0; i < dPw; i++) {
       if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 2, teacherId: a.teacher_id });
     }
-    // Ongeza Single periods (blocks of 1)
     for (let i = 0; i < sPw; i++) {
       if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 1, teacherId: a.teacher_id });
     }
   });
   
-  // Changanya blocks (Shuffle)
   for(let i=blocks.length-1; i>0; i--){ const j = Math.floor(Math.random()*(i+1)); [blocks[i],blocks[j]] = [blocks[j],blocks[i]]; }
   
   const timetable = { days, timeSlots, cells: {} };
   
-  // Jaza grid na breaks na free periods
   days.forEach(day => {
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
@@ -963,9 +959,8 @@ function generateTimetable(classId) {
   });
   
   let remainingBlocks = [...blocks];
-  let daysTaught = {}; // Kumbuka ni masomo gani yameshafundishwa siku hiyo
+  let daysTaught = {};
   
-  // 2. Weka Blocks kwenye grid kufuata sheria
   days.forEach(day => {
     for (let s = 0; s < timeSlots.length; s++) {
       if (remainingBlocks.length === 0) break;
@@ -974,9 +969,8 @@ function generateTimetable(classId) {
       if (slot.type !== 'lesson') continue;
       
       const key = `${day}-${s}`;
-      if (timetable.cells[key].subjId !== null) continue; // Nafasi imechukuliwa
+      if (timetable.cells[key].subjId !== null) continue;
       
-      // Tafuta block inayofaa
       for (let b = 0; b < remainingBlocks.length; b++) {
         const block = remainingBlocks[b];
         const daySubjKey = `${day}-${block.subjectId}`;
@@ -984,36 +978,58 @@ function generateTimetable(classId) {
         // Sheria 1: Somo lisiwejwe mara mbili siku hiyo hiyo
         if (daysTaught[daySubjKey]) continue;
         
+        const teacherId = block.teacherId;
+        const teacherSlotKey = `${day}-${s}`;
+        
+        // Sheria 2 (MASTER): Mwalimu asifundishe madarasa mawili wakati mmoka
+        if (teacherId && state.teacherSchedules[teacherId] && state.teacherSchedules[teacherId][teacherSlotKey]) {
+          continue; 
+        }
+        
         const subject = state.subjects.find(sub => sub.id === block.subjectId);
-        const teacher = teachers.find(t => t.id === block.teacherId);
+        const teacher = teachers.find(t => t.id === teacherId);
         const cellData = { type: 'lesson', subj: subject.code || subject.name, subjId: subject.id, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
         
-        // Sheria 2: Kama ni Double period (size 2), nafasi inayofuata lazima iwe lesson na iwe wazi
         if (block.size === 2) {
-          if (s + 1 >= timeSlots.length) continue; // Hakuna nafasi inayofuata
+          if (s + 1 >= timeSlots.length) continue;
           const nextSlot = timeSlots[s+1];
-          if (nextSlot.type !== 'lesson') continue; // Nafasi inayofuata ni break
+          if (nextSlot.type !== 'lesson') continue;
           const nextKey = `${day}-${s+1}`;
-          if (timetable.cells[nextKey].subjId !== null) continue; // Nafasi imechukuliwa
+          if (timetable.cells[nextKey].subjId !== null) continue;
           
-          // Weka Double period
+          const teacherNextSlotKey = `${day}-${s+1}`;
+          if (teacherId && state.teacherSchedules[teacherId] && state.teacherSchedules[teacherId][teacherNextSlotKey]) {
+            continue;
+          }
+          
           timetable.cells[key] = cellData;
           timetable.cells[nextKey] = cellData;
           daysTaught[daySubjKey] = true;
           remainingBlocks.splice(b, 1);
-          break; // Nafasi imejazwa, nenda kwenye sIdx inayofuata
+          
+          // Mwone kwenye Master Schedule kama yeye anafundisha
+          if (teacherId) {
+            if (!state.teacherSchedules[teacherId]) state.teacherSchedules[teacherId] = {};
+            state.teacherSchedules[teacherId][teacherSlotKey] = true;
+            state.teacherSchedules[teacherId][teacherNextSlotKey] = true;
+          }
+          break;
         } else {
-          // Weka Single period
           timetable.cells[key] = cellData;
           daysTaught[daySubjKey] = true;
           remainingBlocks.splice(b, 1);
+          
+          if (teacherId) {
+            if (!state.teacherSchedules[teacherId]) state.teacherSchedules[teacherId] = {};
+            state.teacherSchedules[teacherId][teacherSlotKey] = true;
+          }
           break;
         }
       }
     }
   });
   
-  // 3. Kama bado kuna blocks zilizobaki (za kubahatisha), zibweke kwa nguvu kwenye nafasi zilizosalia
+  // Kama bado kuna blocks zilizobaki, zibweke kwenye nafasi zilizosalia bila kuvuruga uwepo wa walimu
   remainingBlocks.forEach(block => {
     const subject = state.subjects.find(sub => sub.id === block.subjectId);
     const teacher = teachers.find(t => t.id === block.teacherId);
@@ -1024,15 +1040,41 @@ function generateTimetable(classId) {
         const slot = timeSlots[s];
         if (slot.type !== 'lesson') continue;
         const key = `${days[d]}-${s}`;
+        const tKey = `${days[d]}-${s}`;
+        
         if (timetable.cells[key].subjId === null) {
-          timetable.cells[key] = cellData;
-          break;
+          if (block.size === 2) {
+            if (s + 1 >= timeSlots.length) continue;
+            const nextSlot = timeSlots[s+1];
+            if (nextSlot.type !== 'lesson') continue;
+            const nextKey = `${days[d]}-${s+1}`;
+            if (timetable.cells[nextKey].subjId !== null) continue;
+            const tNextKey = `${days[d]}-${s+1}`;
+            if (block.teacherId && state.teacherSchedules[block.teacherId] && (state.teacherSchedules[block.teacherId][tKey] || state.teacherSchedules[block.teacherId][tNextKey])) continue;
+            
+            timetable.cells[key] = cellData;
+            timetable.cells[nextKey] = cellData;
+            if (block.teacherId) {
+              if (!state.teacherSchedules[block.teacherId]) state.teacherSchedules[block.teacherId] = {};
+              state.teacherSchedules[block.teacherId][tKey] = true;
+              state.teacherSchedules[block.teacherId][tNextKey] = true;
+            }
+            return;
+          } else {
+            if (block.teacherId && state.teacherSchedules[block.teacherId] && state.teacherSchedules[block.teacherId][tKey]) continue;
+            
+            timetable.cells[key] = cellData;
+            if (block.teacherId) {
+              if (!state.teacherSchedules[block.teacherId]) state.teacherSchedules[block.teacherId] = {};
+              state.teacherSchedules[block.teacherId][tKey] = true;
+            }
+            return;
+          }
         }
       }
     }
   });
   
-  if (!state.timetables) state.timetables = {};
   state.timetables[classId] = timetable;
   return timetable;
 }
@@ -1066,10 +1108,12 @@ function renderTimetable() {
       <p class="text-slate-500 mt-2">The Admin has not published the timetable for this class yet. Please check back later.</p>
     </div>`;
   }
-
-  let tt = state.timetables && state.timetables[state.timetableClassId] ? state.timetables[state.timetableClassId] : generateTimetable(state.timetableClassId);
-  if (!tt) tt = generateTimetable(state.timetableClassId);
-
+  // Hakikisha ratiba zote zimewekwa kabla ya kuonyesha moja
+  if (!state.timetables || Object.keys(state.timetables).length === 0) {
+    generateAllTimetables();
+  }
+  let tt = state.timetables[state.timetableClassId] || generateTimetable(state.timetableClassId);
+  
   // Kitufe cha Publish kwa Admin
   let publishBtnHtml = '';
   if (isAdmin) {
@@ -1252,10 +1296,9 @@ function saveTimetableCell(day, sIdx, subjId, teaId) {
 }
 
 function regenerateTimetable() { 
-  openConfirmModal('Regenerate Timetable', 'This will replace the entire current timetable for this class. Continue?', () => { 
-    generateTimetable(state.timetableClassId); 
+  openConfirmModal('Regenerate ALL Timetables', 'This will replace timetables for ALL classes to prevent teacher clashes. Continue?', () => { 
+    generateAllTimetables(); 
     renderPage(); 
-    showToast('Timetable regenerated', 'success'); 
   }); 
 }
 
@@ -3401,7 +3444,18 @@ async function clearClassSubjects() {
     showToast('All subjects cleared for this class.', 'success');
   });
 }
+ // ===== GENERATE ALL CLASS TIMETABLES (MASTER SCHEDULER) =====
+function generateAllTimetables() {
+  state.timetables = {};
+  state.teacherSchedules = {}; // Futa kumbukumbu za walimu ili kuanza upya
   
+  // Unda ratiba kwa kila darasa kwa kuzingatia uwepo wa walimu
+  state.classes.forEach(cls => {
+    generateTimetable(cls.id);
+  });
+  
+  showToast('All timetables generated successfully! No teacher clashes.', 'success');
+} 
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
 if ('serviceWorker' in navigator) {
