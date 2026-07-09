@@ -1848,20 +1848,42 @@ function saveExamConfig(e) {
 }
 
 function renderExamSet() {
-    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+  const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
   const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
-  const mySubjectIds = [...new Set(myAssignments.map(a => a.subject_id))];
-  
-  const myClasses = state.classes.filter(c => myClassIds.includes(c.id));
-  const mySubjects = state.subjects.filter(s => mySubjectIds.includes(s.id));
-  
-  if (state.currentUser.role === 'teacher' && (myClasses.length === 0 || mySubjects.length === 0)) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to teach any subject in any class yet. Please contact the Admin.</p></div>`;
+  const availableClasses = state.currentUser.role === 'teacher' ? state.classes.filter(c => myClassIds.includes(c.id)) : state.classes;
+
+  if (availableClasses.length === 0) {
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class yet. Please contact the Admin.</p></div>`;
   }
-  const availableClasses = state.currentUser.role === 'teacher' ? myClasses : state.classes;
-  const availableSubjects = state.currentUser.role === 'teacher' ? mySubjects : state.subjects;
-  if (!state.examDraft.classId && availableClasses.length > 0) state.examDraft.classId = availableClasses[0].id;
-  if (!state.examDraft.subjectId && availableSubjects.length > 0) state.examDraft.subjectId = availableSubjects[0].id;
+
+  if (!state.examDraft.classId || !availableClasses.some(c => c.id == state.examDraft.classId)) {
+    state.examDraft.classId = availableClasses[0].id;
+  }
+  const selectedClassId = state.examDraft.classId;
+
+  let availableSubjects = [];
+  if (state.currentUser.role === 'teacher') {
+    const subjectsForSelectedClass = myAssignments.filter(a => a.class_id == selectedClassId).map(a => a.subject_id);
+    availableSubjects = state.subjects.filter(s => subjectsForSelectedClass.includes(s.id));
+  } else {
+    availableSubjects = state.subjects.filter(s => !s.class_ids || s.class_ids.length === 0 || s.class_ids.includes(parseInt(selectedClassId)));
+  }
+
+  if (availableSubjects.length === 0) {
+    return `<div class="card fade-up-1">
+      <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div>
+      <div class="grid md:grid-cols-3 gap-3 mb-4">
+        <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = parseInt(this.value); state.examDraft.subjectId = null; renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+        <div><label class="form-label">Subject</label><select class="form-input" disabled><option>No subjects assigned in this class</option></select></div>
+      </div>
+      <p class="text-slate-500 text-center py-6">You have not been assigned to any subject in this class. Please select another class or contact the Admin.</p>
+    </div>`;
+  }
+
+  if (!state.examDraft.subjectId || !availableSubjects.some(s => s.id == state.examDraft.subjectId)) {
+    state.examDraft.subjectId = availableSubjects[0].id;
+  }
+  
   if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
   const settings = getExamSettings(state.examDraft.classId);
   return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1875,7 +1897,7 @@ function renderExamSet() {
       <div class="card fade-up-1">
         <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
           <div class="grid md:grid-cols-3 gap-3 mb-4">
-          <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = parseInt(this.value); renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+          <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = parseInt(this.value); state.examDraft.subjectId = null; renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
           <div><label class="form-label">Subject</label><select class="form-input" onchange="state.examDraft.subjectId = parseInt(this.value); updateExamPreview();">${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
           <div><label class="form-label">Exam Title</label><input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value; updateExamPreview();" placeholder="e.g. MAY MONTHLY TEST - 2026"></div>
         </div>
