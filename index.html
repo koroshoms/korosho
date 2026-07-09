@@ -3047,6 +3047,12 @@ async function saveSubject() {
   const name = document.getElementById('sub-name').value.trim();
   if (!name) return showToast('Please enter subject name', 'error');
   
+  // Kagua kama somo lipo tayari (kwa kutumia maneno yote kwa herufi ndogo)
+  const existingSubject = state.subjects.find(s => s.name.toLowerCase() === name.toLowerCase());
+  if (existingSubject) {
+    return showToast(`Subject "${name}" already exists!`, 'error');
+  }
+  
   // Pata madarasa yaliyochaguliwa
   const checkedBoxes = document.querySelectorAll('.sub-class-checkbox:checked');
   const classIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
