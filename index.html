@@ -1101,8 +1101,21 @@ function generateTimetable(classId) {
 }
 
 function renderTimetable() {
+  const isAdmin = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
+  
+  // Hakikisha ratiba zote zimeundwa
+  if (!state.timetables || Object.keys(state.timetables).length === 0) {
+    generateAllTimetables();
+  }
+
+  // Kama ni Master View
+  if (state.timetableViewMode === 'master' && isAdmin) {
+    return renderMasterTimetable();
+  }
+
+  // --- CLASS VIEW (Ile ya kawaida) ---
   let availableClassIds = [];
-  if (['admin', 'academic'].includes(state.currentUser.role)) {
+  if (isAdmin) {
     availableClassIds = state.classes.map(c => c.id);
   } else {
     availableClassIds = [...new Set(state.classSubjects.filter(a => a.teacher_id === state.currentUser.id).map(a => a.class_id))];
@@ -1115,13 +1128,9 @@ function renderTimetable() {
     state.timetableClassId = availableClassIds[0];
   }
   
-  const isAdmin = ['admin','academic'].includes(state.currentUser.role);
-  
-  // Angalia kama ratiba imepublishwa
   const statusObj = state.timetableStatus.find(s => s.class_id == state.timetableClassId);
   const isPublished = statusObj ? statusObj.is_published : false;
 
-  // Kama sio admin na haijapublishwa, funga ukurasa
   if (!isAdmin && !isPublished) {
     return `<div class="card fade-up-1 text-center p-12">
       <i class="fa-solid fa-lock text-5xl text-slate-300 mb-4"></i>
@@ -1129,13 +1138,9 @@ function renderTimetable() {
       <p class="text-slate-500 mt-2">The Admin has not published the timetable for this class yet. Please check back later.</p>
     </div>`;
   }
-  // Hakikisha ratiba zote zimewekwa kabla ya kuonyesha moja
-  if (!state.timetables || Object.keys(state.timetables).length === 0) {
-    generateAllTimetables();
-  }
-  let tt = state.timetables[state.timetableClassId] || generateTimetable(state.timetableClassId);
   
-  // Kitufe cha Publish kwa Admin
+  let tt = state.timetables[state.timetableClassId] || generateTimetable(state.timetableClassId);
+
   let publishBtnHtml = '';
   if (isAdmin) {
     publishBtnHtml = `<button class="btn-primary" style="background: ${isPublished ? '#DC2626' : '#047857'};" onclick="toggleTimetablePublish(${state.timetableClassId})">
@@ -1169,9 +1174,8 @@ function renderTimetable() {
   });
   
   const selectedClass = state.classes.find(c => c.id == state.timetableClassId);
-    // Pata status ya draft
   const draftStatusText = isPublished ? 'FINAL DRAFT' : '1st DRAFT';
-  const draftColor = isPublished ? '#16A34A' : '#D97706'; // Kijani kimekamilika, Tajiri bado
+  const draftColor = isPublished ? '#16A34A' : '#D97706';
 
   const headerHtml = `
     <div class="text-center mb-6">
@@ -1184,10 +1188,18 @@ function renderTimetable() {
     </div>
   `;
 
+  // Toggle Button (Class vs Master)
+  const toggleBtn = isAdmin ? `
+    <button class="btn-ghost" onclick="state.timetableViewMode='master'; renderPage();">
+      <i class="fa-solid fa-table-cells-large mr-1"></i> View Master Timetable
+    </button>
+  ` : '';
+
   return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
     <div class="section-title">
       <span><i class="fa-solid fa-calendar-days text-emerald-600 mr-2"></i> Timetable</span>
       <div class="flex flex-wrap gap-2 items-center">
+        ${toggleBtn}
         <select class="form-input" style="max-width: 200px; padding: 8px;" onchange="state.timetableClassId=this.value; renderPage();">
           ${availableClasses.map(c => `<option value="${c.id}" ${state.timetableClassId==c.id?'selected':''}>${c.name}</option>`).join('')}
         </select>
@@ -1201,6 +1213,76 @@ function renderTimetable() {
     <div id="timetable-print-area">
       ${headerHtml}
       <div class="timetable-wrapper"><div class="timetable-grid" style="${gridStyle}">${cells}</div></div>
+    </div>
+  </div>`;
+}
+
+// ===== MASTER TIMETABLE VIEW =====
+function renderMasterTimetable() {
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  if (!state.timetableMasterDay) state.timetableMasterDay = 'Monday';
+  
+  // Pata ratiba ya darasa la kwanza ili kupata muda (timeSlots)
+  const firstClassId = state.classes.length > 0 ? state.classes[0].id : null;
+  if (!firstClassId) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
+  
+  const refTT = state.timetables[firstClassId] || generateTimetable(firstClassId);
+  
+  // Jenga Vichwa vya Jedwali (Classes)
+  let headers = '<th style="border: 1px solid #000; padding: 8px; font-size: 12px; background: #f0f0f0;">TIME</th>';
+  state.classes.forEach(c => {
+    headers += `<th style="border: 1px solid #000; padding: 8px; font-size: 12px; background: #f0f0f0; white-space: nowrap;">${c.name}</th>`;
+  });
+
+  // Jenga Safu (Rows) kwa kila Kipindi
+  let rows = '';
+  refTT.timeSlots.forEach((slot, sIdx) => {
+    rows += `<tr><td style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f0f0f0; text-align: center; font-size: 12px; white-space: nowrap;">${slot.time}</td>`;
+    
+    state.classes.forEach(c => {
+      const cTt = state.timetables[c.id];
+      const cell = cTt ? cTt.cells[`${state.timetableMasterDay}-${sIdx}`] : null;
+      
+      if (!cell || cell.type === 'break') {
+        const breakLabel = cell?.label || 'FREE';
+        rows += `<td style="border: 1px solid #000; padding: 8px; text-align: center; background: #FFEBCD; font-weight: bold; color: #8B4513; font-size: 11px;">${breakLabel}</td>`;
+      } else {
+        const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
+        const isMine = cell.teaId === state.currentUser.id;
+        const bg = isMine ? '#EFF6FF' : '#FFFFFF';
+        rows += `<td style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
+          <div style="font-weight: bold; font-size: 12px;">${cell.subj}</div>
+          <div style="font-size: 10px; color: #666;">${teacherName}</div>
+        </td>`;
+      }
+    });
+    rows += '</tr>';
+  });
+
+  const headerHtml = `
+    <div class="text-center mb-6">
+      <h2 class="text-xl font-bold text-slate-900" style="font-family: Arial, sans-serif;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
+      <h3 class="text-base font-bold mt-3 text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">MASTER TIMETABLE - ${state.timetableMasterDay.toUpperCase()}</h3>
+    </div>
+  `;
+
+  return `<div class="card fade-up-1" style="font-family: Arial, sans-serif;">
+    <div class="section-title">
+      <span><i class="fa-solid fa-table-cells-large text-emerald-600 mr-2"></i> Master Timetable</span>
+      <div class="flex flex-wrap gap-2 items-center">
+        <button class="btn-ghost" onclick="state.timetableViewMode='class'; renderPage();">
+          <i class="fa-solid fa-calendar-days mr-1"></i> View Class Timetable
+        </button>
+        <select class="form-input" style="max-width: 150px; padding: 8px;" onchange="state.timetableMasterDay=this.value; renderPage();">
+          ${days.map(d => `<option value="${d}" ${state.timetableMasterDay===d?'selected':''}>${d}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="timetable-wrapper" style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
+        <thead><tr>${headers}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
   </div>`;
 }
