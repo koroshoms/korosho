@@ -1290,64 +1290,82 @@ function printTimetable() {
 }
 
 function editTimetableTime(sIdx) { 
-  openModal('editTimetableTime', { sIdx, slot: state.timetable.timeSlots[sIdx] }); 
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  openModal('editTimetableTime', { sIdx, slot: tt.timeSlots[sIdx] }); 
 }
 
 function saveTimetableTimeSlot(sIdx) {
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  
   const time = document.getElementById('tt-time-input').value;
   if (!time) return showToast('Time cannot be empty', 'error');
   
   const isBreak = document.querySelector('input[name="slotType"]:checked').value === 'break';
   const label = document.getElementById('tt-break-label').value.trim().toUpperCase();
   
-  state.timetable.timeSlots[sIdx].time = time;
+  tt.timeSlots[sIdx].time = time;
   
   if (isBreak) {
-    state.timetable.timeSlots[sIdx].type = 'break';
-    state.timetable.timeSlots[sIdx].label = label || 'BREAK';
-    state.timetable.days.forEach(day => {
-      state.timetable.cells[`${day}-${sIdx}`] = { type: 'break', label: state.timetable.timeSlots[sIdx].label };
+    tt.timeSlots[sIdx].type = 'break';
+    tt.timeSlots[sIdx].label = label || 'BREAK';
+    tt.days.forEach(day => {
+      tt.cells[`${day}-${sIdx}`] = { type: 'break', label: tt.timeSlots[sIdx].label };
     });
   } else {
-    state.timetable.timeSlots[sIdx].type = 'lesson';
-    delete state.timetable.timeSlots[sIdx].label;
-    state.timetable.days.forEach(day => {
-      state.timetable.cells[`${day}-${sIdx}`] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
+    tt.timeSlots[sIdx].type = 'lesson';
+    delete tt.timeSlots[sIdx].label;
+    tt.days.forEach(day => {
+      tt.cells[`${day}-${sIdx}`] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
     });
   }
   
   closeModal(); renderPage(); showToast('Time slot updated for all days', 'success');
 }
 
-function editTimetableCell(day, sIdx) { openModal('editTimetable', { day, sIdx, cell: state.timetable.cells[`${day}-${sIdx}`] }); }
+function editTimetableCell(day, sIdx) { 
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  openModal('editTimetable', { day, sIdx, cell: tt.cells[`${day}-${sIdx}`] }); 
+}
+
 function addTimetableColumn() {
-  const lastIdx = state.timetable.timeSlots.length - 1;
-  const lastTime = state.timetable.timeSlots[lastIdx].time.split(' - ')[1];
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  const lastIdx = tt.timeSlots.length - 1;
+  const lastTime = tt.timeSlots[lastIdx].time.split(' - ')[1];
   let [h, m] = lastTime.split(':').map(Number);
   m += 40;
   if (m >= 60) { h += Math.floor(m/60); m = m % 60; }
   const newTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
-  state.timetable.timeSlots.push({ time: `${lastTime} - ${newTime}`, type: 'lesson' });
-  const newPeriodIdx = state.timetable.timeSlots.length - 1;
-  state.timetable.days.forEach(day => {
-    const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}};
-    state.timetable.cells[`${day}-${newPeriodIdx}`] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' };
+  tt.timeSlots.push({ time: `${lastTime} - ${newTime}`, type: 'lesson' });
+  const newPeriodIdx = tt.timeSlots.length - 1;
+  tt.days.forEach(day => {
+    tt.cells[`${day}-${newPeriodIdx}`] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
   });
   renderPage(); showToast('New period column added', 'success');
 }
+
 function addTimetableRow() {
-  const nextDay = state.timetable.days.length;
+  const tt = state.timetables[state.timetableClassId];
+  if (!tt) return;
+  const nextDay = tt.days.length;
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   if (nextDay >= days.length) return showToast('No more days to add', 'error');
   const dayName = days[nextDay];
-  state.timetable.days.push(dayName);
-  state.timetable.timeSlots.forEach((slot, sIdx) => {
+  tt.days.push(dayName);
+  tt.timeSlots.forEach((slot, sIdx) => {
     const key = `${dayName}-${sIdx}`;
-    if (slot.type === 'break') state.timetable.cells[key] = { type: 'break', label: slot.label };
-    else { const subj = state.subjects[Math.floor(Math.random() * state.subjects.length)] || {name:'Free', profiles:{full_name:'-'}}; state.timetable.cells[key] = { type: 'lesson', subj: subj.name, tea: subj.profiles?.full_name || '-' }; }
+    if (slot.type === 'break') {
+      tt.cells[key] = { type: 'break', label: slot.label };
+    } else {
+      tt.cells[key] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
+    }
   });
   renderPage(); showToast(`${dayName} added to timetable`, 'success');
 }
+
 function saveTimetableCell(day, sIdx, subjId, teaId) {
   const key = `${day}-${sIdx}`;
   const tt = state.timetables[state.timetableClassId];
@@ -1358,7 +1376,7 @@ function saveTimetableCell(day, sIdx, subjId, teaId) {
   tt.cells[key] = { type: 'lesson', subj: subj ? subj.name : 'Free', subjId: subj ? subj.id : null, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
   closeModal(); renderPage(); showToast('Session updated', 'success');
 }
-
+  
 function regenerateTimetable() { 
   openConfirmModal('Regenerate ALL Timetables', 'This will replace timetables for ALL classes to prevent teacher clashes. Continue?', () => { 
     generateAllTimetables(); 
