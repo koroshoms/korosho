@@ -1475,8 +1475,8 @@ async function checkPublishStatus() {
   if (pubBtn) pubBtn.innerText = isResPublished ? 'UNPUBLISH' : 'PUBLISH';
   const statusEl = document.getElementById('res-status');
   if (!statusEl) return;
-  if (state.currentUser.role === 'teacher' && !isResPublished) statusEl.innerHTML = '<span style="color:red; font-weight:bold;">⚠ RESULTS ARE NOT YET PUBLISHED BY THE ACADEMIC TEACHER</span>';
-  else if (isResPublished) statusEl.innerHTML = '<span style="color:green; font-weight:bold;">✅ RESULTS ARE PUBLISHED</span>';
+  if (state.currentUser.role === 'teacher' && !isResPublished) statusEl.innerHTML = '<span style="color:red; font-weight:bold;">⚠ RESULTS ARE NOT YET READY! | CONTACT THE ACADEMIC TEACHER: +255613 367 354</span>';
+  else if (isResPublished) statusEl.innerHTML = '<span style="color:green; font-weight:bold;">✅ RESULTS ARE PUBLIC NOW</span>';
   else statusEl.innerHTML = '';
 }
 
