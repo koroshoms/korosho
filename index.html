@@ -627,14 +627,18 @@ function renderDashboard() {
       { page: 'results', icon: 'fa-chart-line', color: 'blue', label: 'Check Results' },
       { page: 'reports', icon: 'fa-file-lines', color: 'purple', label: 'Academic Reports' }
     ];
-  } else if (u.role === 'teacher') {
-    const mySubjects = state.subjects.filter(s => s.teacher_id === state.currentUser.id);
+    } else if (u.role === 'teacher') {
+    // Pata masomo aliypangiwa mwalimu kupitia Subject Assignments
+    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+    const mySubjectIds = [...new Set(myAssignments.map(a => a.subject_id))];
+    const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
+    
     const myClasses = state.classes.filter(c => c.class_teacher_id === state.currentUser.id);
     stats = [
-      { label: 'My Subjects', value: mySubjects.length, icon: 'fa-book', color: 'emerald' },
+      { label: 'My Subjects', value: mySubjectIds.length, icon: 'fa-book', color: 'emerald' },
       { label: 'School Notices', value: state.notices.length, icon: 'fa-bullhorn', color: 'amber' },
       { label: 'My Students', value: state.students.filter(s => myClasses.some(c => c.id === s.class_id)).length, icon: 'fa-user-graduate', color: 'blue' },
-      { label: 'My Classes', value: myClasses.length, icon: 'fa-school', color: 'purple' }
+      { label: 'Teaching Classes', value: myClassIds.length, icon: 'fa-school', color: 'purple' }
     ];
     quickLinks = [
       { page: 'timetable', icon: 'fa-calendar-days', color: 'emerald', label: 'My Timetable' },
@@ -926,7 +930,9 @@ function generateTimetable(classId) {
   const teachers = state.teachers || [];
   const classAssignments = state.classSubjects.filter(a => a.class_id == classId);
   
-  let blocks = [];
+    let blocks = [];
+  
+  // 1. Ingiza masomo yaliyopangiwa kwenye 'Subject Assignments'
   classAssignments.forEach(a => {
     const subject = state.subjects.find(s => s.id == a.subject_id);
     if (!subject) return;
@@ -940,6 +946,19 @@ function generateTimetable(classId) {
     }
     for (let i = 0; i < sPw; i++) {
       if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 1, teacherId: a.teacher_id });
+    }
+    });
+
+  // 2. Ingiza masomo yote iliyowekwa kwenye 'Add Subject' kwa darasa hili (ikiwa haijaingizwa)
+  state.subjects.forEach(sub => {
+    if (sub.class_ids && sub.class_ids.includes(parseInt(classId))) {
+      const alreadyExists = blocks.some(b => b.subjectId === sub.id);
+      if (!alreadyExists) {
+        // Tafuta mwalimu kwenye assignments, au tumia mwalimu wa kawaida wa somo hilo
+        const assignment = classAssignments.find(a => a.subject_id === sub.id);
+        const teacherId = assignment ? assignment.teacher_id : (sub.teacher_id || null);
+        blocks.push({ subjectId: sub.id, size: 1, teacherId: teacherId });
+      }
     }
   });
   
@@ -1484,12 +1503,17 @@ async function loadNectaReport() {
 }
 
 function renderResultsEntry() {
-    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+  const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
   const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
-  const mySubjectIds = [...new Set(myAssignments.map(a => a.subject_id))];
   
   const myClasses = state.classes.filter(c => myClassIds.includes(c.id));
-  const mySubjects = state.subjects.filter(s => mySubjectIds.includes(s.id));
+  
+  // Walimu waone masomo waliyopangiwa AU masomo yanayosomwa kwenye madarasa yao (kama Admin hajaweka teacher specific)
+  const mySubjects = state.subjects.filter(s => {
+    const isAssigned = myAssignments.some(a => a.subject_id === s.id);
+    const teachesInClass = s.class_ids && s.class_ids.some(cid => myClassIds.includes(cid));
+    return isAssigned || teachesInClass;
+  });
   if (myClasses.length === 0 || mySubjects.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class or subject yet. Please contact the Admin.</p></div>`;
   if (!state.resultsDraft.subjectId) state.resultsDraft.subjectId = mySubjects[0].id;
   if (!state.resultsDraft.classId) state.resultsDraft.classId = myClasses[0].id;
@@ -2587,8 +2611,9 @@ function generateReportHTML(studentId) {
   const c = state.examConfig.default;
 
   let totalMarks = 0, subjectCount = 0;
-  const subjectRows = state.subjects.map((sub, idx) => {
-    let marks = 0, grade = '-', comment = '-';
+  const studentClassId = student.class_id;
+  const subjectRows = state.subjects.filter(sub => !sub.class_ids || sub.class_ids.length === 0 || sub.class_ids.includes(studentClassId)).map((sub, idx) => {
+    let marks = 0, ca = 0, exam = 0, grade = '-', comment = '-';
     const result = state.results.find(r => r.student_id == student.id && r.subject_id == sub.id);
     if (result) {
       marks = result.marks;
@@ -2857,17 +2882,16 @@ function openModal(type, data) {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Assign Class Teacher</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body"><p class="text-sm text-slate-600 mb-4">Assign a teacher for <strong>${cls.name}</strong>.</p><select class="form-input" id="assign-teacher"><option value="">Select Teacher</option>${state.teachers.map(t=>`<option value="${t.id}" ${t.id===cls.class_teacher_id?'selected':''}>${t.full_name}</option>`).join('')}</select></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="assignTeacher(${cls.id})">Assign</button></div>`;
-  } else if (type === 'addSubject') {
+    } else if (type === 'addSubject') {
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Add New Subject</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body"><div class="space-y-3">
-      <div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Civics"></div>
-      <div><label class="form-label">Subject Code</label><input type="text" class="form-input" id="sub-code" placeholder="e.g. CIV"></div>
+      <div><label class="form-label">Subject Name</label><input type="text" class="form-input" id="sub-name" placeholder="e.g. Mathematics"></div>
+      <div><label class="form-label">Subject Code</label><input type="text" class="form-input" id="sub-code" placeholder="e.g. MATH"></div>
       <div>
-        <label class="form-label">Assigned Teacher (Optional)</label>
-        <select class="form-input" id="sub-teacher">
-          <option value="">— None / Unassigned —</option>
-          ${state.teachers.map(t=>`<option value="${t.id}">${t.full_name}</option>`).join('')}
-        </select>
+        <label class="form-label">Classes studying this subject</label>
+        <div class="grid grid-cols-2 gap-2 mt-1" id="sub-classes">
+          ${state.classes.map(c => `<label class="flex items-center gap-2 p-2 border rounded-md cursor-pointer hover:bg-slate-50"><input type="checkbox" value="${c.id}" class="sub-class-checkbox"> <span class="text-sm">${c.name}</span></label>`).join('')}
+        </div>
       </div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveSubject()">Save Subject</button></div>`;
@@ -3023,13 +3047,14 @@ async function saveSubject() {
   const name = document.getElementById('sub-name').value.trim();
   if (!name) return showToast('Please enter subject name', 'error');
   
-  // Get the selected value. If it's an empty string, convert it to null.
-  const teacherId = document.getElementById('sub-teacher').value || null;
+  // Pata madarasa yaliyochaguliwa
+  const checkedBoxes = document.querySelectorAll('.sub-class-checkbox:checked');
+  const classIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
   
   const { error } = await supabase.from('subjects').insert([{ 
     name, 
-    code: document.getElementById('sub-code').value, 
-    teacher_id: teacherId 
+    code: document.getElementById('sub-code').value,
+    class_ids: classIds
   }]);
   
   if (error) return showToast(error.message, 'error');
