@@ -1297,61 +1297,8 @@ function renderMasterTimetable() {
 }
 
 function printTimetable() {
-  const tt = state.timetables[state.timetableClassId];
-  if (!tt) return showToast('No timetable data to print.', 'error');
-
-  // Andaa vichwa vya safu wima (Time columns)
-  let headers = '<th style="background: #f0f0f0; border: 1px solid #000; padding: 8px; font-size: 12px;">DAY / TIME</th>';
-  tt.timeSlots.forEach(slot => {
-    const bg = slot.type === 'break' ? '#FFEBCD' : '#f0f0f0';
-    headers += `<th style="background: ${bg}; border: 1px solid #000; padding: 8px; font-size: 12px; white-space: nowrap;">${slot.time}${slot.label ? '<br>('+slot.label+')' : ''}</th>`;
-  });
-
-  // Andaa safu za siku (Day rows)
-  let rows = '';
-  tt.days.forEach(day => {
-    rows += `<tr><td style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f0f0f0; text-align: center; font-size: 13px;">${day}</td>`;
-    tt.timeSlots.forEach((slot, sIdx) => {
-      const key = `${day}-${sIdx}`;
-      const cell = tt.cells[key];
-      if (cell.type === 'break') {
-        rows += `<td style="border: 1px solid #000; padding: 8px; text-align: center; background: #FFEBCD; font-weight: bold; color: #8B4513; font-size: 12px;">${cell.label}</td>`;
-      } else {
-        const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
-        const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
-        const bg = isMine ? '#EFF6FF' : '#FFFFFF';
-        rows += `<td style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
-          <div style="font-weight: bold; font-size: 14px;">${cell.subj}</div>
-          <div style="font-size: 10px; color: #666;">${teacherName}</div>
-        </td>`;
-      }
-    });
-    rows += '</tr>';
-  });
-
-  // Jenga HTML kamili ya kuchapisha
-    const selectedClass = state.classes.find(c => c.id == state.timetableClassId);
-  const statusObj = state.timetableStatus.find(s => s.class_id == state.timetableClassId);
-  const isPublished = statusObj ? statusObj.is_published : false;
-  const draftStatus = isPublished ? 'FINAL DRAFT' : '1st DRAFT';
-  const className = selectedClass ? selectedClass.name.toUpperCase() : 'CLASS';
-
-  // Jenga HTML kamili ya kuchapisha
-  const printArea = `
-    <div style="text-align: center; margin-bottom: 20px; font-family: Arial, sans-serif;">
-      <h2 style="font-size: 20px; margin: 0; text-transform: uppercase;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
-      <p style="font-size: 14px; margin: 5px 0;">P.O. BOX 03, TANDAHIMBA – MTWARA</p>
-      <p style="font-size: 12px; margin: 5px 0;">TEL: +255715976760 / +255623638683 / +255655481995 | EMAIL: koroshoschool@gmail.com</p>
-      <h3 style="font-size: 16px; margin: 15px 0; text-decoration: underline;">${className} TEACHING TIMETABLE FOR AN ACADEMIC YEAR 2026 (${draftStatus})</h3>
-    </div>
-    <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
-      <thead><tr>${headers}</tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="text-align: center; margin-top: 30px; font-family: Arial, sans-serif; font-weight: bold; font-size: 14px; text-transform: uppercase;">
-      Motto: WHERE THE KNOWLEDGE LIGHTS
-    </div>
-  `;
+  const printArea = document.getElementById('timetable-print-area');
+  if (!printArea) return showToast('No timetable data to print.', 'error');
 
   const fullHTML = `<!DOCTYPE html>
 <html lang="en">
@@ -1361,10 +1308,12 @@ function printTimetable() {
 <style>
   @page { size: landscape; margin: 10mm; }
   body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #000; padding: 8px; font-size: 11px; text-align: center; vertical-align: middle; }
 </style>
 </head>
 <body>
-  ${printArea}
+  ${printArea.innerHTML}
   <script>
     window.onload = function() { window.print(); };
   <\/script>
@@ -1380,7 +1329,7 @@ function printTimetable() {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
+  }
 
 function editTimetableTime(sIdx) { 
   const tt = state.timetables[state.timetableClassId];
