@@ -1148,11 +1148,18 @@ function renderTimetable() {
   });
   
   const selectedClass = state.classes.find(c => c.id == state.timetableClassId);
+    // Pata status ya draft
+  const draftStatusText = isPublished ? 'FINAL DRAFT' : '1st DRAFT';
+  const draftColor = isPublished ? '#16A34A' : '#D97706'; // Kijani kimekamilika, Tajiri bado
+
   const headerHtml = `
     <div class="text-center mb-6">
       <h2 class="text-xl font-bold text-slate-900" style="font-family: Arial, sans-serif;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
       <p class="text-sm text-slate-700" style="font-family: Arial, sans-serif;">P.O. BOX 03, TANDAHIMBA – MTWARA</p>
-      <h3 class="text-base font-bold mt-3 text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">${selectedClass ? selectedClass.name.toUpperCase() : 'CLASS'} TIMETABLE - 2026 TERM I</h3>
+      <div class="flex items-center justify-center gap-3 mt-3">
+        <h3 class="text-base font-bold text-slate-800" style="font-family: Arial, sans-serif; text-decoration: underline;">${selectedClass ? selectedClass.name.toUpperCase() : 'CLASS'} TIMETABLE - 2026</h3>
+        <span class="badge" style="background: ${draftColor}20; color: ${draftColor}; border: 1px solid ${draftColor}50; font-size: 10px; font-weight: bold;">${draftStatusText}</span>
+      </div>
     </div>
   `;
 
@@ -1211,12 +1218,19 @@ function printTimetable() {
   });
 
   // Jenga HTML kamili ya kuchapisha
+    const selectedClass = state.classes.find(c => c.id == state.timetableClassId);
+  const statusObj = state.timetableStatus.find(s => s.class_id == state.timetableClassId);
+  const isPublished = statusObj ? statusObj.is_published : false;
+  const draftStatus = isPublished ? 'FINAL DRAFT' : '1st DRAFT';
+  const className = selectedClass ? selectedClass.name.toUpperCase() : 'CLASS';
+
+  // Jenga HTML kamili ya kuchapisha
   const printArea = `
     <div style="text-align: center; margin-bottom: 20px; font-family: Arial, sans-serif;">
       <h2 style="font-size: 20px; margin: 0; text-transform: uppercase;">KOROSHO ENGLISH MEDIUM PRE & PRIMARY SCHOOL</h2>
       <p style="font-size: 14px; margin: 5px 0;">P.O. BOX 03, TANDAHIMBA – MTWARA</p>
       <p style="font-size: 12px; margin: 5px 0;">TEL: +255715976760 / +255623638683 / +255655481995 | EMAIL: koroshoschool@gmail.com</p>
-      <h3 style="font-size: 16px; margin: 15px 0; text-decoration: underline;">CLASS III - VI TEACHING TIMETABLE FOR AN ACADEMIC YEAR 2026 (1st DRAFT)</h3>
+      <h3 style="font-size: 16px; margin: 15px 0; text-decoration: underline;">${className} TEACHING TIMETABLE FOR AN ACADEMIC YEAR 2026 (${draftStatus})</h3>
     </div>
     <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
       <thead><tr>${headers}</tr></thead>
