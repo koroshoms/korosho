@@ -1721,9 +1721,9 @@ function renderExamSet() {
       </div>
       <div class="card fade-up-1">
         <div class="section-title"><span><i class="fa-solid fa-info-circle text-emerald-600 mr-2"></i> Exam Details</span></div>
-        <div class="grid md:grid-cols-3 gap-3 mb-4">
-          <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = this.value; renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId === c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
-          <div><label class="form-label">Subject</label><select class="form-input" onchange="state.examDraft.subjectId = this.value; updateExamPreview();">${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+          <div class="grid md:grid-cols-3 gap-3 mb-4">
+          <div><label class="form-label">Class</label><select class="form-input" onchange="state.examDraft.classId = parseInt(this.value); renderPage();">${availableClasses.map(c => `<option value="${c.id}" ${state.examDraft.classId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+          <div><label class="form-label">Subject</label><select class="form-input" onchange="state.examDraft.subjectId = parseInt(this.value); updateExamPreview();">${availableSubjects.map(s => `<option value="${s.id}" ${state.examDraft.subjectId == s.id ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
           <div><label class="form-label">Exam Title</label><input type="text" class="form-input" value="${state.examDraft.title}" oninput="state.examDraft.title = this.value; updateExamPreview();" placeholder="e.g. MAY MONTHLY TEST - 2026"></div>
         </div>
         <div><label class="form-label">Paper Structure Instruction (First instruction)</label><textarea class="form-input" rows="2" placeholder="e.g. This paper consists of sections A and B with a total of five (5) questions." oninput="state.examDraft.customInstruction = this.value; updateExamPreview();">${state.examDraft.customInstruction || ''}</textarea></div>
