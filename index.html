@@ -247,7 +247,8 @@ body.dark-mode .tt-class-mine { background: #0F172A; }
       </div>
       <button class="signout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</button>
     </div>
-  </aside>
+    </aside>
+  <div id="sidebar-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.2s;" onclick="toggleSidebar()"></div>
   <div class="main-content">
     <header class="header-bar">
       <div class="flex items-center gap-3">
@@ -554,6 +555,11 @@ function buildNav() {
 }
 
 function navigateTo(page) {
+  // Weka historia kwenye browser ili back button ya simu ifanye kazi
+  if (state.currentPage !== page) {
+    history.pushState({ page: page }, '', `#${page}`);
+  }
+  
   state.currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
   const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
@@ -565,7 +571,38 @@ function navigateTo(page) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+// Function kusikiliza back button za simu
+window.addEventListener('popstate', (event) => {
+  if (event.state && event.state.page) {
+    state.currentPage = event.state.page;
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === event.state.page));
+    const menu = NAV_MENUS[state.currentUser.role] || NAV_MENUS['admin'];
+    const item = menu.find(m => m.id === event.state.page);
+    document.getElementById('pageTitle').textContent = item ? item.label : 'Dashboard';
+    document.getElementById('pageBreadcrumb').textContent = `Home / ${item ? item.label : 'Dashboard'}`;
+    renderPage();
+  } else {
+    // Kama hakuna historia, rudisha dashboard
+    if (state.currentPage !== 'dashboard') {
+      navigateTo('dashboard');
+    }
+  }
+});
+
+function toggleSidebar() { 
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  
+  sidebar.classList.toggle('open');
+  
+  if (sidebar.classList.contains('open')) {
+    overlay.style.opacity = '1';
+    overlay.style.pointerEvents = 'auto';
+  } else {
+    overlay.style.opacity = '0';
+    overlay.style.pointerEvents = 'none';
+  }
+}
 function getGreeting() { const h = new Date().getHours(); if (h >= 5 && h < 12) return 'Good morning'; if (h >= 12 && h < 17) return 'Good afternoon'; if (h >= 17 && h < 21) return 'Good evening'; return 'Good night'; }
 function formatDate() { return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); }
 
