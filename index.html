@@ -1445,19 +1445,35 @@ function renderResults() {
 
 function renderResultsDashboard() {
   const canPublish = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
-  const canEnter = ['teacher', 'academic'].includes(state.currentUser.role);
+  
+  // Mwalimu waone madarasa aliyoypangiwa tu
+  let availableClassIds = [];
+  if (canPublish) {
+    availableClassIds = state.classes.map(c => c.id);
+  } else {
+    availableClassIds = [...new Set(state.classSubjects.filter(a => a.teacher_id === state.currentUser.id).map(a => a.class_id))];
+  }
+  const availableClasses = state.classes.filter(c => availableClassIds.includes(c.id));
+
+  if (availableClasses.length === 0) {
+    return `<div class="card fade-up-1 text-center py-12">
+      <i class="fa-solid fa-circle-info text-4xl text-slate-300 mb-4"></i>
+      <h3 class="text-xl font-bold text-slate-700">No Classes Assigned</h3>
+      <p class="text-slate-500 mt-2">You have not been assigned to teach any class yet.</p>
+    </div>`;
+  }
+
   return `<div class="card fade-up-1" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
     <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD</div>
     <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
       <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
         <option value="">Select Class</option>
-        ${state.classes.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+        ${availableClasses.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
       </select>
       ${canPublish ? `<div id="publishBar" style="display: ${currentResClass ? 'flex' : 'none'}; gap: 10px;">
         <button class="btn-primary" style="padding: 8px 16px;" onclick="togglePublish()" id="publishBtn">PUBLISH</button>
         <button class="btn-ghost" style="padding: 8px 16px;" onclick="copyViewLink()">COPY VIEW LINK</button>
       </div>` : ''}
-     ${canEnter ? `<button class="btn-primary" style="padding: 8px 16px; margin-left: auto;" onclick="navigateTo('enter-marks');"><i class="fa-solid fa-pen mr-1"></i> Enter Marks</button>` : ''}
     </div>
     <div id="res-status" style="padding: 10px 20px; font-weight: bold; color: red; background: #f8f9fa;"></div>
     <div id="necta-dashboard" class="p-5" style="background: #f5f6fa;"><p class="text-slate-500 text-center py-6">Select a class to view results.</p></div>
@@ -1609,8 +1625,8 @@ function renderResultsEntry() {
   
   const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
   
-  return `<div class="card fade-up-1">
-        <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="navigateTo('results');">Back to Results</button></div>
+    return `<div class="card fade-up-1">
+        <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; state.resultsDraft.subjectId = null; renderPage();">${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
       <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
