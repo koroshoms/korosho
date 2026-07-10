@@ -567,7 +567,15 @@ function navigateTo(page) {
   document.getElementById('pageTitle').textContent = item ? item.label : 'Dashboard';
   document.getElementById('pageBreadcrumb').textContent = `Home / ${item ? item.label : 'Dashboard'}`;
   renderPage();
-  if (window.innerWidth <= 1024) document.getElementById('sidebar').classList.remove('open');
+  if (window.innerWidth <= 1024) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    sidebar.classList.remove('open');
+    if (overlay) {
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+    }
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2647,8 +2655,20 @@ function renderReports() {
   if (state.classes.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   
   const isAdmin = state.currentUser.role === 'admin';
-  const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
+    const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
   const selectedClassId = state.selectedReportClassId;
+  
+  // Chuja madarasa kwa walimu (waone yale waliyopangiwa kufundisha au kuwa mwalimu wa darasa)
+  let availableClasses = [];
+  if (isAdmin) {
+    availableClasses = state.classes;
+  } else {
+    const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+    const myAssignmentClassIds = [...new Set(myAssignments.map(a => a.class_id))];
+    const myClassTeacherIds = state.classes.filter(c => c.class_teacher_id === state.currentUser.id).map(c => c.id);
+    const allMyClassIds = [...new Set([...myAssignmentClassIds, ...myClassTeacherIds])];
+    availableClasses = state.classes.filter(c => allMyClassIds.includes(c.id));
+  }
   
   const studentsInClass = selectedClassId ? state.students.filter(s => s.class_id == selectedClassId) : [];
   if (studentsInClass.length > 0 && (!state.selectedReportStudentId || !studentsInClass.some(s => s.id == state.selectedReportStudentId))) {
@@ -2673,7 +2693,7 @@ function renderReports() {
         <label class="form-label">Select Class</label>
         <select class="form-input mb-4" onchange="onReportClassChange(this.value)">
           <option value="">Select a Class</option>
-          ${state.classes.map(c => `<option value="${c.id}" ${selectedClassId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
+          ${availableClasses.map(c => `<option value="${c.id}" ${selectedClassId == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
         </select>
         
         ${selectedClassId ? `
