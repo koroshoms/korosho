@@ -202,7 +202,13 @@ body.dark-mode .modal-box { background: #1E293B; }
 body.dark-mode .modal-header { border-color: #334155; }
 body.dark-mode .modal-footer { border-color: #334155; }
 body.dark-mode .tt-class-mine { background: #0F172A; }
-  
+ /* ===== RESPONSIVE CONTENT WRAPPERS ===== */
+.table-card-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 10px; }
+.report-preview-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
+@media (max-width: 768px) {
+  .timetable-grid { min-width: 600px; }
+  .rep-a4-sheet { transform: scale(0.85); transform-origin: top center; }
+} 
 </style>
 </head>
 <body>
@@ -1508,7 +1514,7 @@ function renderResultsDashboard() {
     </div>`;
   }
 
-  return `<div class="card fade-up-1" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
+    return `<div class="card fade-up-1 table-card-wrapper" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
     <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD</div>
     <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
       <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
