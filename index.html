@@ -481,7 +481,9 @@ const NAV_MENUS = {
     { id: 'import', label: 'Bulk Import', icon: 'fa-file-csv' },
     { section: 'Academic' }, { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' },
     { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
-    { id: 'results', label: 'Results', icon: 'fa-chart-line' }, { id: 'publish', label: 'Publish Results', icon: 'fa-cloud-arrow-up' },
+    { id: 'results', label: 'Results Dashboard', icon: 'fa-chart-line' }, 
+    { id: 'enter-marks', label: 'Enter Marks', icon: 'fa-pen' },
+    { id: 'publish', label: 'Publish Results', icon: 'fa-cloud-arrow-up' },
     { id: 'exam-config', label: 'Exam Configuration', icon: 'fa-sliders' }, { id: 'exam-review', label: 'Review Exams', icon: 'fa-check-double' },
     { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
   ],
@@ -495,17 +497,19 @@ const NAV_MENUS = {
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Academic' },
     { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
-    { id: 'results', label: 'Results', icon: 'fa-chart-line' },
-    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+    { id: 'results', label: 'Results Dashboard', icon: 'fa-chart-line' }, 
+    { id: 'enter-marks', label: 'Enter Marks', icon: 'fa-pen' },
+    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' },
   ],
     teacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Teaching' },
     { id: 'students', label: 'My Students', icon: 'fa-user-graduate' },
     { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'attendance', label: 'Attendance', icon: 'fa-clipboard-check' },
-    { id: 'results', label: 'Enter Results', icon: 'fa-chart-line' },
-    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' }, { id: 'reports', label: 'My Reports', icon: 'fa-file-lines' }
-  ]
+    { id: 'results', label: 'Results Dashboard', icon: 'fa-chart-line' }, 
+    { id: 'enter-marks', label: 'Enter Marks', icon: 'fa-pen' },
+    { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' },
+    ]
 };
 
 async function initApp() {
@@ -574,7 +578,8 @@ function renderPage() {
   else if (page === 'classes') host.innerHTML = renderClasses();
   else if (page === 'subjects') host.innerHTML = renderSubjects();
   else if (page === 'timetable') host.innerHTML = renderTimetable();
-  else if (page === 'results') host.innerHTML = renderResults();
+  else if (page === 'results') { resultsViewMode = 'dashboard'; host.innerHTML = renderResults(); }
+  else if (page === 'enter-marks') { resultsViewMode = 'entry'; host.innerHTML = renderResults(); }
   else if (page === 'notices') host.innerHTML = renderNotices();
   else if (page === 'publish') host.innerHTML = renderPublish();
   else if (page === 'exam-config') host.innerHTML = renderExamConfig();
