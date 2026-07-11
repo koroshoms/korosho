@@ -462,6 +462,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     state.currentUser = { id: authData.user.id, username: email, name: profile.full_name || email.split('@')[0], role: profile.role || 'admin' };
     document.getElementById('loginPage').classList.add('hidden-page');
     document.getElementById('appShell').classList.remove('hidden-page');
+    // Weka spinner wakati data inapakia ili usione screen ya wazi
+    document.getElementById('pageContent').innerHTML = `<div class="flex flex-col items-center justify-center h-[80vh]"><i class="fa-solid fa-spinner fa-spin text-5xl text-emerald-600 mb-4"></i><p class="text-slate-500">Loading your dashboard...</p></div>`;
     await initApp();
     showToast(`Welcome back, ${state.currentUser.name.split(' ')[0]}!`, 'success');
   } catch (err) {
@@ -499,68 +501,65 @@ async function logout() {
 }
 
 async function fetchAllData() {
+  // 1. Pata profiles kwanza (zinahitajika kuunda profilesMap)
+  const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
   let profilesMap = {};
-  try {
-    const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
-    if (pErr) throw pErr;
+  if (!pErr && profiles) {
     state.teachers = profiles.filter(p => ['teacher', 'academic', 'headteacher', 'admin'].includes(p.role)) || [];
     profiles.forEach(p => { profilesMap[p.id] = p; });
-  } catch (e) { console.warn("Profiles fetch failed:", e.message); state.teachers = []; }
-  try {
-    const { data: classes, error: cErr } = await supabase.from('classes').select('*');
-    if (cErr) throw cErr;
-    state.classes = (classes || []).map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
-  } catch (e) { console.warn("Classes fetch failed:", e.message); state.classes = []; }
-  try {
-    const { data: subjects, error: sErr } = await supabase.from('subjects').select('*');
-    if (sErr) throw sErr;
-    state.subjects = (subjects || []).map(s => ({ ...s, profiles: s.teacher_id ? profilesMap[s.teacher_id] : null }));
-  } catch (e) { console.warn("Subjects fetch failed:", e.message); state.subjects = []; }
-  try {
-    const { data: students, error: stErr } = await supabase.from('students').select('*');
-    if (stErr) throw stErr;
+  } else {
+    state.teachers = [];
+  }
+
+  // 2. Omba data zote nyingine kwa wakati mmoja (Parallel Fetching)
+  const [classesRes, subjectsRes, studentsRes, noticesRes, examsRes, resultsRes, classSubsRes, ttStatusRes] = await Promise.all([
+    supabase.from('classes').select('*'),
+    supabase.from('subjects').select('*'),
+    supabase.from('students').select('*'),
+    supabase.from('notices').select('*').order('created_at', { ascending: false }),
+    supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false }),
+    supabase.from('results').select('*'),
+    supabase.from('class_subjects').select('*'),
+    supabase.from('timetable_status').select('*')
+  ]);
+
+  // 3. Chuja na uhifadhi data zilizopatikana
+  if (!classesRes.error && classesRes.data) {
+    state.classes = classesRes.data.map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
+  } else { state.classes = []; }
+
+  if (!subjectsRes.error && subjectsRes.data) {
+    state.subjects = subjectsRes.data.map(s => ({ ...s, profiles: s.teacher_id ? profilesMap[s.teacher_id] : null }));
+  } else { state.subjects = []; }
+
+  if (!studentsRes.error && studentsRes.data) {
     const classesMap = {};
     state.classes.forEach(c => classesMap[c.id] = c);
-    state.students = (students || []).map(st => ({ ...st, classes: st.class_id ? classesMap[st.class_id] : null }));
-  } catch (e) { console.warn("Students fetch failed:", e.message); state.students = []; }
-  try {
-    const { data: notices, error: nErr } = await supabase.from('notices').select('*').order('created_at', { ascending: false });
-    if (nErr) throw nErr;
-    state.notices = (notices || []).map(n => ({ ...n, profiles: n.author_id ? profilesMap[n.author_id] : null }));
-  } catch (e) { console.warn("Notices fetch failed:", e.message); state.notices = []; }
-  try {
-    const { data: exams, error: eErr } = await supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false });
-    if (eErr) throw eErr;
-    state.exams = exams || [];
-  } catch (e) { console.warn("Exams fetch failed:", e.message); state.exams = []; }
-  try {
-    const { data: results, error: rErr } = await supabase.from('results').select('*');
-    if (rErr) throw rErr;
-    state.results = results || [];
-  } catch (e) { console.warn("Results fetch failed:", e.message); state.results = []; }
-  
-    try {
-    const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
-    if (csErr) throw csErr;
-    state.classSubjects = classSubjects || [];
-  } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
-  
-  try {
-    const { data: classSubjects, error: csErr } = await supabase.from('class_subjects').select('*');
-    if (csErr) throw csErr;
-    state.classSubjects = classSubjects || [];
-  } catch (e) { console.warn("Class Subjects fetch failed:", e.message); state.classSubjects = []; }
-  
-  try {
-    const { data: ttStatus, error: ttsErr } = await supabase.from('timetable_status').select('*');
-    if (ttsErr) throw ttsErr;
-    state.timetableStatus = ttStatus || [];
-  } catch (e) { console.warn("Timetable Status fetch failed:", e.message); state.timetableStatus = []; }
-  
+    state.students = studentsRes.data.map(st => ({ ...st, classes: st.class_id ? classesMap[st.class_id] : null }));
+  } else { state.students = []; }
+
+  if (!noticesRes.error && noticesRes.data) {
+    state.notices = noticesRes.data.map(n => ({ ...n, profiles: n.author_id ? profilesMap[n.author_id] : null }));
+  } else { state.notices = []; }
+
+  if (!examsRes.error && examsRes.data) {
+    state.exams = examsRes.data;
+  } else { state.exams = []; }
+
+  if (!resultsRes.error && resultsRes.data) {
+    state.results = resultsRes.data;
+  } else { state.results = []; }
+
+  if (!classSubsRes.error && classSubsRes.data) {
+    state.classSubjects = classSubsRes.data;
+  } else { state.classSubjects = []; }
+
+  if (!ttStatusRes.error && ttStatusRes.data) {
+    state.timetableStatus = ttStatusRes.data;
+  } else { state.timetableStatus = []; }
+
   loadReportDataLocally();
-  
-  if (!state.timetable) generateTimetable();
-}
+    }
 
 function loadReportDataLocally() {
   const saved = localStorage.getItem('korosho_report_data');
