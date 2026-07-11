@@ -25,6 +25,89 @@
   --danger: #DC2626; --success: #16A34A; --warning: #F59E0B;
   --info: #0EA5E9; --purple: #9333EA;
 }
+
+/* ===== SPLASH SCREEN STYLES ===== */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, #0F172A 0%, #065F46 50%, #0F172A 100%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 1;
+  transition: opacity 0.8s ease-out;
+  font-family: 'Outfit', sans-serif;
+  overflow: hidden;
+}
+.splash-screen.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+.splash-content {
+  text-align: center;
+  animation: splashFadeUp 1.2s ease-out;
+}
+@keyframes splashFadeUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.splash-logo {
+  width: 110px;
+  height: 110px;
+  margin-bottom: 25px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3));
+  border-radius: 20px;
+  background: white;
+  padding: 10px;
+}
+.splash-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  line-height: 1.3;
+}
+.splash-title span {
+  font-size: 14px;
+  font-weight: 300;
+  opacity: 0.9;
+  display: block;
+  margin-top: 5px;
+  letter-spacing: 0.5px;
+}
+.splash-subtitle {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  color: #FCD34D;
+  margin-top: 20px;
+  margin-bottom: 40px;
+  font-weight: 600;
+}
+.splash-loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,255,255,0.1);
+  border-top-color: #10B981;
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: splashSpin 1s linear infinite;
+}
+@keyframes splashSpin {
+  to { transform: rotate(360deg); }
+}
+.splash-footer {
+  position: absolute;
+  bottom: 25px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 0.5px;
+}
 * { font-family: 'Outfit', sans-serif; box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body { background: var(--app-bg); color: var(--text); }
@@ -212,7 +295,16 @@ body.dark-mode .tt-class-mine { background: #0F172A; }
 </style>
 </head>
 <body>
-
+<div id="splashScreen" class="splash-screen">
+  <div class="splash-content">
+    <img src="https://svlcwdxwnrrwoesjnklj.supabase.co/storage/v1/object/sign/school-logo/school.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV81NmQ0YjljMi00NWMwLTQ3YTUtOGZmZS0xMGEyZTczOGM4NjgiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJzY2hvb2wtbG9nby9zY2hvb2wucG5nIiwic2NvcGUiOiJkb3dubG9hZCIsImlhdCI6MTc4MzEwMTgxOSwiZXhwIjo0OTM2NzAxODE5fQ.hTGvs249_1szP--Fb0FJzVy3XSneO1tHhW26mV7MWpg" alt="School Logo" class="splash-logo" onerror="this.style.display='none'">
+    <h1 class="splash-title">KOROSHO ENGLISH MEDIUM<br><span>PRE & PRIMARY SCHOOL</span></h1>
+    <p class="splash-subtitle">Management Portal</p>
+    <div class="splash-loader"></div>
+  </div>
+  <div class="splash-footer">&copy; 2026 Korosho EMS. All Rights Reserved.</div>
+</div>
+  
 <div id="loginPage" class="login-bg">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -3705,6 +3797,23 @@ function generateAllTimetables() {
   
   showToast('All timetables generated successfully! No teacher clashes.', 'success');
 } 
+
+// ===== SPLASH SCREEN LOGIC =====
+function hideSplashScreen() {
+  const splash = document.getElementById('splashScreen');
+  if (splash) {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+    }, 800); // Subiri sekunde 0.8 ili animation ikamili
+  }
+}
+
+// Ficha splash screen baada ya sekunde 2.5 au data kukamilika
+window.addEventListener('load', () => {
+  setTimeout(hideSplashScreen, 2500);
+});
+  
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
 if ('serviceWorker' in navigator) {
