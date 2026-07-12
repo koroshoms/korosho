@@ -1266,9 +1266,10 @@ function generateTimetable(classId) {
 function renderTimetable() {
   const isAdmin = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
   
-  // Hakikisha ratiba zote zimeundwa
-  if (!state.timetables || Object.keys(state.timetables).length === 0) {
-    generateAllTimetables();
+    // Pata ratiba ya darasa husika. Tunapendelea kuunda mara moja tu au unapobonyeza Regenerate, tusizalisha kila wakati unapoingia ukurasa
+  let tt = state.timetables[state.timetableClassId];
+  if (!tt) {
+    tt = generateTimetable(state.timetableClassId);
   }
 
   // Kama ni Master View
@@ -1302,9 +1303,7 @@ function renderTimetable() {
     </div>`;
   }
   
-  let tt = state.timetables[state.timetableClassId] || generateTimetable(state.timetableClassId);
-
-  let publishBtnHtml = '';
+ let publishBtnHtml = '';
   if (isAdmin) {
     publishBtnHtml = `<button class="btn-primary" style="background: ${isPublished ? '#DC2626' : '#047857'};" onclick="toggleTimetablePublish(${state.timetableClassId})">
       <i class="fa-solid ${isPublished ? 'fa-lock' : 'fa-globe'} mr-1"></i> 
