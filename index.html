@@ -1266,12 +1266,6 @@ function generateTimetable(classId) {
 function renderTimetable() {
   const isAdmin = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
   
-    // Pata ratiba ya darasa husika. Tunapendelea kuunda mara moja tu au unapobonyeza Regenerate, tusizalisha kila wakati unapoingia ukurasa
-  let tt = state.timetables[state.timetableClassId];
-  if (!tt) {
-    tt = generateTimetable(state.timetableClassId);
-  }
-
   // Kama ni Master View
   if (state.timetableViewMode === 'master' && isAdmin) {
     return renderMasterTimetable();
@@ -1303,7 +1297,13 @@ function renderTimetable() {
     </div>`;
   }
   
- let publishBtnHtml = '';
+  // HII NDIYO ILIKUWA IKIANGSHA MABADILIKO YAKO: ilikuwa inazalisha upya kila wakati. Sasa tumeweka masharti ya kuiacha hivyo ilivyo.
+  let tt = state.timetables[state.timetableClassId];
+  if (!tt) {
+    tt = generateTimetable(state.timetableClassId);
+  }
+
+  let publishBtnHtml = '';
   if (isAdmin) {
     publishBtnHtml = `<button class="btn-primary" style="background: ${isPublished ? '#DC2626' : '#047857'};" onclick="toggleTimetablePublish(${state.timetableClassId})">
       <i class="fa-solid ${isPublished ? 'fa-lock' : 'fa-globe'} mr-1"></i> 
@@ -1315,7 +1315,7 @@ function renderTimetable() {
   let cells = `<div class="tt-header">TIME / DAY</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
   
-    tt.timeSlots.forEach((slot, sIdx) => {
+  tt.timeSlots.forEach((slot, sIdx) => {
     cells += `<div class="tt-time" style="${isAdmin ? 'cursor:pointer;text-decoration:underline;' : ''}" onclick="${isAdmin ? `editTimetableTime(${sIdx})` : ''}">${slot.time}</div>`;
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
