@@ -3273,7 +3273,29 @@ function openModal(type, data) {
       <div><label class="form-label">Priority</label><select class="form-input" id="n-priority"><option value="normal">Normal</option><option value="high">High Priority</option></select></div>
     </div></div>
     <div class="modal-footer"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveNotice()">Publish</button></div>`;
+    } else if (type === 'addSchoolEvent') {
+    content = `<div class="modal-header"><h3 class="font-bold text-lg">Add School-Wide Event</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="space-y-3">
+        <div><label class="form-label">Event Name (e.g., SPORTS AND GAMES)</label><input type="text" class="form-input" id="ev-label" placeholder="SPORTS AND GAMES"></div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="form-label">Day</label>
+            <select class="form-input" id="ev-day">
+              <option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option>
+            </select>
+          </div>
+          <div><label class="form-label">Start Time</label><input type="time" class="form-input" id="ev-start" value="13:20"></div>
+          <div><label class="form-label">End Time</label><input type="time" class="form-input" id="ev-end" value="15:20"></div>
+        </div>
+        <p class="text-xs text-slate-500"><i class="fa-solid fa-info-circle mr-1"></i> This will block the selected time for ALL classes.</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveSchoolEvent()">Save Event</button>
+    </div>`;
   }
+  
   host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box">${content}</div></div>`;
 }
 
@@ -3845,6 +3867,22 @@ function isTimeOverlap(slotTime, evStart, evEnd) {
   const [slotStart, slotEnd] = slotTime.split(' - ');
   // Kama kipindi kimeanza ndani ya muda wa tukio, au kimeisha ndani ya muda wa tukio
   return (slotStart >= evStart && slotStart < evEnd) || (slotEnd > evStart && slotEnd <= evEnd) || (slotStart <= evStart && slotEnd >= evEnd);
+}
+// ===== SAVE SCHOOL EVENT LOGIC =====
+function saveSchoolEvent() {
+  const label = document.getElementById('ev-label').value.trim().toUpperCase();
+  const day = document.getElementById('ev-day').value;
+  const startTime = document.getElementById('ev-start').value;
+  const endTime = document.getElementById('ev-end').value;
+  if(!label) return showToast('Please enter event name', 'error');
+  
+  state.schoolWideEvents.push({ label, day, startTime, endTime });
+  localStorage.setItem('korosho_school_events', JSON.stringify(state.schoolWideEvents));
+  
+  closeModal();
+  generateAllTimetables(); // Tunazalisha upya ratiba zote ili tukio liingie
+  renderPage();
+  showToast('School event added and timetables updated!', 'success');
 }
   
   checkSession();
