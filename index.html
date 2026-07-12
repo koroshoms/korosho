@@ -1316,28 +1316,30 @@ function renderTimetable() {
   let cells = `<div class="tt-header">TIME / DAY</div>`;
   tt.days.forEach(d => { cells += `<div class="tt-header">${d}</div>`; });
   
-  tt.timeSlots.forEach((slot, sIdx) => {
+    tt.timeSlots.forEach((slot, sIdx) => {
     cells += `<div class="tt-time" style="${isAdmin ? 'cursor:pointer;text-decoration:underline;' : ''}" onclick="${isAdmin ? `editTimetableTime(${sIdx})` : ''}">${slot.time}</div>`;
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
       const cell = tt.cells[key];
       
-      // Kagua kama seli hii niendeleo ya tukio/break la kabla ( ili tuirudie)
+      // Ruka tu kama ni BREAK au EVENT
       if (sIdx > 0) {
         const prevCell = tt.cells[`${day}-${sIdx-1}`];
-        if (prevCell && prevCell.type === cell.type && prevCell.label === cell.label) {
-          return; // Ruka kuandika tena, ili ile ya mwanzo ifungue nafasi yote
+        if (prevCell && (prevCell.type === 'break' || prevCell.type === 'event') && prevCell.type === cell.type && prevCell.label === cell.label) {
+          return; 
         }
       }
       
-      // Hesabu ni vipindi vingapi vimeungana
+      // Hesabu spanCount KWA BREAK na EVENT tu, sio masomo
       let spanCount = 1;
-      for (let i = 1; sIdx + i < tt.timeSlots.length; i++) {
-        const nextCell = tt.cells[`${day}-${sIdx+i}`];
-        if (nextCell && nextCell.type === cell.type && nextCell.label === cell.label) {
-          spanCount++;
-        } else {
-          break;
+      if (cell.type === 'break' || cell.type === 'event') {
+        for (let i = 1; sIdx + i < tt.timeSlots.length; i++) {
+          const nextCell = tt.cells[`${day}-${sIdx+i}`];
+          if (nextCell && nextCell.type === cell.type && nextCell.label === cell.label) {
+            spanCount++;
+          } else {
+            break;
+          }
         }
       }
       
@@ -1352,8 +1354,8 @@ function renderTimetable() {
         const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
         const cellClass = isMine ? 'tt-class-mine' : 'tt-class';
         const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
-        cells += `<div class="tt-cell" ${rowSpanStyle} onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
-          <div class="${cellClass}" ${innerHeightStyle}>
+        cells += `<div class="tt-cell" onclick="${isAdmin?`editTimetableCell('${day}', ${sIdx})`:''}">
+          <div class="${cellClass}">
             <div class="subj">${cell.subj}</div>
             <div class="tea">${teacherName}</div>
           </div>
@@ -1436,23 +1438,23 @@ function renderMasterTimetable() {
       const cTt = state.timetables[c.id];
       bodyRows += `<tr><td style="border: 1px solid #000; padding: 8px; font-weight: bold; background: #f0f0f0; font-size: 12px; text-align: left; white-space: nowrap;">${c.name}</td>`;
       
-            refTT.timeSlots.forEach((slot, sIdx) => {
+        refTT.timeSlots.forEach((slot, sIdx) => {
         const cell = cTt ? cTt.cells[`${day}-${sIdx}`] : null;
         
-        // Kagua kama seli hii niendeleo ya tukio/break la kabla
+        // Ruka tu kama ni BREAK au EVENT
         if (sIdx > 0 && cTt) {
           const prevCell = cTt.cells[`${day}-${sIdx-1}`];
-          if (prevCell && cell && prevCell.type === cell.type && prevCell.label === cell.label) {
-            return; // Ruka, ili ile ya mwanzo iwe na colspan
+          if (prevCell && (prevCell.type === 'break' || prevCell.type === 'event') && cell && prevCell.type === cell.type && prevCell.label === cell.label) {
+            return; 
           }
         }
         
-        // Hesabu colspan
+        // Hesabu colspan KWA BREAK na EVENT tu
         let spanCount = 1;
-        if (cTt) {
+        if (cTt && cell && (cell.type === 'break' || cell.type === 'event')) {
           for (let i = 1; sIdx + i < refTT.timeSlots.length; i++) {
             const nextCell = cTt.cells[`${day}-${sIdx+i}`];
-            if (nextCell && cell && nextCell.type === cell.type && nextCell.label === cell.label) {
+            if (nextCell && nextCell.type === cell.type && nextCell.label === cell.label) {
               spanCount++;
             } else {
               break;
@@ -1467,16 +1469,16 @@ function renderMasterTimetable() {
           bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: #FFEBCD; font-weight: bold; color: #8B4513; font-size: 11px;">${breakLabel}</td>`;
         } else if (cell.type === 'event') {
           bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: #D1FAE5; font-weight: bold; color: #065F46; font-size: 11px;">${cell.label}</td>`;
-                    } else {
-              const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
-              const isMine = cell.teaId === state.currentUser.id;
-              const bg = isMine ? '#EFF6FF' : '#FFFFFF';
-              bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
-                <div style="font-weight: bold; font-size: 12px;">${cell.subj}</div>
-                <div style="font-size: 10px; color: #666;">${teacherName}</div>
-              </td>`;
-            }
-          });
+        } else {
+          const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
+          const isMine = cell.teaId === state.currentUser.id;
+          const bg = isMine ? '#EFF6FF' : '#FFFFFF';
+          bodyRows += `<td style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
+            <div style="font-weight: bold; font-size: 12px;">${cell.subj}</div>
+            <div style="font-size: 10px; color: #666;">${teacherName}</div>
+          </td>`;
+        }
+      });
           bodyRows += '</tr>';
         });
       });
