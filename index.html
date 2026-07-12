@@ -1467,15 +1467,18 @@ function renderMasterTimetable() {
           bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: #FFEBCD; font-weight: bold; color: #8B4513; font-size: 11px;">${breakLabel}</td>`;
         } else if (cell.type === 'event') {
           bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: #D1FAE5; font-weight: bold; color: #065F46; font-size: 11px;">${cell.label}</td>`;
-        } else {
-          const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
-          const isMine = cell.teaId === state.currentUser.id;
-          const bg = isMine ? '#EFF6FF' : '#FFFFFF';
-          bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
-            <div style="font-weight: bold; font-size: 12px;">${cell.subj}</div>
-            <div style="font-size: 10px; color: #666;">${teacherName}</div>
-          </td>`;
-        }
+                    } else {
+              const teacherName = cell.tea !== '—' ? cell.tea.split(' ')[0] : '';
+              const isMine = cell.teaId === state.currentUser.id;
+              const bg = isMine ? '#EFF6FF' : '#FFFFFF';
+              bodyRows += `<td ${colspanAttr} style="border: 1px solid #000; padding: 8px; text-align: center; background: ${bg};">
+                <div style="font-weight: bold; font-size: 12px;">${cell.subj}</div>
+                <div style="font-size: 10px; color: #666;">${teacherName}</div>
+              </td>`;
+            }
+          });
+          bodyRows += '</tr>';
+        });
       });
 
   const headerHtml = `
