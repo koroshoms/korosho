@@ -1320,8 +1320,10 @@ function renderTimetable() {
     tt.days.forEach(day => {
       const key = `${day}-${sIdx}`;
       const cell = tt.cells[key];
-      if (cell.type === 'break') { 
+            if (cell.type === 'break') { 
         cells += `<div class="tt-cell"><div class="tt-break">${cell.label}</div></div>`; 
+      } else if (cell.type === 'event') {
+        cells += `<div class="tt-cell"><div class="tt-event">${cell.label}</div></div>`;
       } else {
         const isMine = state.currentUser.role === 'teacher' && cell.teaId === state.currentUser.id;
         const cellClass = isMine ? 'tt-class-mine' : 'tt-class';
