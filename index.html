@@ -1371,6 +1371,7 @@ function renderTimetable() {
         ${publishBtnHtml}
         <button class="btn-ghost" onclick="printTimetable()"><i class="fa-solid fa-print mr-1"></i> Print</button>
         ${isAdmin ? `
+        <button class="btn-ghost" onclick="openAddEventModal()"><i class="fa-solid fa-calendar-plus mr-1"></i> Add School Event</button>
         <button class="btn-ghost" onclick="regenerateTimetable()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate</button>
         ` : ''}
       </div>
