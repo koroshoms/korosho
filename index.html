@@ -409,6 +409,8 @@ const state = {
   timetableViewMode: 'class',
   timetableMasterDay: 'Monday',
   schoolWideEvents: [], // Hii ndiyo itashikilia matukio ya shule nzima
+  allowComments: false,
+  marksDeadline: null,
   studentFilterClassId: null,
   selectedReportStudentId: null,
   reportData: {},
@@ -578,7 +580,9 @@ function loadReportDataLocally() {
     try { state.timetables = JSON.parse(savedTt); } catch(e) { state.timetables = {}; }
   }
 }
-
+  state.allowComments = localStorage.getItem('korosho_allow_comments') === 'true';
+  state.marksDeadline = localStorage.getItem('korosho_marks_deadline');
+  
 function saveTimetablesLocally() {
   localStorage.setItem('korosho_timetables', JSON.stringify(state.timetables));
 }
@@ -603,11 +607,11 @@ const NAV_MENUS = {
     { id: 'exam-config', label: 'Exam Configuration', icon: 'fa-sliders' }, { id: 'exam-review', label: 'Review Exams', icon: 'fa-check-double' },
     { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
   ],
-  headteacher: [
+    headteacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
     { id: 'notices', label: 'Announcements', icon: 'fa-bullhorn' }, { section: 'Academic' },
     { id: 'timetable', label: 'Timetable', icon: 'fa-calendar-days' }, { id: 'results', label: 'Results', icon: 'fa-chart-line' },
-    { id: 'exam-review', label: 'Review Exams', icon: 'fa-check-double' }, { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+    { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
   ],
   academic: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
@@ -844,6 +848,21 @@ function renderDashboard() {
       <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400"><span><i class="fa-solid fa-user mr-1"></i> ${n.profiles?.full_name || 'Unknown'}</span><span><i class="fa-solid fa-calendar mr-1"></i> ${new Date(n.created_at).toLocaleDateString()}</span></div>
     </div>
   `).join('');
+  const highPriorityNotices = state.notices.filter(n => n.priority === 'high').slice(0, 3);
+  let highPriorityHtml = '';
+  if (highPriorityNotices.length > 0) {
+    highPriorityHtml = `
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-lg fade-up-1">
+      <h3 class="text-red-800 font-bold flex items-center gap-2 mb-3"><i class="fa-solid fa-exclamation-circle"></i> High Priority Announcements</h3>
+      <div class="space-y-3">
+        ${highPriorityNotices.map(n => `
+          <div class="bg-white p-3 rounded-md shadow-sm border border-red-100">
+            <div class="font-semibold text-slate-800">${n.title}</div>
+            <p class="text-xs text-slate-600 mt-1">${n.body}</p>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  }
   const quickLinksHtml = quickLinks.map((q, i) => {
     const c = colorMap[q.color];
     return `<button onclick="navigateTo('${q.page}')" class="p-4 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-50 transition-all text-center">
@@ -859,6 +878,7 @@ function renderDashboard() {
         <h1 class="text-white text-3xl sm:text-4xl font-bold mt-1">${greet}, <span style="color:#FCD34D;">${firstName}</span>!</h1>
         <p class="text-emerald-100/80 text-sm mt-2 max-w-xl">Welcome back to your ${roleLabels[u.role] || 'User'} portal. Here's what's happening at Korosho English Medium School today.</p>
       </div>
+    ${highPriorityHtml}
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">${statsHtml}</div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1274,7 +1294,7 @@ function generateTimetable(classId) {
 }
 
 function renderTimetable() {
-  const isAdmin = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
+    const isAdmin = ['admin', 'academic'].includes(state.currentUser.role);
   
   // Kama ni Master View
   if (state.timetableViewMode === 'master' && isAdmin) {
@@ -1713,9 +1733,9 @@ function renderResults() {
 }
 
 function renderResultsDashboard() {
-  const canPublish = ['admin', 'academic', 'headteacher'].includes(state.currentUser.role);
+  const canPublish = ['admin', 'academic'].includes(state.currentUser.role);
+  const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
   
-  // Mwalimu waone madarasa aliyoypangiwa tu
   let availableClassIds = [];
   if (canPublish) {
     availableClassIds = state.classes.map(c => c.id);
@@ -1732,17 +1752,45 @@ function renderResultsDashboard() {
     </div>`;
   }
 
-    return `<div class="card fade-up-1 table-card-wrapper" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
+  const isCommentAllowed = state.allowComments;
+  const isDeadlinePassed = state.marksDeadline ? new Date() > new Date(state.marksDeadline) : false;
+  let reportLockHtml = '';
+  
+  if (!canPublish && !isResPublished) {
+    if (isCommentAllowed) {
+      reportLockHtml = `<div class="card fade-up-1 text-center p-12">
+        <i class="fa-solid fa-comment-dots text-5xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-bold text-slate-700">Reports Under Review</h3>
+        <p class="text-slate-500 mt-2">Admin has opened the commenting period. Please select a student to enter your comments. Full reports will be visible once published.</p>
+      </div>`;
+    } else {
+      reportLockHtml = `<div class="card fade-up-1 text-center p-12">
+        <i class="fa-solid fa-lock text-5xl text-slate-300 mb-4"></i>
+        <h3 class="text-xl font-bold text-slate-700">Reports Not Yet Published</h3>
+        <p class="text-slate-500 mt-2">The Admin has not published the reports for this class yet. Please check back later.</p>
+      </div>`;
+    }
+  }
+
+  let adminBtnsHtml = '';
+  if (canPublish) {
+    adminBtnsHtml = `
+      <div class="flex gap-2 flex-wrap">
+        <button class="btn-primary" style="background: ${isResPublished ? '#DC2626' : '#047857'};" onclick="togglePublish()" id="publishBtn">${isResPublished ? 'UNPUBLISH' : 'PUBLISH'}</button>
+        <button class="btn-ghost" style="background: ${isCommentAllowed ? '#10B981' : '#64748B'}; color: white;" onclick="toggleAllowComments()">${isCommentAllowed ? 'COMMENTS OPEN' : 'ALLOW COMMENTS'}</button>
+        <button class="btn-ghost" onclick="setMarksDeadline()"><i class="fa-solid fa-clock mr-1"></i> ${state.marksDeadline ? 'Deadline: ' + new Date(state.marksDeadline).toLocaleString() : 'Set Deadline'}</button>
+      </div>
+    `;
+  }
+
+  return `<div class="card fade-up-1 table-card-wrapper" style="font-family: Arial, sans-serif; padding: 0; overflow: hidden;">
     <div style="padding: 15px 20px; font-weight: bold; text-transform: uppercase; background: #c7e3ee; color: #0F172A;">KOROSHO ENGLISH MEDIUM PRE AND PRIMARY SCHOOL <br> RESULTS DASHBOARD</div>
     <div class="p-4 flex flex-wrap items-center gap-3 border-b" style="background: #fff;">
       <select id="res-class-select" class="form-input" style="max-width: 250px; margin: 0;" onchange="onResultsClassChange()">
         <option value="">Select Class</option>
         ${availableClasses.map(c => `<option value="${c.id}" ${currentResClass == c.id ? 'selected' : ''}>${c.name}</option>`).join('')}
       </select>
-      ${canPublish ? `<div id="publishBar" style="display: ${currentResClass ? 'flex' : 'none'}; gap: 10px;">
-        <button class="btn-primary" style="padding: 8px 16px;" onclick="togglePublish()" id="publishBtn">PUBLISH</button>
-        <button class="btn-ghost" style="padding: 8px 16px;" onclick="copyViewLink()">COPY VIEW LINK</button>
-      </div>` : ''}
+      ${adminBtnsHtml}
     </div>
     <div id="res-status" style="padding: 10px 20px; font-weight: bold; color: red; background: #f8f9fa;"></div>
     <div id="necta-dashboard" class="p-5" style="background: #f5f6fa;"><p class="text-slate-500 text-center py-6">Select a class to view results.</p></div>
@@ -1853,31 +1901,26 @@ async function loadNectaReport() {
 }
 
 function renderResultsEntry() {
-  // Pata madarasa yote ambayo mwalimu amepangiwa kufundisha
   const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
   const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
   const myClasses = state.classes.filter(c => myClassIds.includes(c.id));
+  const isDeadlinePassed = state.marksDeadline ? new Date() > new Date(state.marksDeadline) : false;
   
   if (myClasses.length === 0) {
-    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class yet. Please contact the Admin.</p></div>`;
+    return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class yet. Please contact the Admin.</p></div>`;
   }
 
-  // Weka darasa la kwanza kama default au tumia lililochaguliwa
   if (!state.resultsDraft.classId || !myClassIds.includes(parseInt(state.resultsDraft.classId))) {
     state.resultsDraft.classId = myClasses[0].id;
   }
   const selectedClassId = state.resultsDraft.classId;
 
-  // Chuja masomo kulingana na darasa lililochaguliwa na kile alopangiwa mwalimu
-  const subjectsForSelectedClass = myAssignments
-    .filter(a => a.class_id == selectedClassId)
-    .map(a => a.subject_id);
-    
+  const subjectsForSelectedClass = myAssignments.filter(a => a.class_id == selectedClassId).map(a => a.subject_id);
   const mySubjects = state.subjects.filter(s => subjectsForSelectedClass.includes(s.id));
 
   if (mySubjects.length === 0) {
     return `<div class="card fade-up-1">
-      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="resultsViewMode='dashboard'; renderPage();">Back to Dashboard</button></div>
+      <div class="section-title"><span><i class="fa-solid fa-chart-line text-emerald-600 mr-2"></i> Enter Results</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; state.resultsDraft.subjectId = null; renderPage();">${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
         <div><label class="form-label">Select Subject</label><select class="form-input" disabled><option>No subjects assigned to you in this class</option></select></div>
@@ -1886,19 +1929,18 @@ function renderResultsEntry() {
     </div>`;
   }
 
-  // Weka somo la kwanza kama default au tumia lililochaguliwa
   if (!state.resultsDraft.subjectId || !subjectsForSelectedClass.includes(parseInt(state.resultsDraft.subjectId))) {
     state.resultsDraft.subjectId = mySubjects[0].id;
   }
   const selectedSubjectId = state.resultsDraft.subjectId;
-  
   const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
   
-    return `<div class="card fade-up-1">
-        <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div>
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div>
+    ${isDeadlinePassed ? '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 text-sm font-semibold"><i class="fa-solid fa-clock mr-2"></i> The deadline for entering marks has passed. You can no longer submit marks.</div>' : ''}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-      <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; state.resultsDraft.subjectId = null; renderPage();">${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
-      <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();">${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+      <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; state.resultsDraft.subjectId = null; renderPage();" ${isDeadlinePassed ? 'disabled' : ''}>${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
+      <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();" ${isDeadlinePassed ? 'disabled' : ''}>${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
     </div>
     <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Student Name</th><th>Gender</th><th>Marks (0-100)</th><th>Grade</th></tr></thead><tbody>
       ${studentsInClass.length === 0 ? '<tr><td colspan="4" class="text-center text-slate-500 py-6">No students in this class.</td></tr>' : studentsInClass.map(st => {
@@ -1906,7 +1948,7 @@ function renderResultsEntry() {
         const marks = existingResult ? existingResult.marks : '';
         const grade = existingResult ? existingResult.grade : '-';
         return `<tr><td class="font-semibold">${st.name}</td><td>${st.gender}</td>
-          <td><input type="number" min="0" max="100" value="${marks}" class="form-input" style="width: 100px; padding: 8px;" onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value, 'grade-cell-${st.id}')" placeholder="---" /></td>
+          <td><input type="number" min="0" max="100" value="${marks}" class="form-input" style="width: 100px; padding: 8px;" onchange="saveResult(${st.id}, ${selectedSubjectId}, this.value, 'grade-cell-${st.id}')" placeholder="---" ${isDeadlinePassed ? 'disabled' : ''} /></td>
           <td id="grade-cell-${st.id}"><span class="badge badge-blue">${grade}</span></td>
         </tr>`;
       }).join('')}
@@ -3148,20 +3190,21 @@ function openReportEditModal(studentId) {
   const data = state.reportData[studentId] || {};
   const role = state.currentUser.role;
   let fields = '';
+  const isDeadlinePassed = state.marksDeadline ? new Date() > new Date(state.marksDeadline) : false;
 
-  if (role === 'teacher' || role === 'admin') {
+    if (role === 'teacher' || role === 'admin') {
     fields += `<div class="grid grid-cols-3 gap-3">
-      <div><label class="form-label">Tabia (901-903)</label><input type="text" id="rd-b1" class="form-input" value="${data.behavior1 || ''}"></div>
-      <div><label class="form-label">Tabia (904)</label><input type="text" id="rd-b2" class="form-input" value="${data.behavior2 || ''}"></div>
-      <div><label class="form-label">Tabia (905-908)</label><input type="text" id="rd-b3" class="form-input" value="${data.behavior3 || ''}"></div>
+      <div><label class="form-label">Tabia (901-903)</label><input type="text" id="rd-b1" class="form-input" value="${data.behavior1 || ''}" ${isDeadlinePassed ? 'disabled' : ''}></div>
+      <div><label class="form-label">Tabia (904)</label><input type="text" id="rd-b2" class="form-input" value="${data.behavior2 || ''}" ${isDeadlinePassed ? 'disabled' : ''}></div>
+      <div><label class="form-label">Tabia (905-908)</label><input type="text" id="rd-b3" class="form-input" value="${data.behavior3 || ''}" ${isDeadlinePassed ? 'disabled' : ''}></div>
     </div>`;
-    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu wa Darasa</label><textarea id="rd-tc" class="form-input" rows="3">${data.teacher_comment || ''}</textarea></div>`;
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu wa Darasa</label><textarea id="rd-tc" class="form-input" rows="3" ${isDeadlinePassed ? 'disabled' : ''}>${data.teacher_comment || ''}</textarea></div>`;
   }
   if (role === 'academic' || role === 'admin') {
-    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mtaaluma</label><textarea id="rd-ac" class="form-input" rows="3">${data.academic_comment || ''}</textarea></div>`;
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mtaaluma</label><textarea id="rd-ac" class="form-input" rows="3" ${isDeadlinePassed ? 'disabled' : ''}>${data.academic_comment || ''}</textarea></div>`;
   }
   if (role === 'headteacher' || role === 'admin') {
-    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu Mkuu</label><textarea id="rd-hc" class="form-input" rows="3">${data.head_comment || ''}</textarea></div>`;
+    fields += `<div class="mt-4"><label class="form-label">Maoni ya Mwalimu Mkuu</label><textarea id="rd-hc" class="form-input" rows="3" ${isDeadlinePassed ? 'disabled' : ''}>${data.head_comment || ''}</textarea></div>`;
   }
 
   const content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Report Data</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -3985,6 +4028,22 @@ function saveSchoolEvent() {
   generateAllTimetables(); // Tunazalisha upya ratiba zote ili tukio liingie
   renderPage();
   showToast('School event added and timetables updated!', 'success');
+}
+ function toggleAllowComments() {
+  state.allowComments = !state.allowComments;
+  localStorage.setItem('korosho_allow_comments', state.allowComments);
+  renderPage();
+  showToast(state.allowComments ? 'Commenting allowed for teachers.' : 'Commenting closed.', 'success');
+}
+
+function setMarksDeadline() {
+  const deadlineStr = prompt("Enter deadline for marks and comments (YYYY-MM-DDTHH:MM, e.g., 2026-06-10T23:59):", state.marksDeadline || '');
+  if (deadlineStr !== null) {
+    state.marksDeadline = deadlineStr || null;
+    localStorage.setItem('korosho_marks_deadline', state.marksDeadline);
+    renderPage();
+    showToast(state.marksDeadline ? 'Deadline set successfully.' : 'Deadline cleared.', 'success');
+  }
 }
   
   checkSession();
