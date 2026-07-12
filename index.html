@@ -294,6 +294,7 @@ body.dark-mode .tt-class-mine { background: #0F172A; }
   .timetable-grid { min-width: 600px; }
   .rep-a4-sheet { transform: scale(0.85); transform-origin: top center; }
 } 
+.tt-event { background: #D1FAE5; border: 1px solid #10B981; border-radius: 0; padding: 4px; font-size: 12px; color: #065F46; text-align: center; font-weight: 700; display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; }
 </style>
 </head>
 <body>
@@ -404,9 +405,10 @@ const state = {
   timetableClassId: null,
   timetables: {},
   teacherSchedules: {},
-    timetableStatus: [],
-  timetableViewMode: 'class', // 'class' au 'master'
+      timetableStatus: [],
+  timetableViewMode: 'class',
   timetableMasterDay: 'Monday',
+  schoolWideEvents: [], // Hii ndiyo itashikilia matukio ya shule nzima
   studentFilterClassId: null,
   selectedReportStudentId: null,
   reportData: {},
@@ -566,7 +568,12 @@ function loadReportDataLocally() {
   if (saved) {
     try { state.reportData = JSON.parse(saved); } catch(e) { state.reportData = {}; }
   }
-}
+  // Pakia School Events
+  const savedEvents = localStorage.getItem('korosho_school_events');
+  if (savedEvents) {
+    try { state.schoolWideEvents = JSON.parse(savedEvents); } catch(e) { state.schoolWideEvents = []; }
+  }
+    }
 
 function saveReportDataLocally() {
   localStorage.setItem('korosho_report_data', JSON.stringify(state.reportData));
@@ -1118,13 +1125,19 @@ function generateTimetable(classId) {
   
   const timetable = { days, timeSlots, cells: {} };
   
-  days.forEach(day => {
+    days.forEach(day => {
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
       if (slot.type === 'break') {
         timetable.cells[key] = { type: 'break', label: slot.label };
       } else {
-        timetable.cells[key] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
+        // Kagua kama kuna tukio la shule nzima wakati huu
+        const event = state.schoolWideEvents.find(ev => ev.day === day && isTimeOverlap(slot.time, ev.startTime, ev.endTime));
+        if (event) {
+          timetable.cells[key] = { type: 'event', label: event.label };
+        } else {
+          timetable.cells[key] = { type: 'lesson', subj: 'Free', subjId: null, tea: '—', teaId: null };
+        }
       }
     });
   });
@@ -3821,6 +3834,13 @@ window.addEventListener('load', () => {
   // Ficha splash screen baada ya sekunde 2.5
   setTimeout(hideSplashScreen, 2500);
 });
+
+// ===== TIME OVERLAP LOGIC FOR EVENTS =====
+function isTimeOverlap(slotTime, evStart, evEnd) {
+  const [slotStart, slotEnd] = slotTime.split(' - ');
+  // Kama kipindi kimeanza ndani ya muda wa tukio, au kimeisha ndani ya muda wa tukio
+  return (slotStart >= evStart && slotStart < evEnd) || (slotEnd > evStart && slotEnd <= evEnd) || (slotStart <= evStart && slotEnd >= evEnd);
+}
   
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
