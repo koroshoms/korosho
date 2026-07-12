@@ -906,8 +906,8 @@ function renderTeacherTodaySchedule(user) {
   
   myClassIds.forEach(classId => {
     // Hakikisha ratiba ya darasa hilo imetengenezwa
-   let tt = state.timetables[classId];
-    if (!tt) continue;
+    let tt = state.timetables[classId];
+    if (!tt) return; // HAPA: Tumia 'return' badala ya 'continue' ndani ya forEach
     if (tt) {
       tt.timeSlots.forEach((slot, sIdx) => {
         if (slot.type === 'break') return;
@@ -950,7 +950,7 @@ function renderTeacherTodaySchedule(user) {
     </div>`;
   }).join('')}</div>`;
 }
-
+  
 async function renderTeachers() {
   const host = document.getElementById('pageContent');
   host.innerHTML = `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-spinner fa-spin text-emerald-600 mr-2"></i> Loading Teachers...</span></div></div>`;
