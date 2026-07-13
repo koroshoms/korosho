@@ -605,7 +605,8 @@ const NAV_MENUS = {
     { id: 'enter-marks', label: 'Enter Marks', icon: 'fa-pen' },
     { id: 'publish', label: 'Publish Results', icon: 'fa-cloud-arrow-up' },
     { id: 'exam-config', label: 'Exam Configuration', icon: 'fa-sliders' }, { id: 'exam-review', label: 'Review Exams', icon: 'fa-check-double' },
-    { id: 'reports', label: 'Reports', icon: 'fa-file-lines' }
+    { id: 'reports', label: 'Reports', icon: 'fa-file-lines' },
+    { id: 'morning-speech', label: 'Morning Speech', icon: 'fa-microphone-lines' }
   ],
     headteacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
@@ -620,6 +621,7 @@ const NAV_MENUS = {
     { id: 'results', label: 'Results Dashboard', icon: 'fa-chart-line' }, 
     { id: 'enter-marks', label: 'Enter Marks', icon: 'fa-pen' },
     { id: 'exam-set', label: 'Set Examination', icon: 'fa-pen-ruler' },
+    { id: 'morning-speech', label: 'Morning Speech', icon: 'fa-microphone-lines' },
   ],
     teacher: [
     { section: 'Main' }, { id: 'dashboard', label: 'Dashboard', icon: 'fa-gauge-high' },
@@ -750,6 +752,7 @@ function renderPage() {
   else if (page === 'exam-set') { host.innerHTML = renderExamSet(); setTimeout(updateExamPreview, 50); }
   else if (page === 'exam-review') host.innerHTML = renderExamReview();
   else if (page === 'reports') host.innerHTML = renderReports();
+  else if (page === 'morning-speech') host.innerHTML = renderMorningSpeech();
   else if (page === 'attendance') host.innerHTML = renderAttendance();
   else if (page === 'import') host.innerHTML = renderBulkImport();
   else if (page === 'assignments') host.innerHTML = renderAssignments();
@@ -4048,6 +4051,168 @@ function setMarksDeadline() {
     renderPage();
     showToast(state.marksDeadline ? 'Deadline set successfully.' : 'Deadline cleared.', 'success');
   }
+}
+
+// ===== MORNING SPEECH LOGIC =====
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function getMorningSpeechSchedule() {
+  const today = new Date();
+  const day = today.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
+  const monday = new Date(today.setDate(diff));
+  monday.setHours(0, 0, 0, 0);
+  const weekKey = `korosho_morning_speech_${monday.getTime()}`;
+
+  let schedule = JSON.parse(localStorage.getItem(weekKey));
+  if (schedule) return schedule; // Ratiba ya wiki hii tayari ipo
+
+  schedule = [];
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  // Mfululizo wa masomo ili isiweze kujirudia kwenye wiki moja, na iendelee hata wiki inayofuata
+  let queue = JSON.parse(localStorage.getItem('korosho_speech_queue') || '[]');
+  const allSubjectIds = state.subjects.map(s => s.id);
+  
+  if (queue.length === 0 && allSubjectIds.length > 0) {
+    queue = shuffleArray([...allSubjectIds]);
+  }
+
+  const usedThisWeek = [];
+
+  for (let i = 0; i < 5; i++) { // Siku 5 (Jumatatu - Ijumaa)
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const dayName = days[i];
+
+    const daySchedule = { day: dayName, date: date.toLocaleDateString('en-GB'), slots: [] };
+
+    for (let j = 0; j < 2; j++) { // Masomo 2 kwa siku
+      if (allSubjectIds.length === 0) {
+        daySchedule.slots.push({ subject: 'No Subjects', className: '—', students: ['—', '—'] });
+        continue;
+      }
+
+      let subjId = null;
+      let attempts = 0;
+      
+      // Tafuta somo ambalo halijatumika wiki hii
+      while (attempts < queue.length) {
+        if (queue.length === 0) {
+           queue = shuffleArray([...allSubjectIds]);
+        }
+        const nextSubj = queue.shift();
+        if (!usedThisWeek.includes(nextSubj)) {
+          subjId = nextSubj;
+          usedThisWeek.push(subjId);
+          break;
+        } else {
+          // Ikiwa imeshatumika, iweke mwisho kwa ajili ya wiki ijayo
+          queue.push(nextSubj);
+        }
+        attempts++;
+      }
+
+      if (subjId === null) {
+        // Kama masomo yote yameshatumika (kama shule ina masomo chini ya 10)
+        daySchedule.slots.push({ subject: '—', className: '—', students: ['—', '—'] });
+        continue;
+      }
+
+      const subject = state.subjects.find(s => s.id === subjId);
+      
+      // Tafuta darasa ambalo husoma somo hilo
+      let classId = null;
+      const possibleAssignments = state.classSubjects.filter(cs => cs.subject_id === subjId);
+      if (possibleAssignments.length > 0) {
+        const assignment = possibleAssignments[Math.floor(Math.random() * possibleAssignments.length)];
+        classId = assignment.class_id;
+      } else if (subject.class_ids && subject.class_ids.length > 0) {
+        classId = subject.class_ids[Math.floor(Math.random() * subject.class_ids.length)];
+      } else if (state.classes.length > 0) {
+        classId = state.classes[Math.floor(Math.random() * state.classes.length)].id;
+      }
+
+      const cls = state.classes.find(c => c.id == classId);
+      const studentsInClass = state.students.filter(s => s.class_id == classId);
+      
+      // Chagua wanafunzi 2 kwa bahati nasibu kutoka darasa hilo
+      const shuffledStudents = shuffleArray([...studentsInClass]);
+      const pickedStudents = shuffledStudents.slice(0, 2).map(s => s.name);
+
+      daySchedule.slots.push({
+        subject: subject.name,
+        className: cls ? cls.name : 'N/A',
+        students: pickedStudents.length > 0 ? pickedStudents : ['—', '—']
+      });
+    }
+    schedule.push(daySchedule);
+  }
+
+  localStorage.setItem(weekKey, JSON.stringify(schedule));
+  localStorage.setItem('korosho_speech_queue', JSON.stringify(queue));
+  return schedule;
+}
+
+function renderMorningSpeech() {
+  const schedule = getMorningSpeechSchedule();
+  
+  const rowsHtml = schedule.map(day => {
+    const classesHtml = day.slots.map(s => `<div style="padding: 8px 0;">${s.className}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
+    const subjectsHtml = day.slots.map(s => `<div style="padding: 8px 0; font-weight: 600; color: #047857;">${s.subject}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
+    const studentsHtml = day.slots.map(s => `<div style="padding: 8px 0;">${s.students.join(' & ')}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
+    
+    return `<tr>
+      <td style="vertical-align: middle; text-align: center; background: #f8fafc; width: 15%; border: 1px solid #e2e8f0;">
+        <div style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${day.day}</div>
+        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${day.date}</div>
+      </td>
+      <td style="vertical-align: middle; text-align: center; width: 20%; border: 1px solid #e2e8f0;">${classesHtml}</td>
+      <td style="vertical-align: middle; text-align: center; width: 25%; border: 1px solid #e2e8f0;">${subjectsHtml}</td>
+      <td style="vertical-align: middle; text-align: center; width: 40%; border: 1px solid #e2e8f0;">${studentsHtml}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="card fade-up-1">
+    <div class="section-title">
+      <span><i class="fa-solid fa-microphone-lines text-emerald-600 mr-2"></i> Morning Speech Schedule</span>
+      <button class="btn-ghost" onclick="regenerateMorningSpeech()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate This Week</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="data-table" style="border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align: center; width: 15%; border: 1px solid #e2e8f0;">DAY & DATE</th>
+            <th style="text-align: center; width: 20%; border: 1px solid #e2e8f0;">CLASSES</th>
+            <th style="text-align: center; width: 25%; border: 1px solid #e2e8f0;">SUBJECTS</th>
+            <th style="text-align: center; width: 40%; border: 1px solid #e2e8f0;">RESPONDENTS</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500 mt-4"><i class="fa-solid fa-info-circle mr-1"></i> Somo halijirudi ndani ya wiki. Wanafunzi huchaguliwa kwa bahati nasibu kutoka darasa husika. Kama unahitaji kuanza upya wiki hii, bofya "Regenerate".</p>
+  </div>`;
+}
+
+function regenerateMorningSpeech() {
+   const today = new Date();
+   const day = today.getDay();
+   const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+   const monday = new Date(today.setDate(diff));
+   monday.setHours(0, 0, 0, 0);
+   const weekKey = `korosho_morning_speech_${monday.getTime()}`;
+   localStorage.removeItem(weekKey);
+   renderPage();
+   showToast('Morning speech schedule regenerated!', 'success');
 }
   
   checkSession();
