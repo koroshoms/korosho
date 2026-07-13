@@ -4076,7 +4076,6 @@ function getMorningSpeechSchedule() {
   schedule = [];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-  // Mfululizo wa masomo ili isiweze kujirudia kwenye wiki moja, na iendelee hata wiki inayofuata
   let queue = JSON.parse(localStorage.getItem('korosho_speech_queue') || '[]');
   const allSubjectIds = state.subjects.map(s => s.id);
   
@@ -4092,6 +4091,7 @@ function getMorningSpeechSchedule() {
     const dayName = days[i];
 
     const daySchedule = { day: dayName, date: date.toLocaleDateString('en-GB'), slots: [] };
+    const usedClassesToday = []; // Hii inazuia darasa lisiwejwe mara mbili siku hiyo
 
     for (let j = 0; j < 2; j++) { // Masomo 2 kwa siku
       if (allSubjectIds.length === 0) {
@@ -4100,49 +4100,58 @@ function getMorningSpeechSchedule() {
       }
 
       let subjId = null;
-      let attempts = 0;
+      let subject = null;
+      let availableClassIds = [];
       
-      // Tafuta somo ambalo halijatumika wiki hii
-      while (attempts < queue.length) {
+      const originalQueueLength = queue.length;
+      let processedCount = 0;
+      
+      // Tafuta somo ambalo halijatumika wiki hii na lina darasa ambalo halijatumika leo
+      while (processedCount < originalQueueLength) {
         if (queue.length === 0) {
-           queue = shuffleArray([...allSubjectIds]);
+           queue = shuffleArray([...allSubjectIds].filter(id => !usedThisWeek.includes(id)));
+           if (queue.length === 0) break;
         }
+        
+        processedCount++;
         const nextSubj = queue.shift();
-        if (!usedThisWeek.includes(nextSubj)) {
-          subjId = nextSubj;
-          usedThisWeek.push(subjId);
-          break;
-        } else {
-          // Ikiwa imeshatumika, iweke mwisho kwa ajili ya wiki ijayo
-          queue.push(nextSubj);
+        
+        if (usedThisWeek.includes(nextSubj)) {
+           queue.push(nextSubj);
+           continue;
         }
-        attempts++;
+
+        const tempSubject = state.subjects.find(s => s.id === nextSubj);
+        let tempPossibleClassIds = state.classSubjects.filter(cs => cs.subject_id === nextSubj).map(cs => cs.class_id);
+        
+        if (tempPossibleClassIds.length === 0 && tempSubject.class_ids) {
+           tempPossibleClassIds = [...tempSubject.class_ids];
+        }
+        
+        let tempAvailableClassIds = tempPossibleClassIds.filter(cid => !usedClassesToday.includes(cid));
+        
+        if (tempAvailableClassIds.length > 0) {
+           subjId = nextSubj;
+           subject = tempSubject;
+           availableClassIds = tempAvailableClassIds;
+           usedThisWeek.push(subjId);
+           break;
+        } else {
+           queue.push(nextSubj);
+        }
       }
 
       if (subjId === null) {
-        // Kama masomo yote yameshatumika (kama shule ina masomo chini ya 10)
         daySchedule.slots.push({ subject: '—', className: '—', students: ['—', '—'] });
         continue;
       }
 
-      const subject = state.subjects.find(s => s.id === subjId);
+      const classId = availableClassIds[Math.floor(Math.random() * availableClassIds.length)];
+      usedClassesToday.push(classId);
       
-      // Tafuta darasa ambalo husoma somo hilo
-      let classId = null;
-      const possibleAssignments = state.classSubjects.filter(cs => cs.subject_id === subjId);
-      if (possibleAssignments.length > 0) {
-        const assignment = possibleAssignments[Math.floor(Math.random() * possibleAssignments.length)];
-        classId = assignment.class_id;
-      } else if (subject.class_ids && subject.class_ids.length > 0) {
-        classId = subject.class_ids[Math.floor(Math.random() * subject.class_ids.length)];
-      } else if (state.classes.length > 0) {
-        classId = state.classes[Math.floor(Math.random() * state.classes.length)].id;
-      }
-
       const cls = state.classes.find(c => c.id == classId);
       const studentsInClass = state.students.filter(s => s.class_id == classId);
       
-      // Chagua wanafunzi 2 kwa bahati nasibu kutoka darasa hilo
       const shuffledStudents = shuffleArray([...studentsInClass]);
       const pickedStudents = shuffledStudents.slice(0, 2).map(s => s.name);
 
@@ -4163,35 +4172,77 @@ function getMorningSpeechSchedule() {
 function renderMorningSpeech() {
   const schedule = getMorningSpeechSchedule();
   
-  const rowsHtml = schedule.map(day => {
-    const classesHtml = day.slots.map(s => `<div style="padding: 8px 0;">${s.className}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
-    const subjectsHtml = day.slots.map(s => `<div style="padding: 8px 0; font-weight: 600; color: #047857;">${s.subject}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
-    const studentsHtml = day.slots.map(s => `<div style="padding: 8px 0;">${s.students.join(' & ')}</div>`).join('<hr style="margin: 0; border-color: #f1f5f9;">');
+  const rowsHtml = schedule.map((day, idx) => {
+    const classesHtml = day.slots.map(s => `<div class="speech-pill pill-class">${s.className}</div>`).join('<div class="speech-divider"></div>');
+    const subjectsHtml = day.slots.map(s => `<div class="speech-pill pill-subject">${s.subject}</div>`).join('<div class="speech-divider"></div>');
+    const studentsHtml = day.slots.map(s => `<div class="speech-pill pill-student">${s.students.join(' & ')}</div>`).join('<div class="speech-divider"></div>');
     
-    return `<tr>
-      <td style="vertical-align: middle; text-align: center; background: #f8fafc; width: 15%; border: 1px solid #e2e8f0;">
-        <div style="font-weight: 700; color: #0f172a; text-transform: uppercase;">${day.day}</div>
-        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${day.date}</div>
+    const isToday = new Date().toLocaleDateString('en-GB') === day.date;
+    
+    return `<tr class="speech-row ${isToday ? 'speech-today' : ''}">
+      <td style="vertical-align: middle; width: 15%; border-bottom: 1px solid #f1f5f9; padding: 16px;">
+        <div style="font-weight: 800; color: #047857; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">${day.day}</div>
+        <div style="font-size: 13px; color: #64748b; margin-top: 4px; display: flex; align-items: center; gap: 5px;"><i class="fa-regular fa-calendar"></i> ${day.date}</div>
+        ${isToday ? '<span class="today-badge">TODAY</span>' : ''}
       </td>
-      <td style="vertical-align: middle; text-align: center; width: 20%; border: 1px solid #e2e8f0;">${classesHtml}</td>
-      <td style="vertical-align: middle; text-align: center; width: 25%; border: 1px solid #e2e8f0;">${subjectsHtml}</td>
-      <td style="vertical-align: middle; text-align: center; width: 40%; border: 1px solid #e2e8f0;">${studentsHtml}</td>
+      <td style="vertical-align: middle; width: 20%; border-bottom: 1px solid #f1f5f9; padding: 16px;">${classesHtml}</td>
+      <td style="vertical-align: middle; width: 25%; border-bottom: 1px solid #f1f5f9; padding: 16px;">${subjectsHtml}</td>
+      <td style="vertical-align: middle; width: 40%; border-bottom: 1px solid #f1f5f9; padding: 16px;">${studentsHtml}</td>
     </tr>`;
   }).join('');
 
-  return `<div class="card fade-up-1">
-    <div class="section-title">
-      <span><i class="fa-solid fa-microphone-lines text-emerald-600 mr-2"></i> Morning Speech Schedule</span>
-      <button class="btn-ghost" onclick="regenerateMorningSpeech()"><i class="fa-solid fa-rotate mr-1"></i> Regenerate This Week</button>
+  return `<style>
+    .speech-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+    .speech-table thead th { 
+      background: linear-gradient(135deg, #047857 0%, #10B981 100%); 
+      color: white; 
+      font-size: 12px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      letter-spacing: 1px; 
+      padding: 16px; 
+      text-align: left;
+    }
+    .speech-table thead th:first-child { border-top-left-radius: 12px; }
+    .speech-table thead th:last-child { border-top-right-radius: 12px; }
+    .speech-row { transition: all 0.2s; }
+    .speech-row:hover { background: #f8fafc; }
+    .speech-today { background: #F0FDF4 !important; box-shadow: inset 4px 0 0 #10B981; }
+    .speech-pill { padding: 8px 0; font-weight: 600; font-size: 14px; }
+    .pill-class { color: #1E40AF; background: #EFF6FF; padding: 8px 12px; border-radius: 8px; display: inline-block; margin: 2px 0; font-size: 13px; }
+    .pill-subject { color: #047857; background: #ECFDF5; padding: 8px 12px; border-radius: 8px; display: inline-block; margin: 2px 0; font-size: 13px; }
+    .pill-student { color: #475569; font-size: 14px; }
+    .speech-divider { border-top: 1px dashed #e2e8f0; margin: 4px 0; }
+    .today-badge { background: #10B981; color: white; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-top: 6px; display: inline-block; font-weight: 700; }
+  </style>
+  <div class="card fade-up-1" style="overflow: hidden; border: none; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);">
+    <div style="background: linear-gradient(135deg, #0F172A 0%, #047857 100%); padding: 24px; margin: -22px -22px 24px -22px;">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 style="color: white; font-size: 24px; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-microphone-lines text-amber-400"></i> Morning Speech Schedule
+          </h2>
+          <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 6px;">Weekly automated roster for student presentations.</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);" onclick="regenerateMorningSpeech()">
+            <i class="fa-solid fa-rotate mr-1"></i> Regenerate
+          </button>
+          <button class="btn-primary" onclick="printMorningSpeech()" style="background: linear-gradient(135deg, #F59E0B, #D97706);">
+            <i class="fa-solid fa-print mr-1"></i> Print Timetable
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="overflow-x-auto">
-      <table class="data-table" style="border-collapse: collapse;">
+    
+    <div id="morning-speech-print-area" class="overflow-x-auto">
+      <table class="speech-table">
         <thead>
           <tr>
-            <th style="text-align: center; width: 15%; border: 1px solid #e2e8f0;">DAY & DATE</th>
-            <th style="text-align: center; width: 20%; border: 1px solid #e2e8f0;">CLASSES</th>
-            <th style="text-align: center; width: 25%; border: 1px solid #e2e8f0;">SUBJECTS</th>
-            <th style="text-align: center; width: 40%; border: 1px solid #e2e8f0;">RESPONDENTS</th>
+            <th>Day & Date</th>
+            <th>Classes</th>
+            <th>Subjects</th>
+            <th>Respondents</th>
           </tr>
         </thead>
         <tbody>
@@ -4199,8 +4250,65 @@ function renderMorningSpeech() {
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-slate-500 mt-4"><i class="fa-solid fa-info-circle mr-1"></i> Somo halijirudi ndani ya wiki. Wanafunzi huchaguliwa kwa bahati nasibu kutoka darasa husika. Kama unahitaji kuanza upya wiki hii, bofya "Regenerate".</p>
+    <div style="margin-top: 20px; padding: 16px; background: #F8FAFC; border-radius: 10px; border: 1px solid #E2E8F0;">
+      <p style="font-size: 12px; color: #64748B; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <i class="fa-solid fa-circle-info text-emerald-600"></i> 
+        <span><strong>System Rules:</strong> Somo halijirudi ndani ya wiki. Darasa halipangwi mara mbili siku ya leo. Wanafunzi huchaguliwa kwa bahati nasibu kutoka darasa husika.</span>
+      </p>
+    </div>
   </div>`;
+}
+
+function printMorningSpeech() {
+  const printArea = document.getElementById('morning-speech-print-area');
+  if (!printArea) return showToast('No timetable to print', 'error');
+
+  const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Morning Speech Schedule - Korosho EMS</title>
+<style>
+  @page { size: A4 landscape; margin: 10mm; }
+  * { box-sizing: border-box; font-family: 'Arial', Helvetica, sans-serif; }
+  body { margin: 0; padding: 20px; color: #0F172A; }
+  .print-header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #047857; padding-bottom: 20px; }
+  .print-header h1 { margin: 0; color: #047857; font-size: 28px; text-transform: uppercase; }
+  .print-header p { margin: 5px 0 0 0; color: #64748B; font-size: 16px; }
+  .print-header h3 { color: #0F172A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 2px; font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  thead th { background: #047857; color: white; padding: 15px; text-align: left; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  tbody td { border-bottom: 1px solid #E2E8F0; padding: 15px; vertical-align: top; font-size: 14px; }
+  .p-day { font-weight: bold; color: #047857; font-size: 16px; text-transform: uppercase; }
+  .p-date { font-size: 13px; color: #64748B; margin-top: 5px; }
+  .p-block { padding: 5px 0; }
+  .p-subj { font-weight: 700; color: #047857; }
+  .p-class { font-weight: 700; color: #1E40AF; }
+  .p-div { border-top: 1px dashed #CBD5E1; margin: 10px 0; }
+</style>
+</head>
+<body>
+  <div class="print-header">
+    <h1>Korosho English Medium Pre & Primary School</h1>
+    <p>P.O. Box 03 – Tandahimba – Mtwara</p>
+    <h3>Morning Speech Schedule</h3>
+  </div>
+  ${printArea.innerHTML}
+  <script>
+    window.onload = function() { window.print(); };
+  <\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([fullHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 function regenerateMorningSpeech() {
