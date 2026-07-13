@@ -575,14 +575,14 @@ function loadReportDataLocally() {
     try { state.schoolWideEvents = JSON.parse(savedEvents); } catch(e) { state.schoolWideEvents = []; }
   }
   // Pakia ratiba zilizohifadhiwa
-  const savedTt = localStorage.getItem('korosho_timetables');
+    const savedTt = localStorage.getItem('korosho_timetables');
   if (savedTt) {
     try { state.timetables = JSON.parse(savedTt); } catch(e) { state.timetables = {}; }
   }
-}
   state.allowComments = localStorage.getItem('korosho_allow_comments') === 'true';
   state.marksDeadline = localStorage.getItem('korosho_marks_deadline');
-  
+}
+
 function saveTimetablesLocally() {
   localStorage.setItem('korosho_timetables', JSON.stringify(state.timetables));
 }
@@ -1329,11 +1329,12 @@ function renderTimetable() {
   
   // HII NDIYO ILIKUWA IKIANGSHA MABADILIKO YAKO: ilikuwa inazalisha upya kila wakati. Sasa tumeweka masharti ya kuiacha hivyo ilivyo.
   let tt = state.timetables[state.timetableClassId];
-  if (!tt) {
+    if (!tt) {
     return `<div class="card fade-up-1 text-center p-12">
       <i class="fa-solid fa-calendar-xmark text-5xl text-slate-300 mb-4"></i>
       <h3 class="text-xl font-bold text-slate-700">No Timetable Found</h3>
-      <p class="text-slate-500 mt-2">Please click "Generate" to create a timetable.</p>
+      <p class="text-slate-500 mt-2 mb-4">Please click below to create a timetable.</p>
+      <button class="btn-primary" onclick="generateAllTimetables(); renderPage();"><i class="fa-solid fa-rotate mr-1"></i> Generate Timetable</button>
     </div>`;
   }
 
@@ -1451,11 +1452,12 @@ function renderMasterTimetable() {
   if (!firstClassId) return `<div class="card fade-up-1"><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   
   const refTT = state.timetables[firstClassId];
-  if (!refTT) {
+    if (!refTT) {
     return `<div class="card fade-up-1 text-center p-12">
       <i class="fa-solid fa-calendar-xmark text-5xl text-slate-300 mb-4"></i>
       <h3 class="text-xl font-bold text-slate-700">No Timetable Found</h3>
-      <p class="text-slate-500 mt-2">Please generate timetables first from the Class Timetable view.</p>
+      <p class="text-slate-500 mt-2 mb-4">Please generate timetables first from the Class Timetable view.</p>
+      <button class="btn-primary" onclick="generateAllTimetables(); renderPage();"><i class="fa-solid fa-rotate mr-1"></i> Generate All Timetables</button>
     </div>`;
   }
   
@@ -1654,7 +1656,7 @@ function saveTimetableTimeSlot(sIdx) {
     });
   }
   
-  closeModal(); renderPage(); saveTimablesLocally(); showToast('Time slot updated for all days', 'success');
+  closeModal(); renderPage(); saveTimetablesLocally(); showToast('Time slot updated for all days', 'success');
 }
 
 function editTimetableCell(day, sIdx) { 
@@ -1709,7 +1711,7 @@ function saveTimetableCell(day, sIdx, subjId, teaId) {
   tt.cells[key] = { type: 'lesson', subj: subj ? subj.name : 'Free', subjId: subj ? subj.id : null, tea: teacher ? teacher.full_name : '—', teaId: teacher ? teacher.id : null };
   closeModal(); 
   renderPage();
-  saveTimablesLocally();
+  saveTimetablesLocally();
   showToast('Session updated', 'success');
 }
   
@@ -3388,9 +3390,11 @@ function openModal(type, data) {
       <button class="btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveTimetableTimeSlot(${sIdx})">Apply to All Days</button>
     </div>`;
-  } else if (type === 'editTimetable') {
+    } else if (type === 'editTimetable') {
     const { day, sIdx, cell } = data;
-    const slot = state.timetable.timeSlots[sIdx];
+    const tt = state.timetables[state.timetableClassId];
+    if (!tt) return;
+    const slot = tt.timeSlots[sIdx];
     content = `<div class="modal-header"><h3 class="font-bold text-lg">Edit Session</h3><button class="icon-btn" style="width:32px;height:32px;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <p class="text-sm text-slate-600 mb-4">${day} at ${slot.time}</p>
