@@ -368,6 +368,7 @@ body.dark-mode .tt-class-mine { background: #0F172A; }
         </div>
       </div>
     </header>
+    <div id="teacherAlertBar" style="padding: 16px 32px 0 32px;"></div>
     <main class="page-content" id="pageContent"></main>
   </div>
 </div>
@@ -647,6 +648,7 @@ async function initApp() {
   await fetchAllData();
   buildNav();
   navigateTo('dashboard');
+  setInterval(updateTeacherAlertBar, 60000);
   supabase.channel('public:published_results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
       if (state.currentPage === 'results') { await checkPublishStatus(); await loadNectaReport(); }
@@ -739,6 +741,7 @@ function formatDate() { return new Date().toLocaleDateString('en-US', { weekday:
 function renderPage() {
   const page = state.currentPage, host = document.getElementById('pageContent');
   host.innerHTML = '';
+  updateTeacherAlertBar();
   if (page === 'dashboard') host.innerHTML = renderDashboard();
   else if (page === 'teachers') renderTeachers();
   else if (page === 'students') host.innerHTML = renderStudents();
@@ -4065,14 +4068,14 @@ function shuffleArray(array) {
 
 function getMorningSpeechSchedule() {
   const today = new Date();
-  const day = today.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  const diff = today.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
+  const day = today.getDay(); 
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1); 
   const monday = new Date(today.setDate(diff));
   monday.setHours(0, 0, 0, 0);
   const weekKey = `korosho_morning_speech_${monday.getTime()}`;
 
   let schedule = JSON.parse(localStorage.getItem(weekKey));
-  if (schedule) return schedule; // Ratiba ya wiki hii tayari ipo
+  if (schedule) return schedule; 
 
   schedule = [];
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -4086,15 +4089,15 @@ function getMorningSpeechSchedule() {
 
   const usedThisWeek = [];
 
-  for (let i = 0; i < 5; i++) { // Siku 5 (Jumatatu - Ijumaa)
+  for (let i = 0; i < 5; i++) { 
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
     const dayName = days[i];
 
     const daySchedule = { day: dayName, date: date.toLocaleDateString('en-GB'), slots: [] };
-    const usedClassesToday = []; // Hii inazuia darasa lisiwejwe mara mbili siku hiyo
+    const usedClassesToday = []; 
 
-    for (let j = 0; j < 2; j++) { // Masomo 2 kwa siku
+    for (let j = 0; j < 2; j++) { 
       if (allSubjectIds.length === 0) {
         daySchedule.slots.push({ subject: 'No Subjects', className: '—', students: ['—', '—'] });
         continue;
@@ -4107,7 +4110,6 @@ function getMorningSpeechSchedule() {
       const originalQueueLength = queue.length;
       let processedCount = 0;
       
-      // Tafuta somo ambalo halijatumika wiki hii na lina darasa ambalo halijatumika leo
       while (processedCount < originalQueueLength) {
         if (queue.length === 0) {
            queue = shuffleArray([...allSubjectIds].filter(id => !usedThisWeek.includes(id)));
@@ -4170,8 +4172,83 @@ function getMorningSpeechSchedule() {
   return schedule;
 }
 
+function getTeacherSpeechAlert() {
+  if (!state.currentUser || state.currentUser.role !== 'teacher') return '';
+  
+  const schedule = getMorningSpeechSchedule();
+  const now = new Date();
+  let alerts = [];
+  
+  schedule.forEach(day => {
+    const [d, m, y] = day.date.split('/');
+    const speechDate = new Date(y, m - 1, d);
+    speechDate.setHours(0, 0, 0, 0);
+    
+    const dayBefore = new Date(speechDate);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    
+    const startDate = new Date(dayBefore);
+    startDate.setHours(8, 30, 0, 0); // 8:30 asubuhi ya jana
+    
+    const endDate = new Date(speechDate);
+    endDate.setHours(8, 0, 0, 0); // 8:00 asubuhi ya leo
+    
+    if (now >= startDate && now < endDate) {
+      day.slots.forEach(slot => {
+        if (slot.subject === '—') return;
+        
+        const subj = state.subjects.find(s => s.name === slot.subject);
+        const cls = state.classes.find(c => c.name === slot.className);
+        
+        if (subj && cls) {
+          // Mwalimu atapata alert kama anafundisha somo hilo kwenye darasa hilo, AU kama ni mwalimu wa darasa
+          const isSubjectTeacher = state.classSubjects.some(cs => cs.subject_id === subj.id && cs.class_id === cls.id && cs.teacher_id === state.currentUser.id);
+          const isClassTeacher = cls.class_teacher_id === state.currentUser.id;
+          
+          if (isSubjectTeacher || isClassTeacher) {
+            const isToday = now.toDateString() === speechDate.toDateString();
+            const dayLabel = isToday ? 'Leo' : 'Kesho';
+            
+            alerts.push({
+              dayLabel,
+              day: day.day,
+              date: day.date,
+              subject: slot.subject,
+              className: slot.className,
+              students: slot.students.join(' & ')
+            });
+          }
+        }
+      });
+    }
+  });
+  
+  if (alerts.length === 0) return '';
+  
+  return alerts.map(a => `
+    <div class="teacher-alert-card">
+      <div class="alert-icon"><i class="fa-solid fa-bell"></i></div>
+      <div class="alert-content">
+        <div class="alert-title">Morning Speech Reminder (${a.dayLabel} ${a.day})</div>
+        <div class="alert-text">
+          Habari mwalimu, ${a.dayLabel} tarehe ${a.date} wanafunzi wako watafanya "Morning Speech".
+          <br><strong>Somo:</strong> ${a.subject} | <strong>Darasa:</strong> ${a.className} | <strong>Wanafunzi:</strong> ${a.students}
+          <br>Tafadhali waandae vizuri mapema kabla ya kipindi cha asubuhi!
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateTeacherAlertBar() {
+  const bar = document.getElementById('teacherAlertBar');
+  if (!bar) return;
+  bar.innerHTML = getTeacherSpeechAlert();
+}
+
 function renderMorningSpeech() {
   const schedule = getMorningSpeechSchedule();
+  const canManage = ['admin', 'academic'].includes(state.currentUser.role);
   
   const rowsHtml = schedule.map((day, idx) => {
     const classesHtml = day.slots.map(s => `<div class="speech-pill pill-class">${s.className}</div>`).join('<div class="speech-divider"></div>');
@@ -4215,6 +4292,43 @@ function renderMorningSpeech() {
     .pill-student { color: #475569; font-size: 14px; }
     .speech-divider { border-top: 1px dashed #e2e8f0; margin: 4px 0; }
     .today-badge { background: #10B981; color: white; font-size: 10px; padding: 2px 8px; border-radius: 20px; margin-top: 6px; display: inline-block; font-weight: 700; }
+    
+    /* ALERT STYLES */
+    .teacher-alert-card {
+      background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+      border: 1px solid #F59E0B;
+      border-left: 6px solid #D97706;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+      margin-bottom: 8px;
+    }
+    .teacher-alert-card .alert-icon {
+      background: #D97706;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .teacher-alert-card .alert-title {
+      font-weight: 800;
+      color: #92400E;
+      font-size: 15px;
+      margin-bottom: 4px;
+    }
+    .teacher-alert-card .alert-text {
+      color: #78350F;
+      font-size: 14px;
+      line-height: 1.4;
+    }
   </style>
   <div class="card fade-up-1" style="overflow: hidden; border: none; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.1);">
     <div style="background: linear-gradient(135deg, #0F172A 0%, #047857 100%); padding: 24px; margin: -22px -22px 24px -22px;">
@@ -4226,12 +4340,18 @@ function renderMorningSpeech() {
           <p style="color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 6px;">Weekly automated roster for student presentations.</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);" onclick="regenerateMorningSpeech()">
-            <i class="fa-solid fa-rotate mr-1"></i> Regenerate
-          </button>
-          <button class="btn-primary" onclick="printMorningSpeech()" style="background: linear-gradient(135deg, #F59E0B, #D97706);">
-            <i class="fa-solid fa-print mr-1"></i> Print Timetable
-          </button>
+          ${canManage ? `
+            <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);" onclick="regenerateMorningSpeech()">
+              <i class="fa-solid fa-rotate mr-1"></i> Regenerate
+            </button>
+            <button class="btn-primary" onclick="printMorningSpeech()" style="background: linear-gradient(135deg, #F59E0B, #D97706);">
+              <i class="fa-solid fa-print mr-1"></i> Print Timetable
+            </button>
+          ` : `
+            <button class="btn-primary" onclick="printMorningSpeech()" style="background: linear-gradient(135deg, #F59E0B, #D97706);">
+              <i class="fa-solid fa-print mr-1"></i> Print Timetable
+            </button>
+          `}
         </div>
       </div>
     </div>
@@ -4322,7 +4442,7 @@ function regenerateMorningSpeech() {
    localStorage.removeItem(weekKey);
    renderPage();
    showToast('Morning speech schedule regenerated!', 'success');
-}
+  }
   
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
