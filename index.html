@@ -1111,23 +1111,31 @@ function generateTimetable(classId) {
   if (!classId) return null;
   
   const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  const timeSlots = [
-    { time: '08:20 - 09:00', type: 'lesson' }, { time: '09:00 - 09:40', type: 'lesson' },
-    { time: '09:40 - 10:20', type: 'lesson' },
-    { time: '10:20 - 10:40', type: 'break', label: 'BREAKFAST BREAK' },
-    { time: '10:40 - 11:20', type: 'lesson' }, { time: '11:20 - 12:00', type: 'lesson' },
-    { time: '12:00 - 12:40', type: 'lesson' },
-    { time: '12:40 - 13:20', type: 'break', label: 'LUNCH BREAK' },
-    { time: '13:20 - 14:00', type: 'lesson' }, { time: '14:00 - 14:40', type: 'lesson' },
-    { time: '14:40 - 15:20', type: 'lesson' }
-  ];
+  
+  // HII NDIYO SULUHISHO: Tumia masaa uliyoweka wewe kama ipo, au tuweke ya awali kama bado haipo
+  const existingTt = state.timetables[classId];
+  let timeSlots = [];
+  
+  if (existingTt && existingTt.timeSlots) {
+    timeSlots = existingTt.timeSlots; // Hifadhi masaa na break uliyoweka wewe
+  } else {
+    timeSlots = [
+      { time: '08:20 - 09:00', type: 'lesson' }, { time: '09:00 - 09:40', type: 'lesson' },
+      { time: '09:40 - 10:20', type: 'lesson' },
+      { time: '10:20 - 10:40', type: 'break', label: 'BREAKFAST BREAK' },
+      { time: '10:40 - 11:20', type: 'lesson' }, { time: '11:20 - 12:00', type: 'lesson' },
+      { time: '12:00 - 12:40', type: 'lesson' },
+      { time: '12:40 - 13:20', type: 'break', label: 'LUNCH BREAK' },
+      { time: '13:20 - 14:00', type: 'lesson' }, { time: '14:00 - 14:40', type: 'lesson' },
+      { time: '14:40 - 15:20', type: 'lesson' }
+    ];
+  }
   
   const teachers = state.teachers || [];
   const classAssignments = state.classSubjects.filter(a => a.class_id == classId);
   
-    let blocks = [];
+  let blocks = [];
   
-  // 1. Ingiza masomo yaliyopangiwa kwenye 'Subject Assignments'
   classAssignments.forEach(a => {
     const subject = state.subjects.find(s => s.id == a.subject_id);
     if (!subject) return;
@@ -1142,14 +1150,12 @@ function generateTimetable(classId) {
     for (let i = 0; i < sPw; i++) {
       if (a.teacher_id) blocks.push({ subjectId: subject.id, size: 1, teacherId: a.teacher_id });
     }
-    });
+  });
 
-  // 2. Ingiza masomo yote iliyowekwa kwenye 'Add Subject' kwa darasa hili (ikiwa haijaingizwa)
   state.subjects.forEach(sub => {
     if (sub.class_ids && sub.class_ids.includes(parseInt(classId))) {
       const alreadyExists = blocks.some(b => b.subjectId === sub.id);
       if (!alreadyExists) {
-        // Tafuta mwalimu kwenye assignments, au tumia mwalimu wa kawaida wa somo hilo
         const assignment = classAssignments.find(a => a.subject_id === sub.id);
         const teacherId = assignment ? assignment.teacher_id : (sub.teacher_id || null);
         blocks.push({ subjectId: sub.id, size: 1, teacherId: teacherId });
@@ -1161,13 +1167,12 @@ function generateTimetable(classId) {
   
   const timetable = { days, timeSlots, cells: {} };
   
-    days.forEach(day => {
+  days.forEach(day => {
     timeSlots.forEach((slot, sIdx) => {
       const key = `${day}-${sIdx}`;
       if (slot.type === 'break') {
         timetable.cells[key] = { type: 'break', label: slot.label };
       } else {
-        // Kagua kama kuna tukio la shule nzima wakati huu
         const event = state.schoolWideEvents.find(ev => ev.day === day && isTimeOverlap(slot.time, ev.startTime, ev.endTime));
         if (event) {
           timetable.cells[key] = { type: 'event', label: event.label };
@@ -1195,13 +1200,11 @@ function generateTimetable(classId) {
         const block = remainingBlocks[b];
         const daySubjKey = `${day}-${block.subjectId}`;
         
-        // Sheria 1: Somo lisiwejwe mara mbili siku hiyo hiyo
         if (daysTaught[daySubjKey]) continue;
         
         const teacherId = block.teacherId;
         const teacherSlotKey = `${day}-${s}`;
         
-        // Sheria 2 (MASTER): Mwalimu asifundishe madarasa mawili wakati mmoka
         if (teacherId && state.teacherSchedules[teacherId] && state.teacherSchedules[teacherId][teacherSlotKey]) {
           continue; 
         }
@@ -1227,7 +1230,6 @@ function generateTimetable(classId) {
           daysTaught[daySubjKey] = true;
           remainingBlocks.splice(b, 1);
           
-          // Mwone kwenye Master Schedule kama yeye anafundisha
           if (teacherId) {
             if (!state.teacherSchedules[teacherId]) state.teacherSchedules[teacherId] = {};
             state.teacherSchedules[teacherId][teacherSlotKey] = true;
@@ -1249,7 +1251,6 @@ function generateTimetable(classId) {
     }
   });
   
-  // Kama bado kuna blocks zilizobaki, zibweke kwenye nafasi zilizosalia bila kuvuruga uwepo wa walimu
   remainingBlocks.forEach(block => {
     const subject = state.subjects.find(sub => sub.id === block.subjectId);
     const teacher = teachers.find(t => t.id === block.teacherId);
@@ -1298,8 +1299,8 @@ function generateTimetable(classId) {
   state.timetables[classId] = timetable;
   saveTimetablesLocally();
   return timetable;
-}
-
+  }
+  
 function renderTimetable() {
     const isAdmin = ['admin', 'academic'].includes(state.currentUser.role);
   
@@ -3989,12 +3990,23 @@ async function clearClassSubjects() {
 }
  // ===== GENERATE ALL CLASS TIMETABLES (MASTER SCHEDULER) =====
 function generateAllTimetables() {
+  // HII NDIYO SULUHISHO: Hifadhi masaa uliyoweka wewe (timeSlots) kabla ya kuzalisha upya masomo
+  const existingTimetables = JSON.parse(JSON.stringify(state.timetables || {}));
+  
   state.timetables = {};
   state.teacherSchedules = {};
-  state.classes.forEach(cls => { generateTimetable(cls.id); });
+  
+  state.classes.forEach(cls => { 
+    // Weka masaa na break uliyoweka wewe mradi tu ipo
+    if (existingTimetables[cls.id] && existingTimetables[cls.id].timeSlots) {
+      state.timetables[cls.id] = { timeSlots: existingTimetables[cls.id].timeSlots };
+    }
+    generateTimetable(cls.id); 
+  });
+  
   saveTimetablesLocally();
   showToast('All timetables generated successfully! No teacher clashes.', 'success');
-} 
+}  
 
 // ===== SPLASH SCREEN LOGIC =====
 function hideSplashScreen() {
