@@ -4213,14 +4213,18 @@ function getTeacherSpeechAlert() {
         const cls = state.classes.find(c => c.name === slot.className);
         
         if (subj && cls) {
-          // HAPA NDIYO SHERIA MPYA: Angalia kama mwalimu ndiye anafundisha somo hilo kwenye darasa husika tu
-          const assignment = state.classSubjects.find(cs => 
+          // 1. Angalia kama ni mwalimu wa somo hilo kwenye darasa husika
+          const isSubjectTeacher = state.classSubjects.some(cs => 
             String(cs.subject_id) === String(subj.id) && 
             String(cs.class_id) === String(cls.id) && 
             cs.teacher_id === state.currentUser.id
           );
           
-          if (assignment) {
+          // 2. Angalia kama ni mwalimu wa darasa husika
+          const isClassTeacher = cls.class_teacher_id === state.currentUser.id;
+          
+          // Onyesha alert kwa mwalimu wa somo AU mwalimu wa darasa
+          if (isSubjectTeacher || isClassTeacher) {
             const isToday = now.toDateString() === speechDate.toDateString();
             const dayLabel = isToday ? 'Today' : 'Tomorrow';
             
@@ -4240,7 +4244,7 @@ function getTeacherSpeechAlert() {
   
   if (alerts.length === 0) return '';
   
-  // MUUNDO MPYA WA KIFAHARI (PREMIUM DESIGN)
+  // MUUNDO WA KIFAHARI (PREMIUM DESIGN)
   return alerts.map(a => `
     <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 5px solid #047857; border-radius: 12px; padding: 18px 24px; display: flex; align-items: flex-start; gap: 18px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); margin-bottom: 16px; animation: fadeUp 0.5s ease-out;">
       <div style="background: linear-gradient(135deg, #047857, #10B981); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(4,120,87,0.3);">
@@ -4265,7 +4269,7 @@ function getTeacherSpeechAlert() {
       </div>
     </div>
   `).join('');
-    }
+}
   
 function updateTeacherAlertBar() {
   const bar = document.getElementById('teacherAlertBar');
