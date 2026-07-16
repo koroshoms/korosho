@@ -4213,17 +4213,14 @@ function getTeacherSpeechAlert() {
         const cls = state.classes.find(c => c.name === slot.className);
         
         if (subj && cls) {
-          // 1. Angalia kama ni mwalimu wa somo hilo kwenye darasa husika
           const isSubjectTeacher = state.classSubjects.some(cs => 
             String(cs.subject_id) === String(subj.id) && 
             String(cs.class_id) === String(cls.id) && 
             cs.teacher_id === state.currentUser.id
           );
           
-          // 2. Angalia kama ni mwalimu wa darasa husika
           const isClassTeacher = cls.class_teacher_id === state.currentUser.id;
           
-          // Onyesha alert kwa mwalimu wa somo AU mwalimu wa darasa
           if (isSubjectTeacher || isClassTeacher) {
             const isToday = now.toDateString() === speechDate.toDateString();
             const dayLabel = isToday ? 'Today' : 'Tomorrow';
@@ -4244,32 +4241,19 @@ function getTeacherSpeechAlert() {
   
   if (alerts.length === 0) return '';
   
-  // MUUNDO WA KIFAHARI (PREMIUM DESIGN)
+  // MUUNDO MPYA: MDOGO, WA KIFAHARI NA UNAOONEKANA VIZURI (COMPACT PREMIUM DESIGN)
   return alerts.map(a => `
-    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 5px solid #047857; border-radius: 12px; padding: 18px 24px; display: flex; align-items: flex-start; gap: 18px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); margin-bottom: 16px; animation: fadeUp 0.5s ease-out;">
-      <div style="background: linear-gradient(135deg, #047857, #10B981); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(4,120,87,0.3);">
-        <i class="fa-solid fa-microphone-lines"></i>
-      </div>
-      <div style="flex: 1;">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
-          <span style="font-weight: 800; color: #0f172a; font-size: 16px;">Morning Speech Reminder</span>
-          <span style="background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">${a.dayLabel}, ${a.day}</span>
-        </div>
-        <div style="color: #475569; font-size: 14px; line-height: 1.5;">
-          Your students are scheduled to present their Morning Speech <strong>${a.dayLabel.toLowerCase()}</strong> (${a.date}). 
-          <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #e2e8f0;">
-            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-book text-emerald-600"></i> <strong style="color:#334155;">Subject:</strong> ${a.subject}</span>
-            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-school text-blue-600"></i> <strong style="color:#334155;">Class:</strong> ${a.className}</span>
-            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-user-graduate text-amber-600"></i> <strong style="color:#334155;">Students:</strong> ${a.students}</span>
-          </div>
-          <div style="margin-top: 12px; color: #64748b; font-size: 13px;">
-            <i class="fa-solid fa-circle-info mr-1"></i> Please ensure they are well prepared before the morning session.
-          </div>
-        </div>
+    <div style="display: flex; align-items: center; gap: 12px; background: linear-gradient(90deg, #047857, #065F46); color: white; padding: 10px 18px; border-radius: 10px; box-shadow: 0 6px 20px -5px rgba(4,120,87,0.4); margin-bottom: 12px; font-size: 13px;">
+      <i class="fa-solid fa-circle-bell" style="color: #FCD34D; font-size: 16px; flex-shrink: 0;"></i>
+      <div style="flex: 1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0;">
+        <strong style="white-space: nowrap;">Speech Reminder (${a.dayLabel}, ${a.day})</strong>
+        <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap;"><i class="fa-solid fa-book mr-1"></i>${a.subject}</span>
+        <span style="background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 6px; font-size: 12px; white-space: nowrap;"><i class="fa-solid fa-school mr-1"></i>${a.className}</span>
+        <span style="font-size: 12px; opacity: 0.95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><i class="fa-solid fa-user-graduate mr-1"></i>${a.students}</span>
       </div>
     </div>
   `).join('');
-}
+          }            
   
 function updateTeacherAlertBar() {
   const bar = document.getElementById('teacherAlertBar');
