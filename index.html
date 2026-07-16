@@ -2232,6 +2232,10 @@ function renderExamSet() {
   
   if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
   const settings = getExamSettings(state.examDraft.classId);
+  if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
+  const settings = getExamSettings(state.examDraft.classId);
+  const actualQuestionsCount = state.examQuestions.filter(q => q.type !== 'section').length;
+  const isEligibleToPrint = actualQuestionsCount >= settings.defaultQuestions;
   return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 space-y-5">
       <div class="card fade-up-1" style="background:#F0FDF4; border-color:#A7F3D0">
