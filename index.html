@@ -4555,38 +4555,51 @@ function openExamDateModal() {
   
   const formatDate = (d) => d.toISOString().split('T')[0];
 
-  const content = `<div class="modal-header" style="background: linear-gradient(135deg, #047857, #065F46); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
+  const content = `
+    <div class="modal-header" style="background: linear-gradient(135deg, #047857, #065F46); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0; position: sticky; top: 0; z-index: 10;">
       <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-calendar-days"></i> Set Examination Days</h3>
       <button class="icon-btn" style="width:32px;height:32px; background: rgba(255,255,255,0.2); color: white;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body" style="padding: 24px; background: #f8fafc;">
-      <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Select exactly two days for the examinations. The system will automatically distribute subjects (4 on day 1, 3 on day 2 for classes with 7 subjects).</p>
-      <div class="space-y-4">
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 20px;">Select exactly two days for the examinations.</p>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
         <div>
-          <label class="form-label">Day 1 Name (e.g., Monday)</label>
-          <input type="text" id="exam-d1-name" class="form-input" value="Monday" placeholder="Day Name">
-          <label class="form-label mt-2">Day 1 Date</label>
-          <input type="date" id="exam-d1-date" class="form-input" value="${formatDate(nextMonday)}">
+          <label class="form-label">Day 1 Name</label>
+          <input type="text" id="exam-d1-name" class="form-input" value="Monday" placeholder="e.g. Monday">
         </div>
         <div>
-          <label class="form-label">Day 2 Name (e.g., Tuesday)</label>
-          <input type="text" id="exam-d2-name" class="form-input" value="Tuesday" placeholder="Day Name">
-          <label class="form-label mt-2">Day 2 Date</label>
+          <label class="form-label">Day 1 Date</label>
+          <input type="date" id="exam-d1-date" class="form-input" value="${formatDate(nextMonday)}">
+        </div>
+      </div>
+      
+      <hr style="margin: 24px 0; border: none; border-top: 1px solid #e2e8f0;">
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+        <div>
+          <label class="form-label">Day 2 Name</label>
+          <input type="text" id="exam-d2-name" class="form-input" value="Tuesday" placeholder="e.g. Tuesday">
+        </div>
+        <div>
+          <label class="form-label">Day 2 Date</label>
           <input type="date" id="exam-d2-date" class="form-input" value="${formatDate(nextTuesday)}">
         </div>
       </div>
-      <div class="modal-footer" style="padding: 0; border: none; margin-top: 24px;">
-        <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
-        <button type="button" class="btn-primary" onclick="generateExamTimetable(
-            document.getElementById('exam-d1-name').value, 
-            document.getElementById('exam-d1-date').value, 
-            document.getElementById('exam-d2-name').value, 
-            document.getElementById('exam-d2-date').value
-        )"><i class="fa-solid fa-check mr-1"></i> Generate Timetable</button>
-      </div>
-    </div>`;
+    </div>
+    
+    <div class="modal-footer" style="background: white; position: sticky; bottom: 0; border-top: 1px solid #e2e8f0; padding: 16px 24px; display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="btn-ghost" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn-primary" onclick="generateExamTimetable(
+          document.getElementById('exam-d1-name').value, 
+          document.getElementById('exam-d1-date').value, 
+          document.getElementById('exam-d2-name').value, 
+          document.getElementById('exam-d2-date').value
+      )"><i class="fa-solid fa-check mr-1"></i> Generate Timetable</button>
+    </div>
+  `;
 
-  document.getElementById('modalHost').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width: 480px; border-radius: 16px; overflow: hidden;">${content}</div></div>`;
+  document.getElementById('modalHost').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width: 500px; border-radius: 16px; overflow: hidden;">${content}</div></div>`;
 }
 
 function generateExamTimetable(d1Name, d1DateStr, d2Name, d2DateStr) {
