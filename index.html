@@ -4200,10 +4200,10 @@ function getTeacherSpeechAlert() {
     dayBefore.setDate(dayBefore.getDate() - 1);
     
     const startDate = new Date(dayBefore);
-    startDate.setHours(8, 30, 0, 0); // 8:30 asubuhi ya jana
+    startDate.setHours(8, 30, 0, 0); // 8:30 AM yesterday
     
     const endDate = new Date(speechDate);
-    endDate.setHours(8, 0, 0, 0); // 8:00 asubuhi ya leo
+    endDate.setHours(8, 0, 0, 0); // 8:00 AM today
     
     if (now >= startDate && now < endDate) {
       day.slots.forEach(slot => {
@@ -4213,13 +4213,16 @@ function getTeacherSpeechAlert() {
         const cls = state.classes.find(c => c.name === slot.className);
         
         if (subj && cls) {
-          // Mwalimu atapata alert kama anafundisha somo hilo kwenye darasa hilo, AU kama ni mwalimu wa darasa
-          const isSubjectTeacher = state.classSubjects.some(cs => cs.subject_id === subj.id && cs.class_id === cls.id && cs.teacher_id === state.currentUser.id);
-          const isClassTeacher = cls.class_teacher_id === state.currentUser.id;
+          // HAPA NDIYO SHERIA MPYA: Angalia kama mwalimu ndiye anafundisha somo hilo kwenye darasa husika tu
+          const assignment = state.classSubjects.find(cs => 
+            String(cs.subject_id) === String(subj.id) && 
+            String(cs.class_id) === String(cls.id) && 
+            cs.teacher_id === state.currentUser.id
+          );
           
-          if (isSubjectTeacher || isClassTeacher) {
+          if (assignment) {
             const isToday = now.toDateString() === speechDate.toDateString();
-            const dayLabel = isToday ? 'Leo' : 'Kesho';
+            const dayLabel = isToday ? 'Today' : 'Tomorrow';
             
             alerts.push({
               dayLabel,
@@ -4237,21 +4240,33 @@ function getTeacherSpeechAlert() {
   
   if (alerts.length === 0) return '';
   
+  // MUUNDO MPYA WA KIFAHARI (PREMIUM DESIGN)
   return alerts.map(a => `
-    <div class="teacher-alert-card">
-      <div class="alert-icon"><i class="fa-solid fa-bell"></i></div>
-      <div class="alert-content">
-        <div class="alert-title">Morning Speech Reminder (${a.dayLabel} ${a.day})</div>
-        <div class="alert-text">
-          Habari mwalimu, ${a.dayLabel} tarehe ${a.date} wanafunzi wako watafanya "Morning Speech".
-          <br><strong>Somo:</strong> ${a.subject} | <strong>Darasa:</strong> ${a.className} | <strong>Wanafunzi:</strong> ${a.students}
-          <br>Tafadhali waandae vizuri mapema kabla ya kipindi cha asubuhi!
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 5px solid #047857; border-radius: 12px; padding: 18px 24px; display: flex; align-items: flex-start; gap: 18px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05); margin-bottom: 16px; animation: fadeUp 0.5s ease-out;">
+      <div style="background: linear-gradient(135deg, #047857, #10B981); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; flex-shrink: 0; box-shadow: 0 4px 10px rgba(4,120,87,0.3);">
+        <i class="fa-solid fa-microphone-lines"></i>
+      </div>
+      <div style="flex: 1;">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+          <span style="font-weight: 800; color: #0f172a; font-size: 16px;">Morning Speech Reminder</span>
+          <span style="background: #ecfdf5; color: #047857; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;">${a.dayLabel}, ${a.day}</span>
+        </div>
+        <div style="color: #475569; font-size: 14px; line-height: 1.5;">
+          Your students are scheduled to present their Morning Speech <strong>${a.dayLabel.toLowerCase()}</strong> (${a.date}). 
+          <div style="display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; padding: 12px; background: #f8fafc; border-radius: 8px; border: 1px dashed #e2e8f0;">
+            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-book text-emerald-600"></i> <strong style="color:#334155;">Subject:</strong> ${a.subject}</span>
+            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-school text-blue-600"></i> <strong style="color:#334155;">Class:</strong> ${a.className}</span>
+            <span style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-user-graduate text-amber-600"></i> <strong style="color:#334155;">Students:</strong> ${a.students}</span>
+          </div>
+          <div style="margin-top: 12px; color: #64748b; font-size: 13px;">
+            <i class="fa-solid fa-circle-info mr-1"></i> Please ensure they are well prepared before the morning session.
+          </div>
         </div>
       </div>
     </div>
   `).join('');
-}
-
+    }
+  
 function updateTeacherAlertBar() {
   const bar = document.getElementById('teacherAlertBar');
   if (!bar) return;
