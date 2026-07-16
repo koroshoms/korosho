@@ -2232,8 +2232,6 @@ function renderExamSet() {
   
   if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
   const settings = getExamSettings(state.examDraft.classId);
-  if (!state.examDraft.title) state.examDraft.title = state.examConfig.default.examTitle;
-  const settings = getExamSettings(state.examDraft.classId);
   const actualQuestionsCount = state.examQuestions.filter(q => q.type !== 'section').length;
   const isEligibleToPrint = actualQuestionsCount >= settings.defaultQuestions;
   return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2279,8 +2277,19 @@ function renderExamSet() {
         </div>
       </div>
       <div class="card fade-up-3">
-        <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
-        <button class="btn-primary w-full" onclick="printExamPaper()" ${state.examQuestions.length === 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}><i class="fa-solid fa-print mr-1"></i> Print / Save as PDF</button>
+       <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
+        ${!isEligibleToPrint ? `
+          <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-sm mb-3">
+            <i class="fa-solid fa-lock mr-1"></i> You need at least <strong>${settings.defaultQuestions} questions</strong> to print. Currently you have <strong>${actualQuestionsCount}</strong>.
+          </div>
+          <button class="btn-primary w-full" disabled style="opacity:0.5; cursor:not-allowed;">
+            <i class="fa-solid fa-print mr-1"></i> Print Locked
+          </button>
+        ` : `
+          <button class="btn-primary w-full" onclick="printExamPaper()">
+            <i class="fa-solid fa-print mr-1"></i> Print / Save as PDF
+          </button>
+        `}
         <p class="text-xs text-slate-500 mt-2 text-center">A copy will automatically be sent to the Admin for formatting review.</p>
       </div>
     </div>
@@ -2864,6 +2873,14 @@ function renderExamReview() {
 function reviewExamPrint(examId) { const exam = state.exams.find(e => e.id === examId); if (!exam) return; printExamPaper(exam); }
 
 async function printExamPaper(exam = null) {
+  if (!exam) {
+    const draftSettings = getExamSettings(state.examDraft.classId);
+    const qCount = state.examQuestions.filter(q => q.type !== 'section').length;
+    if (qCount < draftSettings.defaultQuestions) {
+      return showToast(`You need at least ${draftSettings.defaultQuestions} questions to print.`, 'error');
+    }
+  }
+  
   const draft = exam ? { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title, customInstruction: exam.customInstruction || '' } : state.examDraft;
   const c = getExamSettings(draft.classId);
   const questions = exam ? exam.questions : state.examQuestions;
