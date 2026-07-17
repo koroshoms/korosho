@@ -4632,7 +4632,7 @@ function generateExamTimetable(d1Name, d1DateStr, d2Name, d2DateStr) {
   
   let eligibleTeachers = state.teachers.filter(t => t.role === 'teacher');
   if (state.includeAdminsInVigilance) {
-    eligibleTeachers = state.teachers.filter(t => ['teacher', 'academic', 'headteacher', 'admin'].includes(t.role));
+    eligibleTeachers = state.teachers.filter(t => ['teacher', 'academic', 'headteacher'].includes(t.role));
   }
   eligibleTeachers = eligibleTeachers.map(t => ({ id: t.id, name: t.full_name }));
   
@@ -4718,7 +4718,7 @@ function toggleExamInvigilatorAdmins() {
   state.includeAdminsInVigilance = !state.includeAdminsInVigilance;
   localStorage.setItem('korosho_exam_vigilance_admins', state.includeAdminsInVigilance);
   renderPage();
-  showToast(`Admins/Headteacher/Acadamic ${state.includeAdminsInVigilance ? 'included in' : 'excluded from'} vigilance. Regenerate timetable to apply.`, 'success');
+  showToast(`Headteacher & Academic Master ${state.includeAdminsInVigilance ? 'included in' : 'excluded from'} vigilance. Regenerate timetable to apply.`, 'success');
 }
 
 function renderExamTimetable() {
@@ -4771,8 +4771,8 @@ function renderExamTimetable() {
         </div>
         ${isAdmin ? `
         <div class="flex gap-2 flex-wrap">
-          <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 12px;" onclick="toggleExamInvigilatorAdmins()">
-            <i class="fa-solid fa-user-shield mr-1"></i> Admins in Vigilance: ${state.includeAdminsInVigilance ? 'ON' : 'OFF'}
+            <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 12px;" onclick="toggleExamInvigilatorAdmins()">
+            <i class="fa-solid fa-user-shield mr-1"></i> Leaders in Vigilance: ${state.includeAdminsInVigilance ? 'ON' : 'OFF'}
           </button>
           <button class="btn-ghost" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 12px;" onclick="openExamDateModal()">
             <i class="fa-solid fa-calendar-plus mr-1"></i> Generate
