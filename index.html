@@ -2930,33 +2930,35 @@ async function printExamPaper(exam = null) {
 </head>
 <body>
   <div class="print-btn-container">
-    <div style="margin-bottom: 15px; font-family: 'Outfit', sans-serif; color: #64748b;"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading fonts... Please wait.</div>
+    <div id="font-loader-msg" style="margin-bottom: 15px; font-family: 'Outfit', sans-serif; color: #64748b;"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading fonts... Please wait.</div>
     <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
   </div>
   ${pagesHtml}
   
-  <!-- HII NDIYO SULUHISHO: SCRIPT YA KUSUBIRI FONT ZIPAKIE -->
   <script>
     window.onload = function() {
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(function () {
-          console.log('Fonts loaded successfully!');
-          // Ficha ujumbe wa subiri na onyesha mtini wa print
-          document.querySelector('.print-btn-container div').innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Fonts ready! You can print now.';
+          var msg = document.getElementById('font-loader-msg');
+          if (msg) msg.innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Fonts ready! You can print now.';
         });
       } else {
-        document.querySelector('.print-btn-container div').innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Ready to print.';
+        var msg = document.getElementById('font-loader-msg');
+        if (msg) msg.innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Ready to print.';
       }
     };
   <\/script>
 </body>
 </html>`;
 
-  const blob = new Blob([fullHTML], { type: 'text/html' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  // NJIA MPYA NA SAHIHI YA KUFUNGUA DIRISHA NA KUPIGA PRINT
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    return showToast('Please allow popups to print the exam.', 'error');
+  }
+  printWindow.document.open();
+  printWindow.document.write(fullHTML);
+  printWindow.document.close();
 
   if (!exam && state.examQuestions.length > 0) {
     if (!state.examDraft.isDirty) { showToast('No changes made. Print opened, but no new copy sent to Admin.', 'info'); return; }
