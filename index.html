@@ -2298,8 +2298,13 @@ function renderExamSet() {
 
 const A4_WIDTH_MM = 210, A4_HEIGHT_MM = 297, PAGE_PADDING_OUTSIDE_MM = 10, PAGE_PADDING_INSIDE_MM = 10;
 
-function getFontStack(fontType) { return `'${fontType}', 'Century Gothic', 'Jost', 'Trebuchet MS', sans-serif`; }
-
+function getFontStack(fontType) { 
+  if (fontType === 'Century Gothic') {
+    return `'Century Gothic', 'Tw Cen MT', 'Jost', 'Questrial', sans-serif`; 
+  }
+  return `'${fontType}', 'Century Gothic', 'Jost', 'Trebuchet MS', sans-serif`; 
+}
+  
 function getPxPerMm() {
   const div = document.createElement('div');
   div.style.cssText = 'height: 1mm; width: 1mm; position: absolute; left: -9999px; top: -9999px;';
@@ -2890,20 +2895,26 @@ async function printExamPaper(exam = null) {
   const borderCSS = getBorderCSS(c.borderStyle);
   const bodyFontStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
 
-  const fullHTML = `<!DOCTYPE html>
+    const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Print Exam - ${draft.title || 'Untitled'}</title>
-<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+<!-- HAPA TUNALETa FONT ZA MTANDAO ZINAZOFANANA NA CENTURY GOTHIC -->
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&family=Questrial&family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 portrait; margin: 0; }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: #e2e8f0; font-family: ${getFontStack(c.fontType)}; }
-  body { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { margin: 0; padding: 0; background: #e2e8f0; }
+  
+  /* HII NDIYO SULUHISHO: KULAZIMISHA FONT KUFANYA KAZI WAKATI WA PRINT */
+  body, div, span, table, tr, td, p, h1, h2, h3, h4, ul, li, ol {
+    font-family: ${getFontStack(c.fontType)} !important;
+  }
+
   .print-btn-container { text-align: center; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); position: sticky; top: 20px; z-index: 100; }
-  .print-btn { padding: 14px 32px; background: #047857; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: ${getFontStack(c.fontType)}; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .print-btn { padding: 14px 32px; background: #047857; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Outfit', sans-serif; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
   .print-btn:hover { background: #065F46; }
   .a4-page {
     width: 210mm; height: 297mm; background: white; box-sizing: border-box; overflow: hidden; position: relative; flex-shrink: 0;
