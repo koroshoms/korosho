@@ -2895,20 +2895,18 @@ async function printExamPaper(exam = null) {
   const borderCSS = getBorderCSS(c.borderStyle);
   const bodyFontStyle = `font-family: ${getFontStack(c.fontType)}; font-size: ${c.fontSize}pt; line-height: ${c.lineSpacing};`;
 
-    const fullHTML = `<!DOCTYPE html>
+  const fullHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Print Exam - ${draft.title || 'Untitled'}</title>
-<!-- HAPA TUNALETa FONT ZA MTANDAO ZINAZOFANANA NA CENTURY GOTHIC -->
-<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&family=Questrial&family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&family=Questrial&display=swap" rel="stylesheet">
 <style>
   @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   html, body { margin: 0; padding: 0; background: #e2e8f0; }
   
-  /* HII NDIYO SULUHISHO: KULAZIMISHA FONT KUFANYA KAZI WAKATI WA PRINT */
   body, div, span, table, tr, td, p, h1, h2, h3, h4, ul, li, ol {
     font-family: ${getFontStack(c.fontType)} !important;
   }
@@ -2931,8 +2929,26 @@ async function printExamPaper(exam = null) {
 </style>
 </head>
 <body>
-  <div class="print-btn-container"><button class="print-btn" onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="print-btn-container">
+    <div style="margin-bottom: 15px; font-family: 'Outfit', sans-serif; color: #64748b;"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Loading fonts... Please wait.</div>
+    <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
   ${pagesHtml}
+  
+  <!-- HII NDIYO SULUHISHO: SCRIPT YA KUSUBIRI FONT ZIPAKIE -->
+  <script>
+    window.onload = function() {
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () {
+          console.log('Fonts loaded successfully!');
+          // Ficha ujumbe wa subiri na onyesha mtini wa print
+          document.querySelector('.print-btn-container div').innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Fonts ready! You can print now.';
+        });
+      } else {
+        document.querySelector('.print-btn-container div').innerHTML = '<i class="fa-solid fa-check-circle mr-2 text-emerald-600"></i> Ready to print.';
+      }
+    };
+  <\/script>
 </body>
 </html>`;
 
