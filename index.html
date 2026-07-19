@@ -585,7 +585,8 @@ function loadReportDataLocally() {
   }
   state.allowComments = localStorage.getItem('korosho_allow_comments') === 'true';
   state.marksDeadline = localStorage.getItem('korosho_marks_deadline');
-}
+  state.reportsDeadline = localStorage.getItem('korosho_reports_deadline');
+  }
 
 function saveTimetablesLocally() {
   localStorage.setItem('korosho_timetables', JSON.stringify(state.timetables));
@@ -653,6 +654,7 @@ async function initApp() {
   buildNav();
   navigateTo('dashboard');
   setInterval(updateTeacherAlertBar, 60000);
+  setInterval(tickDeadlines, 1000); // ONGEZA HII MISTARI (itasasisha countdown kila sekunde)
   supabase.channel('public:published_results')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'published_reports' }, async payload => {
       if (state.currentPage === 'results') { await checkPublishStatus(); await loadNectaReport(); }
@@ -1792,8 +1794,7 @@ function renderResultsDashboard() {
     adminBtnsHtml = `
       <div class="flex gap-2 flex-wrap">
         <button class="btn-primary" style="background: ${isResPublished ? '#DC2626' : '#047857'};" onclick="togglePublish()" id="publishBtn">${isResPublished ? 'UNPUBLISH' : 'PUBLISH'}</button>
-        <button class="btn-ghost" style="background: ${isCommentAllowed ? '#10B981' : '#64748B'}; color: white;" onclick="toggleAllowComments()">${isCommentAllowed ? 'COMMENTS OPEN' : 'ALLOW COMMENTS'}</button>
-        <button class="btn-ghost" onclick="setMarksDeadline()"><i class="fa-solid fa-clock mr-1"></i> ${state.marksDeadline ? 'Deadline: ' + new Date(state.marksDeadline).toLocaleString() : 'Set Deadline'}</button>
+        <button class="btn-ghost" onclick="openDeadlineModal('marks')"><i class="fa-solid fa-clock mr-1"></i> ${state.marksDeadline ? 'Change Marks Deadline' : 'Set Marks Deadline'}</button>
       </div>
     `;
   }
@@ -1950,9 +1951,12 @@ function renderResultsEntry() {
   const selectedSubjectId = state.resultsDraft.subjectId;
   const studentsInClass = state.students.filter(s => s.class_id == selectedClassId);
   
-  return `<div class="card fade-up-1">
+    return `<div class="card fade-up-1">
     <div class="section-title"><span><i class="fa-solid fa-pen text-emerald-600 mr-2"></i> Enter Marks</span><button class="btn-ghost btn-sm" onclick="navigateTo('dashboard');">Back to Dashboard</button></div>
-    ${isDeadlinePassed ? '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 text-sm font-semibold"><i class="fa-solid fa-clock mr-2"></i> The deadline for entering marks has passed. You can no longer submit marks.</div>' : ''}
+    
+    <div id="marks-deadline-host">${getDeadlineCountdownHtml('marks')}</div>
+    
+    ${isDeadlinePassed ? '<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 mb-4 text-sm font-semibold"><i class="fa-solid fa-clock mr-2"></i> The deadline for entering marks is over. You can no longer submit marks.</div>' : ''}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
       <div><label class="form-label">Select Class</label><select class="form-input" onchange="state.resultsDraft.classId = this.value; state.resultsDraft.subjectId = null; renderPage();" ${isDeadlinePassed ? 'disabled' : ''}>${myClasses.map(c => `<option value="${c.id}" ${c.id == selectedClassId ? 'selected' : ''}>${c.name}</option>`).join('')}</select></div>
       <div><label class="form-label">Select Subject</label><select class="form-input" onchange="state.resultsDraft.subjectId = this.value; renderPage();" ${isDeadlinePassed ? 'disabled' : ''}>${mySubjects.map(s => `<option value="${s.id}" ${s.id == selectedSubjectId ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
@@ -2986,7 +2990,8 @@ function renderReports() {
   if (state.classes.length === 0) return `<div class="card fade-up-1"><div class="section-title"><span>Reports</span></div><p class="text-slate-500 text-center py-6">No classes available.</p></div>`;
   
   const isAdmin = state.currentUser.role === 'admin';
-    const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
+  const isReportsDeadlinePassed = state.reportsDeadline ? new Date() > new Date(state.reportsDeadline) : false;
+  const canEditReport = ['admin', 'teacher', 'academic', 'headteacher'].includes(state.currentUser.role);
   const selectedClassId = state.selectedReportClassId;
   
   // Chuja madarasa kwa walimu (waone yale waliyopangiwa kufundisha au kuwa mwalimu wa darasa)
@@ -3012,7 +3017,7 @@ function renderReports() {
   if (selectedClassId && !isAdmin && !state.isClassReportsPublished) {
     reportLockHtml = `<div class="card fade-up-1 text-center p-12">
       <i class="fa-solid fa-lock text-5xl text-slate-300 mb-4"></i>
-      <h3 class="text-xl font-bold text-slate-700">Reports Not Yet Published</h3>
+      <h3 class="text-xl font-bold text-slate-700">Reports Are Not Yet Published</h3>
       <p class="text-slate-500 mt-2">The Admin has not published the reports for this class yet. Please check back later.</p>
     </div>`;
   }
@@ -3028,11 +3033,15 @@ function renderReports() {
         </select>
         
         ${selectedClassId ? `
-          ${isAdmin ? `
+            ${isAdmin ? `
             <button id="repPubBtn" class="btn-primary w-full mb-4" style="background: ${state.isClassReportsPublished ? '#DC2626' : '#047857'};" onclick="toggleReportPublish()">
               <i class="fa-solid ${state.isClassReportsPublished ? 'fa-lock' : 'fa-globe'} mr-1"></i> 
               ${state.isClassReportsPublished ? 'UNPUBLISH REPORTS' : 'PUBLISH REPORTS'}
             </button>
+            <button class="btn-ghost w-full mb-2" style="background: ${state.allowComments ? '#10B981' : '#64748B'}; color: white;" onclick="toggleAllowComments()">
+              <i class="fa-solid fa-comment-dots mr-1"></i> ${state.allowComments ? 'COMMENTS OPEN' : 'ALLOW COMMENTS'}
+            </button>
+            <button class="btn-ghost w-full mb-4" onclick="openDeadlineModal('reports')"><i class="fa-solid fa-clock mr-1"></i> ${state.reportsDeadline ? 'Change Reports Deadline' : 'Set Reports Deadline'}</button>
             <p class="text-xs text-slate-500 mb-4 text-center">${state.isClassReportsPublished ? 'Reports are visible to staff.' : 'Reports are hidden from non-admin staff.'}</p>
             <hr class="my-2 border-slate-200">
           ` : ''}
@@ -3048,8 +3057,9 @@ function renderReports() {
         ` : '<p class="text-slate-500 text-sm text-center py-4">Select a class to view reports.</p>'}
       </div>
     </div>
-    <div class="lg:col-span-2">
-      ${reportLockHtml ? reportLockHtml : `
+      <div class="lg:col-span-2">
+      <div id="reports-deadline-host">${getDeadlineCountdownHtml('reports')}</div>
+      ${reportLockHtml ? reportLockHtml : 
         <div class="card p-4">
           <div id="report-preview-wrapper" class="rep-page-container" style="height: 850px;">
             ${state.selectedReportStudentId ? generateReportHTML(state.selectedReportStudentId) : '<p class="text-white text-center p-6">Select a student to view report.</p>'}
@@ -3255,8 +3265,7 @@ function openReportEditModal(studentId) {
   const data = state.reportData[studentId] || {};
   const role = state.currentUser.role;
   let fields = '';
-  const isDeadlinePassed = state.marksDeadline ? new Date() > new Date(state.marksDeadline) : false;
-
+  const isDeadlinePassed = state.reportsDeadline ? new Date() > new Date(state.reportsDeadline) : false;
     if (role === 'teacher' || role === 'admin') {
     fields += `<div class="grid grid-cols-3 gap-3">
       <div><label class="form-label">Tabia (901-903)</label><input type="text" id="rd-b1" class="form-input" value="${data.behavior1 || ''}" ${isDeadlinePassed ? 'disabled' : ''}></div>
@@ -4893,6 +4902,99 @@ function printExamTimetable() {
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
+  
+  // ===== DEADLINES & COUNTDOWN LOGIC =====
+function openDeadlineModal(type) {
+  const currentDeadline = type === 'marks' ? state.marksDeadline : state.reportsDeadline;
+  const val = currentDeadline ? new Date(currentDeadline).toISOString().slice(0, 16) : '';
+  
+  const content = `<div class="modal-header" style="background: linear-gradient(135deg, #047857, #065F46); color: white; padding: 20px 24px; border-radius: 16px 16px 0 0;">
+      <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-clock"></i> Set ${type === 'marks' ? 'Marks Entry' : 'Reports'} Deadline</h3>
+      <button class="icon-btn" style="width:32px;height:32px; background: rgba(255,255,255,0.2); color: white;" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding: 24px; background: #f8fafc;">
+      <p style="font-size: 13px; color: #64748b; margin-bottom: 16px;">Select the exact date and time. Format: DD/MM/YY HH:MM</p>
+      <label class="form-label">Date & Time</label>
+      <input type="datetime-local" id="deadline-input" class="form-input" value="${val}">
+      <div class="modal-footer" style="padding: 0; border: none; margin-top: 24px;">
+        <button type="button" class="btn-ghost" style="color: red;" onclick="saveDeadline('${type}', true)">Clear Deadline</button>
+        <button type="button" class="btn-primary" onclick="saveDeadline('${type}')"><i class="fa-solid fa-check mr-1"></i> Save Deadline</button>
+      </div>
+    </div>`;
+
+  document.getElementById('modalHost').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this) closeModal()"><div class="modal-box" style="max-width: 450px; border-radius: 16px; overflow: hidden;">${content}</div></div>`;
+}
+
+function saveDeadline(type, clear = false) {
+  let isoStr = null;
+  if (!clear) {
+    const val = document.getElementById('deadline-input').value;
+    if (!val) return showToast('Please select a date and time.', 'error');
+    isoStr = new Date(val).toISOString();
+  }
+  
+  if (type === 'marks') {
+    state.marksDeadline = isoStr;
+    localStorage.setItem('korosho_marks_deadline', isoStr);
+  } else {
+    state.reportsDeadline = isoStr;
+    localStorage.setItem('korosho_reports_deadline', isoStr);
+  }
+  
+  closeModal();
+  renderPage();
+  showToast('The deadline is set successfully.', 'success');
+}
+
+function getDeadlineCountdownHtml(type) {
+  const deadline = type === 'marks' ? state.marksDeadline : state.reportsDeadline;
+  if (!deadline) return '';
+  
+  const target = new Date(deadline).getTime();
+  const now = Date.now();
+  const diff = target - now;
+  
+  const displayDate = new Date(deadline).toLocaleString('en-GB', { 
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false 
+  }).replace(',', '');
+  
+  let statusColor = '#047857';
+  let timeLeftText = '';
+  let icon = 'fa-hourglass-start';
+  
+  if (diff <= 0) {
+    timeLeftText = 'Deadline Passed!';
+    statusColor = '#DC2626';
+    icon = 'fa-hourglass-end';
+  } else {
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+    timeLeftText = `${days}d ${hours}h ${mins}m ${secs}s remaining`;
+    
+    if (days === 0 && hours < 12) { // Urgent
+      statusColor = '#D97706';
+      icon = 'fa-hourglass-half';
+    }
+  }
+  
+  return `<div style="background: ${statusColor}15; border: 1px solid ${statusColor}40; border-left: 5px solid ${statusColor}; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; font-size: 14px;">
+    <i class="fa-solid ${icon}" style="color: ${statusColor}; font-size: 20px; flex-shrink: 0;"></i>
+    <div>
+      <strong style="color: ${statusColor}; font-size: 15px;">${timeLeftText}</strong>
+      <div style="font-size: 12px; color: #64748b; margin-top: 2px;">${type === 'marks' ? 'Marks Entry' : 'Reports'} Deadline: ${displayDate}</div>
+    </div>
+  </div>`;
+}
+
+function tickDeadlines() {
+  const marksHost = document.getElementById('marks-deadline-host');
+  if (marksHost) marksHost.innerHTML = getDeadlineCountdownHtml('marks');
+  
+  const reportsHost = document.getElementById('reports-deadline-host');
+  if (reportsHost) reportsHost.innerHTML = getDeadlineCountdownHtml('reports');
+}
   
   checkSession();
 // ===== PWA SERVICE WORKER REGISTRATION =====
