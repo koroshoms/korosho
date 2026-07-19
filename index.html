@@ -3059,7 +3059,7 @@ function renderReports() {
     </div>
       <div class="lg:col-span-2">
       <div id="reports-deadline-host">${getDeadlineCountdownHtml('reports')}</div>
-      ${reportLockHtml ? reportLockHtml : 
+        ${reportLockHtml ? reportLockHtml : `
         <div class="card p-4">
           <div id="report-preview-wrapper" class="rep-page-container" style="height: 850px;">
             ${state.selectedReportStudentId ? generateReportHTML(state.selectedReportStudentId) : '<p class="text-white text-center p-6">Select a student to view report.</p>'}
