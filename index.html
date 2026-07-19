@@ -3774,6 +3774,8 @@ function renderBulkImport() {
     </div>
 
     <div class="space-y-4">
+      <button class="btn-ghost w-full" onclick="downloadSampleCSV()"><i class="fa-solid fa-file-arrow-down mr-1"></i> Download Sample CSV Template (Excel)</button>
+      
       <div>
         <label class="form-label">Upload CSV File</label>
         <input type="file" id="csv-file" accept=".csv" class="form-input" style="padding: 10px;">
@@ -3833,7 +3835,33 @@ async function processCSV() {
   };
   
   reader.readAsText(file);
-}  
+}
+
+function downloadSampleCSV() {
+  // Vichwa vya habari vinavyotakiwa kwenye mfumo
+  const headers = ['name', 'class_name', 'gender', 'age', 'parent_name', 'parent_phone'];
+  
+  // Mfano wa data ya wanafunzi ili kuwaongoza walimu
+  const sampleRow1 = ['SHADAFI SAIDI HAMISI', 'STANDARD I', 'M', '8', 'SAIDI HAMISI', '+255613367354'];
+  const sampleRow2 = ['LIPI ALLY SELEMANI', 'STANDARD II', 'F', '9', 'ALLY SELEMANI', '+255787654321'];
+  
+  // Jenga muundo wa CSV
+  let csvContent = headers.join(',') + '\n' + sampleRow1.join(',') + '\n' + sampleRow2.join(',') + '\n';
+
+  // Fanya iweze kupakuliwa kama faili
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Korosho_Students_Template.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  
+  showToast('Sample CSV template downloaded! Check your downloads folder.', 'success');
+}
+  
 // ===== DARK MODE LOGIC =====
 function toggleDarkMode() {
   document.body.classList.toggle('dark-mode');
