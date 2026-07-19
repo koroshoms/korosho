@@ -3771,6 +3771,7 @@ function renderBulkImport() {
       <code class="text-xs bg-white p-2 block rounded border border-slate-200 text-emerald-700">name, class_name, gender, age, parent_name, parent_phone</code>
       <p class="text-xs text-slate-500 mt-2">* <b>class_name</b> must match exactly a class already in the system (e.g., Standard III).</p>
       <p class="text-xs text-slate-500">* <b>gender</b> must be 'M' or 'F'.</p>
+      <p class="text-xs text-slate-500 mt-2"><i class="fa-solid fa-circle-info text-blue-500"></i> <b>Tip:</b> Kwenye Excel au Google Sheets, unaweza kupanua columns kwa kubonyeza kichwa cha column na kuvuta kando yake.</p>
     </div>
 
     <div class="space-y-4">
@@ -3778,7 +3779,8 @@ function renderBulkImport() {
       
       <div>
         <label class="form-label">Upload CSV File</label>
-        <input type="file" id="csv-file" accept=".csv" class="form-input" style="padding: 10px;">
+        <!-- TUMEOONDOA accept=".csv" ILI SIMU IWEZE KUONA FAILI LOLOTE -->
+        <input type="file" id="csv-file" class="form-input" style="padding: 10px;">
       </div>
       <button class="btn-primary w-full" onclick="processCSV()"><i class="fa-solid fa-upload mr-1"></i> Process & Import Students</button>
     </div>
@@ -3794,16 +3796,18 @@ async function processCSV() {
   
   reader.onload = async (e) => {
     const text = e.target.result;
-    const rows = text.split('\n').filter(r => r.trim() !== '');
+    // Gawa kwa mstari, na ondoa mistari iliyo wazi
+    const rows = text.split(/\r?\n/).filter(r => r.trim() !== '');
     
     if (rows.length < 2) return showToast('CSV file is empty or missing data', 'error');
     
-    // Skip header row (row[0])
     const studentsToInsert = [];
     let skipped = 0;
     
+    // Ruka kichwa cha habari (row[0])
     for (let i = 1; i < rows.length; i++) {
-      const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, '')); // remove quotes if exists
+      // Tumia regex kuweza kusoma data hata kama ina nukta (") au koma (,) ndani yake
+      const cols = rows[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, ''));
       if (cols.length < 6) { skipped++; continue; }
       
       const [name, className, gender, age, parentName, parentPhone] = cols;
@@ -3817,8 +3821,12 @@ async function processCSV() {
       }
       
       studentsToInsert.push({
-        name, class_id: cls.id, gender: gender.toUpperCase().startsWith('F') ? 'F' : 'M',
-        age: Number(age) || 10, parent_name: parentName, parent_phone: parentPhone
+        name, 
+        class_id: cls.id, 
+        gender: gender.toUpperCase().startsWith('F') ? 'F' : 'M',
+        age: Number(age) || 10, 
+        parent_name: parentName, 
+        parent_phone: parentPhone
       });
     }
     
@@ -3838,11 +3846,11 @@ async function processCSV() {
 }
 
 function downloadSampleCSV() {
-  // Vichwa vya habari vinavyotakiwa kwenye mfumo
-  const headers = ['name', 'class_name', 'gender', 'age', 'parent_name', 'parent_phone'];
+  // Vichwa vya habari vimepewa nafasi ili Excel ziexpand automatic
+  const headers = ['name                  ', 'class_name       ', 'gender', 'age', 'parent_name           ', 'parent_phone        '];
   
-  // Mfano wa data ya wanafunzi ili kuwaongoza walimu
-  const sampleRow1 = ['SHADAFI SAIDI HAMISI', 'STANDARD I', 'M', '8', 'SAIDI HAMISI', '+255613367354'];
+  // Mfano wa data
+  const sampleRow1 = ['SHADAFI SAIDI HAMISI', 'STANDARD I', 'M', '8', 'SAIDI HAMISI NGUYAHAMBI', '+255712345678'];
   const sampleRow2 = ['LIPI ALLY SELEMANI', 'STANDARD II', 'F', '9', 'ALLY SELEMANI', '+255787654321'];
   
   // Jenga muundo wa CSV
