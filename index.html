@@ -859,7 +859,7 @@ function renderDashboard() {
         ${n.priority==='high'?'<span class="badge badge-red"><i class="fa-solid fa-exclamation"></i> High</span>':'<span class="badge badge-green">Normal</span>'}
       </div>
       <p class="text-xs text-slate-500 line-clamp-2">${n.body}</p>
-      <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400"><span><i class="fa-solid fa-user mr-1"></i> ${n.profiles?.full_name || 'Unknown'}</span><span><i class="fa-solid fa-calendar mr-1"></i> ${new Date(n.created_at).toLocaleDateString()}</span></div>
+      <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400"><span><i class="fa-solid fa-user mr-1"></i> ${({admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Office', teacher: 'Teacher'})[n.profiles?.role] || 'Unknown'}</span><span><i class="fa-solid fa-calendar mr-1"></i> ${new Date(n.created_at).toLocaleDateString()}</span></div>
     </div>
   `).join('');
   const highPriorityNotices = state.notices.filter(n => n.priority === 'high').slice(0, 3);
@@ -2018,7 +2018,7 @@ function renderNotices() {
           <p class="text-sm text-slate-600 leading-relaxed">${n.body}</p>
           <div class="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
             <div class="avatar" style="width:26px;height:26px;font-size:10px;background:linear-gradient(135deg,#047857,#10B981);">${n.profiles?.full_name?.split(' ').map(x=>x[0]).join('').slice(0,2) || '??'}</div>
-            <span class="text-xs text-slate-600">Posted by <strong>${n.profiles?.full_name || 'Unknown'}</strong></span>
+            <span class="text-xs text-slate-600">Posted by <strong>${({admin: 'Administrator', headteacher: 'Headteacher', academic: 'Academic Office', teacher: 'Teacher'})[n.profiles?.role] || 'Unknown'}</strong></span>
           </div>
         </div>`).join('')}
     </div>
