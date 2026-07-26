@@ -2697,8 +2697,7 @@ async function saveExamEdit() {
   if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const examIdNum = parseInt(state.examEditId);
-  const exam = state.exams.find(e => e.id === examIdNum);
+  const exam = state.exams.find(e => String(e.id) === String(state.examEditId));
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
@@ -2714,24 +2713,12 @@ async function saveExamEdit() {
   if (exam && exam.status === 'approved') { updateData.status = 'approved'; }
   else { updateData.status = 'pending'; }
 
-  // ── FIX: edited_by ni UUID, column ni integer. Tutumie timestamp tu kama alama ya edit ──
-  // Weka edited_by KAMA column ni UUID type, otherwise skip it
-  try {
-    // Jaribu kuweka UUID — kama column ni UUID itafanya kazi
-    const { error: testErr } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr) {
-      updateData.edited_by = state.currentUser.id;
-    }
-  } catch(e) {
-    // Column ni integer, skip edited_by
-  }
-
-  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
+  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', state.examEditId);
   if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
 
-  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
+  await supabase.from('exam_questions').delete().eq('exam_id', state.examEditId);
   const questionsData = state.examQuestions.map((q, i) => ({
-    exam_id: examIdNum,
+    exam_id: state.examEditId,
     type: q.type,
     question_type: q.type,
     question_text: q.text || '',
