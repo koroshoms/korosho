@@ -2773,9 +2773,8 @@ async function saveExamEditAndApprove() {
   if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  // Katika Supabase queries, tumia state.examEditId moja kwa moja:
-.eq('id', state.examEditId)    // Supabase inajua type conversion
-.eq('exam_id', state.examEditId)  // Kwa exam_questions table
+  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', state.examEditId);
+await supabase.from('exam_questions').delete().eq('exam_id', state.examEditId);
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
