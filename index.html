@@ -3111,38 +3111,78 @@ function renderExamReview() {
 }
   
 function previewExam(examId) {
-  const exam = state.exams.find(e => e.id === examId);
-  if (!exam) return;
+  const examIdNum = parseInt(examId);
+  const exam = state.exams.find(e => e.id === examIdNum);
+  if (!exam) { showToast('Exam not found', 'error'); return; }
 
   const cls = state.classes.find(c => c.id === exam.class_id);
   const subj = state.subjects.find(s => s.id === exam.subject_id);
   const teacher = state.teachers.find(t => t.id === exam.created_by);
   const settings = getExamSettings(exam.class_id);
+  const isAdmin = state.currentUser.role === 'admin';
+  const tName = teacher ? teacher.full_name : (exam.profiles?.full_name || 'Unknown');
 
-  showModal(`
-    <div class="modal-header">
-      <h3 class="text-lg font-bold">Exam Preview</h3>
-      <button onclick="closeModal()"><i class="fa-solid fa-xmark text-slate-400 hover:text-slate-600"></i></button>
-    </div>
-    <div class="modal-body">
-      <div class="space-y-3">
-        <div class="flex justify-between"><span class="text-slate-500">Title:</span><span class="font-semibold">${exam.title || settings.examTitle}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Class:</span><span class="font-semibold">${cls ? cls.name : 'N/A'}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Subject:</span><span class="font-semibold">${subj ? subj.name : 'N/A'}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Teacher:</span><span class="font-semibold">${teacher ? teacher.full_name : (exam.profiles?.full_name || 'N/A')}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Status:</span><span class="badge ${exam.status === 'approved' ? 'badge-green' : exam.status === 'rejected' ? 'badge-red' : 'badge-amber'}">${exam.status}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Questions:</span><span class="font-semibold">${exam.question_count || 'N/A'}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Total Marks:</span><span class="font-semibold">${exam.total_marks || 'N/A'}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Time Allowed:</span><span class="font-semibold">${exam.time_allowed || settings.timeAllowed}</span></div>
-        ${exam.instructions ? `<div class="mt-3"><span class="text-slate-500 text-xs font-semibold uppercase block mb-1">Instructions:</span><p class="text-sm">${exam.instructions}</p></div>` : ''}
-        ${exam.edited_by ? `<div class="mt-3 bg-purple-50 p-3 rounded-lg text-sm"><i class="fa-solid fa-pen-to-square text-purple-500 mr-1"></i> This exam was edited by an administrator on ${new Date(exam.edited_at).toLocaleDateString()}</div>` : ''}
-      </div>
-    </div>
-    <div class="modal-footer">
-      ${state.currentUser.role === 'admin' ? `<button class="btn-ghost border-purple-200 text-purple-600" onclick="closeModal(); editExam('${exam.id}')"><i class="fa-solid fa-pen mr-1"></i>Edit</button>` : ''}
-      <button class="btn-ghost" onclick="closeModal()">Close</button>
-    </div>
-  `);
+  // Parse questions for display
+  let questionsList = [];
+  if (exam.questions) {
+    try {
+      const parsed = typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions;
+      questionsList = parsed;
+    } catch(e) { questionsList = []; }
+  }
+
+  // Build questions HTML for the preview
+  let questionsHtml = '';
+  if (questionsList.length > 0) {
+    questionsHtml = '<div style="margin-top:12px;max-height:300px;overflow-y:auto"><div style="font-weight:bold;margin-bottom:8px;font-size:13px">Questions Preview:</div>';
+    questionsList.forEach((q, i) => {
+      const qType = q.type || q.question_type || 'unknown';
+      const qText = q.text || q.question_text || 'No text';
+      questionsHtml += '<div style="background:#F8FAFC;padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:12px">';
+      questionsHtml += '<div style="font-weight:600">Q' + (i+1) + ' (' + qType + ') — ' + (q.marks || 5) + ' marks</div>';
+      questionsHtml += '<div style="color:#64748B;margin-top:2px">' + qText.substring(0, 100) + (qText.length > 100 ? '...' : '') + '</div>';
+      questionsHtml += '</div>';
+    });
+    questionsHtml += '</div>';
+  }
+
+  // Edited note
+  let editedNote = '';
+  if (exam.edited_by) {
+    const editor = state.teachers.find(t => t.id === exam.edited_by);
+    editedNote = '<div style="background:#F3E8FF;border:1px solid #C4B5FD;border-radius:8px;padding:10px;margin-top:12px;font-size:13px"><i class="fa-solid fa-pen-to-square text-purple-500" style="margin-right:4px"></i> Edited by <strong>' + (editor ? editor.full_name : 'Admin') + '</strong> on ' + new Date(exam.edited_at).toLocaleDateString() + '</div>';
+  }
+
+  // Rejection reason
+  let rejectionNote = '';
+  if (exam.status === 'rejected' && exam.rejection_reason) {
+    rejectionNote = '<div style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:10px;margin-top:12px;font-size:13px;color:#991B1B"><i class="fa-solid fa-exclamation-triangle" style="margin-right:4px"></i> Rejection Reason: <strong>' + exam.rejection_reason + '</strong></div>';
+  }
+
+  showModal(
+    '<div class="modal-header"><h3 class="text-lg font-bold">Exam Preview</h3><button onclick="closeModal()" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-xmark text-slate-400"></i></button></div>' +
+    '<div class="modal-body">' +
+      '<div style="display:flex;flex-direction:column;gap:12px">' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Title:</span><span style="font-weight:600">' + (exam.title || settings.examTitle) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Class:</span><span style="font-weight:600">' + (cls ? cls.name : 'N/A') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Subject:</span><span style="font-weight:600">' + (subj ? subj.name : 'N/A') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Teacher:</span><span style="font-weight:600">' + tName + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Status:</span><span class="badge ' + (exam.status === 'approved' ? 'badge-green' : exam.status === 'rejected' ? 'badge-red' : 'badge-amber') + '">' + (exam.status || 'pending') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Questions:</span><span style="font-weight:600">' + (exam.question_count || questionsList.length || 'N/A') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Total Marks:</span><span style="font-weight:600">' + (exam.total_marks || 'N/A') + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Time:</span><span style="font-weight:600">' + (exam.time_allowed || settings.timeAllowed) + '</span></div>' +
+        (exam.instructions ? '<div><span style="color:#64748B;font-size:11px;font-weight:600;text-transform:uppercase">Instructions:</span><p style="font-size:13px;margin-top:4px">' + exam.instructions + '</p></div>' : '') +
+        rejectionNote +
+        editedNote +
+        questionsHtml +
+      '</div>' +
+    '</div>' +
+    '<div class="modal-footer">' +
+      (isAdmin ? '<button class="btn-ghost" style="border-color:#C4B5FD;color:#6B21A8" onclick="closeModal();editExam(\'' + exam.id + '\')"><i class="fa-solid fa-pen" style="margin-right:4px"></i>Edit</button>' : '') +
+      (isAdmin && exam.status !== 'approved' ? '<button class="btn-primary" style="background:linear-gradient(135deg,#16A34A,#10B981);font-size:13px;padding:8px 16px" onclick="closeModal();approveExam(\'' + exam.id + '\')"><i class="fa-solid fa-check" style="margin-right:4px"></i>Approve</button>' : '') +
+      '<button class="btn-ghost" onclick="closeModal()">Close</button>' +
+    '</div>'
+  );
 }
 
 async function approveExam(examId) {
@@ -3213,52 +3253,66 @@ function closeModal() {
   async function editExam(examId) {
   if (state.currentUser.role !== 'admin') { showToast('Only admins can edit submitted exams', 'error'); return; }
 
-  // ── FIX: Tumia examId (parameter) sio state.examEditId ──
-  // ── FIX: Badilisha examId kuwa number ili iambatane na integer id ──
-  const exam = state.exams.find(e => e.id === parseInt(examId));
+  const examIdNum = parseInt(examId);
+  const exam = state.exams.find(e => e.id === examIdNum);
   if (!exam) { showToast('Exam not found', 'error'); return; }
 
   // Load questions from database
-  const { data: questions, error: qError } = await supabase.from('exam_questions').select('*').eq('exam_id', parseInt(examId)).order('order_index', { ascending: true });
+  const { data: questions, error: qError } = await supabase.from('exam_questions').select('*').eq('exam_id', examIdNum).order('order_index', { ascending: true });
 
   if (qError || !questions || questions.length === 0) {
-    // Fallback: load from JSON in exam row
+    // Fallback: load from JSON in exam row — keep ALL properties as-is
     let parsed = [];
     if (exam.questions) { 
       try { parsed = typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions; } catch(e) { parsed = []; } 
     }
-    state.examQuestions = parsed.map(q => ({
-      type: q.type || 'short_answer',
-      text: q.text || q.question_text || '',
-      options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-      answer: q.answer || q.correct_answer || '',
-      marks: q.marks || 5,
-      leftItems: (q.leftItems || q.left_items) ? (typeof(q.leftItems || q.left_items) === 'string' ? JSON.parse(q.leftItems || q.left_items) : (q.leftItems || q.left_items)) : [],
-      rightItems: (q.rightItems || q.right_items) ? (typeof(q.rightItems || q.right_items) === 'string' ? JSON.parse(q.rightItems || q.right_items) : (q.rightItems || q.right_items)) : [],
-      blanks: q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : [],
-      instructions: q.instructions || ''
-    }));
+    state.examQuestions = parsed.map(q => {
+      // Keep ALL properties from the original question object
+      const cleaned = { ...q };
+      // Only parse JSON strings for nested arrays/objects
+      try { if (typeof cleaned.options === 'string') cleaned.options = JSON.parse(cleaned.options); } catch(e) {}
+      try { if (typeof cleaned.leftItems === 'string') cleaned.leftItems = JSON.parse(cleaned.leftItems); } catch(e) {}
+      try { if (typeof cleaned.rightItems === 'string') cleaned.rightItems = JSON.parse(cleaned.rightItems); } catch(e) {}
+      try { if (typeof cleaned.blanks === 'string') cleaned.blanks = JSON.parse(cleaned.blanks); } catch(e) {}
+      try { if (typeof cleaned.left_items === 'string') { cleaned.leftItems = JSON.parse(cleaned.left_items); } } catch(e) {}
+      try { if (typeof cleaned.right_items === 'string') { cleaned.rightItems = JSON.parse(cleaned.right_items); } } catch(e) {}
+      // Map database column names to UI property names
+      if (cleaned.question_text && !cleaned.text) cleaned.text = cleaned.question_text;
+      if (cleaned.correct_answer && !cleaned.answer) cleaned.answer = cleaned.correct_answer;
+      if (cleaned.question_type && !cleaned.type) cleaned.type = cleaned.question_type;
+      return cleaned;
+    });
   } else {
-    state.examQuestions = questions.map(q => ({
-      id: q.id,
-      type: q.type || q.question_type || 'short_answer',
-      text: q.question_text || '',
-      options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-      answer: q.correct_answer || '',
-      marks: q.marks || 5,
-      leftItems: q.left_items ? (typeof q.left_items === 'string' ? JSON.parse(q.left_items) : q.left_items) : [],
-      rightItems: q.right_items ? (typeof q.right_items === 'string' ? JSON.parse(q.right_items) : q.right_items) : [],
-      blanks: q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : [],
-      instructions: q.instructions || ''
-    }));
+    // Load from exam_questions table — map ALL properties
+    state.examQuestions = questions.map(q => {
+      const cleaned = {
+        id: q.id,
+        type: q.type || q.question_type || 'short',
+        text: q.question_text || '',
+        answer: q.correct_answer || '',
+        marks: q.marks || 5,
+        instructions: q.instructions || ''
+      };
+      try { cleaned.options = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []; } catch(e) { cleaned.options = []; }
+      try { cleaned.leftItems = q.left_items ? (typeof q.left_items === 'string' ? JSON.parse(q.left_items) : q.left_items) : []; } catch(e) { cleaned.leftItems = []; }
+      try { cleaned.rightItems = q.right_items ? (typeof q.right_items === 'string' ? JSON.parse(q.right_items) : q.right_items) : []; } catch(e) { cleaned.rightItems = []; }
+      try { cleaned.blanks = q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : []; } catch(e) { cleaned.blanks = []; }
+      return cleaned;
+    });
   }
 
   state.examEditMode = true;
-  state.examEditId = parseInt(examId);
+  state.examEditId = examIdNum;
   state.examEditOriginalClassId = exam.class_id;
   state.examEditOriginalSubjectId = exam.subject_id;
   const settings = getExamSettings(exam.class_id);
-  state.examDraft = { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title || settings.examTitle, customInstruction: exam.instructions || settings.instructions, isDirty: false };
+  state.examDraft = { 
+    classId: exam.class_id, 
+    subjectId: exam.subject_id, 
+    title: exam.title || settings.examTitle, 
+    customInstruction: exam.instructions || settings.instructions, 
+    isDirty: false 
+  };
   showToast('Editing exam: ' + (exam.title || 'Untitled'), 'info');
   navigateTo('exam-set');
 }
