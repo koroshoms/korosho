@@ -3062,7 +3062,7 @@ function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?
 
 function renderExamReview() {
   const isAdmin = state.currentUser.role === 'admin';
-  const pendingExams = state.exams.filter(e => e.status === 'pending' || e.status === 'submitted');
+  const pendingExams = state.exams.filter(e => !e.status || e.status === '' || e.status === 'pending' || e.status === 'submitted' || e.status === 'draft');
   const approvedExams = state.exams.filter(e => e.status === 'approved');
   const rejectedExams = state.exams.filter(e => e.status === 'rejected');
 
@@ -3130,7 +3130,8 @@ function renderExamReview() {
 }
   
 function previewExam(examId) {
-  const exam = state.exams.find(e => String(e.id) === String(examId));
+  const examIdNum = parseInt(examId);
+  const exam = state.exams.find(e => e.id === examIdNum);
   if (!exam) { showToast('Exam not found', 'error'); return; }
 
   const cls = state.classes.find(c => c.id === exam.class_id);
@@ -3272,7 +3273,7 @@ function closeModal() {
   if (state.currentUser.role !== 'admin') { showToast('Only admins can edit submitted exams', 'error'); return; }
 
   const examIdNum = parseInt(examId);
-  const exam = state.exams.find(e => String(e.id) === String(examId));
+  const exam = state.exams.find(e => e.id === examIdNum);
   if (!exam) { showToast('Exam not found', 'error'); return; }
 
   // Load questions from database
