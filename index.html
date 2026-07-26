@@ -2747,7 +2747,6 @@ async function saveExamEditAndApprove() {
   if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const examIdNum = parseInt(state.examEditId);
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
@@ -2763,23 +2762,12 @@ async function saveExamEditAndApprove() {
     questions: JSON.stringify(state.examQuestions)
   };
 
-  // ── FIX: Same approach — jaribu UUID, kama column ni integer skip ──
-  try {
-    const { error: testErr1 } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr1) { updateData.edited_by = state.currentUser.id; }
-  } catch(e) {}
-
-  try {
-    const { error: testErr2 } = await supabase.from('exams').update({ approved_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr2) { updateData.approved_by = state.currentUser.id; }
-  } catch(e) {}
-
-  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
+  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', state.examEditId);
   if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
 
-  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
+  await supabase.from('exam_questions').delete().eq('exam_id', state.examEditId);
   const questionsData = state.examQuestions.map((q, i) => ({
-    exam_id: examIdNum,
+    exam_id: state.examEditId,
     type: q.type,
     question_type: q.type,
     question_text: q.text || '',
