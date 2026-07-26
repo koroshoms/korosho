@@ -516,79 +516,66 @@ async function logout() {
 }
 
 async function fetchAllData() {
-  try {
-    const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
-    let profilesMap = {};
-    if (!pErr && profiles) {
-      state.teachers = profiles.filter(p => ['teacher', 'academic', 'headteacher', 'admin'].includes(p.role)) || [];
-      profiles.forEach(p => { profilesMap[p.id] = p; });
-    } else {
-      state.teachers = [];
-    }
-
-    const [classesRes, subjectsRes, studentsRes, noticesRes, examsRes, resultsRes, classSubsRes, ttStatusRes] = await Promise.all([
-      supabase.from('classes').select('*'),
-      supabase.from('subjects').select('*'),
-      supabase.from('students').select('*'),
-      supabase.from('notices').select('*').order('created_at', { ascending: false }),
-      supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false }),
-      supabase.from('results').select('*'),
-      supabase.from('class_subjects').select('*'),
-      supabase.from('timetable_status').select('*')
-    ]);
-
-    // exam_questions — fetch KIPEKE YAKE ili kama inafail, app isife
-    let eqRes = { data: [], error: null };
-    try {
-      eqRes = await supabase.from('exam_questions').select('*').order('order_index', { ascending: true });
-    } catch (eqErr) {
-      console.warn('exam_questions fetch skipped:', eqErr);
-      eqRes = { data: [], error: eqErr };
-    }
-
-    if (!classesRes.error && classesRes.data) {
-      state.classes = classesRes.data.map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
-    } else { state.classes = []; }
-
-    if (!subjectsRes.error && subjectsRes.data) {
-      state.subjects = subjectsRes.data.map(s => ({ ...s, profiles: s.teacher_id ? profilesMap[s.teacher_id] : null }));
-    } else { state.subjects = []; }
-
-    if (!studentsRes.error && studentsRes.data) {
-      const classesMap = {};
-      state.classes.forEach(c => classesMap[c.id] = c);
-      state.students = studentsRes.data.map(st => ({ ...st, classes: st.class_id ? classesMap[st.class_id] : null }));
-    } else { state.students = []; }
-
-    if (!noticesRes.error && noticesRes.data) {
-      state.notices = noticesRes.data.map(n => ({ ...n, profiles: n.author_id ? profilesMap[n.author_id] : null }));
-    } else { state.notices = []; }
-
-    if (!examsRes.error && examsRes.data) {
-      state.exams = examsRes.data;
-    } else { state.exams = []; }
-
-    if (!resultsRes.error && resultsRes.data) {
-      state.results = resultsRes.data;
-    } else { state.results = []; }
-
-    if (!classSubsRes.error && classSubsRes.data) {
-      state.classSubjects = classSubsRes.data;
-    } else { state.classSubjects = []; }
-
-    if (!ttStatusRes.error && ttStatusRes.data) {
-      state.timetableStatus = ttStatusRes.data;
-    } else { state.timetableStatus = []; }
-
-    if (!eqRes.error && eqRes.data) {
-      state.allExamQuestions = eqRes.data;
-    } else { state.allExamQuestions = []; }
-
-    loadReportDataLocally();
-  } catch (mainErr) {
-    console.error('fetchAllData error:', mainErr);
-    showToast('Failed to load data. Please refresh.', 'error');
+  const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
+  let profilesMap = {};
+  if (!pErr && profiles) {
+    state.teachers = profiles.filter(p => ['teacher', 'academic', 'headteacher', 'admin'].includes(p.role)) || [];
+    profiles.forEach(p => { profilesMap[p.id] = p; });
+  } else {
+    state.teachers = [];
   }
+
+  const [classesRes, subjectsRes, studentsRes, noticesRes, examsRes, resultsRes, classSubsRes, ttStatusRes, eqRes] = await Promise.all([
+    supabase.from('classes').select('*'),
+    supabase.from('subjects').select('*'),
+    supabase.from('students').select('*'),
+    supabase.from('notices').select('*').order('created_at', { ascending: false }),
+    supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false }),
+    supabase.from('results').select('*'),
+    supabase.from('class_subjects').select('*'),
+    supabase.from('timetable_status').select('*'),
+    supabase.from('exam_questions').select('*').order('order_index', { ascending: true })
+  ]);
+
+  if (!classesRes.error && classesRes.data) {
+    state.classes = classesRes.data.map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
+  } else { state.classes = []; }
+
+  if (!subjectsRes.error && subjectsRes.data) {
+    state.subjects = subjectsRes.data.map(s => ({ ...s, profiles: s.teacher_id ? profilesMap[s.teacher_id] : null }));
+  } else { state.subjects = []; }
+
+  if (!studentsRes.error && studentsRes.data) {
+    const classesMap = {};
+    state.classes.forEach(c => classesMap[c.id] = c);
+    state.students = studentsRes.data.map(st => ({ ...st, classes: st.class_id ? classesMap[st.class_id] : null }));
+  } else { state.students = []; }
+
+  if (!noticesRes.error && noticesRes.data) {
+    state.notices = noticesRes.data.map(n => ({ ...n, profiles: n.author_id ? profilesMap[n.author_id] : null }));
+  } else { state.notices = []; }
+
+  if (!examsRes.error && examsRes.data) {
+    state.exams = examsRes.data;
+  } else { state.exams = []; }
+
+  if (!resultsRes.error && resultsRes.data) {
+    state.results = resultsRes.data;
+  } else { state.results = []; }
+
+  if (!classSubsRes.error && classSubsRes.data) {
+    state.classSubjects = classSubsRes.data;
+  } else { state.classSubjects = []; }
+
+  if (!ttStatusRes.error && ttStatusRes.data) {
+    state.timetableStatus = ttStatusRes.data;
+  } else { state.timetableStatus = []; }
+
+  if (!eqRes.error && eqRes.data) {
+    state.allExamQuestions = eqRes.data;
+  } else { state.allExamQuestions = []; }
+
+  loadReportDataLocally();
 }
 
 function loadReportDataLocally() {
@@ -2773,8 +2760,9 @@ async function saveExamEditAndApprove() {
   if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', state.examEditId);
-await supabase.from('exam_questions').delete().eq('exam_id', state.examEditId);
+  // Katika Supabase queries, tumia state.examEditId moja kwa moja:
+.eq('id', state.examEditId)    // Supabase inajua type conversion
+.eq('exam_id', state.examEditId)  // Kwa exam_questions table
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
