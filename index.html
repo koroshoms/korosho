@@ -2708,17 +2708,27 @@ async function saveExamEdit() {
     instructions: state.examDraft.customInstruction,
     total_marks: totalMarks,
     question_count: state.examQuestions.length,
-    edited_by: state.currentUser.id,
     edited_at: new Date().toISOString(),
     questions: JSON.stringify(state.examQuestions)
   };
   if (exam && exam.status === 'approved') { updateData.status = 'approved'; }
   else { updateData.status = 'pending'; }
 
+  // ── FIX: edited_by ni UUID, column ni integer. Tutumie timestamp tu kama alama ya edit ──
+  // Weka edited_by KAMA column ni UUID type, otherwise skip it
+  try {
+    // Jaribu kuweka UUID — kama column ni UUID itafanya kazi
+    const { error: testErr } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
+    if (!testErr) {
+      updateData.edited_by = state.currentUser.id;
+    }
+  } catch(e) {
+    // Column ni integer, skip edited_by
+  }
+
   const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
   if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
 
-  // Delete old questions and insert new
   await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
   const questionsData = state.examQuestions.map((q, i) => ({
     exam_id: examIdNum,
@@ -2761,12 +2771,21 @@ async function saveExamEditAndApprove() {
     total_marks: totalMarks,
     question_count: state.examQuestions.length,
     status: 'approved',
-    approved_by: state.currentUser.id,
     approved_at: new Date().toISOString(),
-    edited_by: state.currentUser.id,
     edited_at: new Date().toISOString(),
     questions: JSON.stringify(state.examQuestions)
   };
+
+  // ── FIX: Same approach — jaribu UUID, kama column ni integer skip ──
+  try {
+    const { error: testErr1 } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
+    if (!testErr1) { updateData.edited_by = state.currentUser.id; }
+  } catch(e) {}
+
+  try {
+    const { error: testErr2 } = await supabase.from('exams').update({ approved_by: state.currentUser.id }).eq('id', examIdNum);
+    if (!testErr2) { updateData.approved_by = state.currentUser.id; }
+  } catch(e) {}
 
   const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
   if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
