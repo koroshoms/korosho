@@ -1,4 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- PWA Manifest & Theme -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#047857">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Korosho English Mediu School — Management Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --primary: #047857; --primary-light: #10B981; --primary-dark: #065F46;
+  --accent: #D97706; --accent-light: #F59E0B;
+  --sidebar-bg: #0F172A; --sidebar-hover: #1E293B;
+  --app-bg: #F1F5F9; --card: #FFFFFF; --text: #0F172A;
+  --muted: #64748B; --border: #E2E8F0;
+  --danger: #DC2626; --success: #16A34A; --warning: #F59E0B;
+  --info: #0EA5E9; --purple: #9333EA;
+}
 
+/* ===== SPLASH SCREEN STYLES ===== */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(rgba(15, 23, 42, 0.85), rgba(6, 95, 70, 0.85)), url('students.jpg') center/cover no-repeat;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: white;
