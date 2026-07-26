@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>Korosho English Mediu School — Management Portal</title>
+<title>Korosho English Medium School — Management Portal</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Jost:ital,wght@0,400;0,600;0,700&display=swap" rel="stylesheet">
@@ -261,9 +261,7 @@ select.form-input { cursor: pointer; }
 .rep-instructions { font-size: 9pt; padding-left: 4mm; margin: 0; }
 .rep-instructions li { margin-bottom: 1mm; }
 .rep-signatures { display: flex; justify-content: space-between; margin-top: 5mm; font-size: 9pt; font-weight: bold; }
- .edit-banner { background: linear-gradient(135deg, #F3E8FF, #EDE9FE); border: 1px solid #C4B5FD; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
-body.dark-mode .edit-banner { background: linear-gradient(135deg, rgba(147,51,234,.15), rgba(147,51,234,.08)); border-color: rgba(147,51,234,.3); }
-  
+ 
   /* ===== DARK MODE STYLES ===== */
 body.dark-mode { background: #0F172A; color: #E2E8F0; }
 body.dark-mode .card { background: #1E293B; border-color: #334155; }
@@ -388,7 +386,7 @@ const LOGO_URL = 'https://svlcwdxwnrrwoesjnklj.supabase.co/storage/v1/object/sig
 
 const state = {
   currentUser: null, currentPage: 'dashboard',
-  teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [], allExamQuestions: [],
+  teachers: [], students: [], classes: [], subjects: [], notices: [], exams: [], results: [],
   examConfig: {
     default: { 
       defaultQuestions: 5, fontType: 'Century Gothic', fontSize: 12, headingFontSize: 14, headingLineSpacing: 1.15,
@@ -402,10 +400,6 @@ const state = {
   },
   examQuestions: [], timetable: null,
   examDraft: { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true },
-  examEditMode: false,
-examEditId: null,
-examEditOriginalClassId: null,
-examEditOriginalSubjectId: null,
   resultsDraft: { subjectId: null, classId: null },
   selectedReportClassId: null,
   classSubjects: [],
@@ -516,6 +510,7 @@ async function logout() {
 }
 
 async function fetchAllData() {
+  // 1. Pata profiles kwanza (zinahitajika kuunda profilesMap)
   const { data: profiles, error: pErr } = await supabase.from('profiles').select('*');
   let profilesMap = {};
   if (!pErr && profiles) {
@@ -525,7 +520,8 @@ async function fetchAllData() {
     state.teachers = [];
   }
 
-  const [classesRes, subjectsRes, studentsRes, noticesRes, examsRes, resultsRes, classSubsRes, ttStatusRes, eqRes] = await Promise.all([
+  // 2. Omba data zote nyingine kwa wakati mmoja (Parallel Fetching)
+  const [classesRes, subjectsRes, studentsRes, noticesRes, examsRes, resultsRes, classSubsRes, ttStatusRes] = await Promise.all([
     supabase.from('classes').select('*'),
     supabase.from('subjects').select('*'),
     supabase.from('students').select('*'),
@@ -533,10 +529,10 @@ async function fetchAllData() {
     supabase.from('exams').select('*, classes(name), subjects(name), profiles(full_name)').order('created_at', { ascending: false }),
     supabase.from('results').select('*'),
     supabase.from('class_subjects').select('*'),
-    supabase.from('timetable_status').select('*'),
-    supabase.from('exam_questions').select('*').order('order_index', { ascending: true })
+    supabase.from('timetable_status').select('*')
   ]);
 
+  // 3. Chuja na uhifadhi data zilizopatikana
   if (!classesRes.error && classesRes.data) {
     state.classes = classesRes.data.map(c => ({ ...c, profiles: c.class_teacher_id ? profilesMap[c.class_teacher_id] : null }));
   } else { state.classes = []; }
@@ -571,12 +567,8 @@ async function fetchAllData() {
     state.timetableStatus = ttStatusRes.data;
   } else { state.timetableStatus = []; }
 
-  if (!eqRes.error && eqRes.data) {
-    state.allExamQuestions = eqRes.data;
-  } else { state.allExamQuestions = []; }
-
   loadReportDataLocally();
-}
+    }
 
 function loadReportDataLocally() {
   const saved = localStorage.getItem('korosho_report_data');
@@ -775,7 +767,6 @@ function renderPage() {
   else if (page === 'import') host.innerHTML = renderBulkImport();
   else if (page === 'assignments') host.innerHTML = renderAssignments();
   else if (page === 'exam-timetable') host.innerHTML = renderExamTimetable();
-  else if (page === 'exam-edit') { host.innerHTML = renderExamSet(); setTimeout(updateExamPreview, 50); }
 }
 
 function renderDashboard() {
@@ -2208,22 +2199,9 @@ function saveExamConfig(e) {
 }
 
 function renderExamSet() {
-  const isEditing = state.examEditMode === true;
-  const editExamData = isEditing ? state.exams.find(e => e.id === state.examEditId) : null;
-  const editTeacherName = isEditing && editExamData ? (editExamData.profiles?.full_name || state.teachers.find(t => t.id === editExamData.created_by)?.full_name || 'Unknown Teacher') : '';
-
-  // ── BADILISHO 1: Admin in edit mode anaweza kuona classes/subjects ZOTE ──
-  let myAssignments, myClassIds, availableClasses;
-  if (isEditing) {
-    // Admin anahariri — onyesha classes zote na subjects zote
-    availableClasses = state.classes;
-    myAssignments = state.classSubjects;
-    myClassIds = state.classes.map(c => c.id);
-  } else {
-    myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
-    myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
-    availableClasses = state.currentUser.role === 'teacher' ? state.classes.filter(c => myClassIds.includes(c.id)) : state.classes;
-  }
+  const myAssignments = state.classSubjects.filter(a => a.teacher_id === state.currentUser.id);
+  const myClassIds = [...new Set(myAssignments.map(a => a.class_id))];
+  const availableClasses = state.currentUser.role === 'teacher' ? state.classes.filter(c => myClassIds.includes(c.id)) : state.classes;
 
   if (availableClasses.length === 0) {
     return `<div class="card fade-up-1"><div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Set Examination</span></div><p class="text-slate-500 text-center py-6">You have not been assigned to any class yet. Please contact the Admin.</p></div>`;
@@ -2235,12 +2213,7 @@ function renderExamSet() {
   const selectedClassId = state.examDraft.classId;
 
   let availableSubjects = [];
-  if (isEditing) {
-    // Admin anahariri — onyesha subjects zote za class hiyo
-    const subsForClass = state.classSubjects.filter(a => a.class_id == selectedClassId).map(a => a.subject_id);
-    availableSubjects = state.subjects.filter(s => subsForClass.includes(s.id));
-    if (availableSubjects.length === 0) availableSubjects = state.subjects; // fallback: onyesha zote
-  } else if (state.currentUser.role === 'teacher') {
+  if (state.currentUser.role === 'teacher') {
     const subjectsForSelectedClass = myAssignments.filter(a => a.class_id == selectedClassId).map(a => a.subject_id);
     availableSubjects = state.subjects.filter(s => subjectsForSelectedClass.includes(s.id));
   } else {
@@ -2266,61 +2239,7 @@ function renderExamSet() {
   const settings = getExamSettings(state.examDraft.classId);
   const actualQuestionsCount = state.examQuestions.filter(q => q.type !== 'section').length;
   const isEligibleToPrint = actualQuestionsCount >= settings.defaultQuestions;
-
-  // ── BADILISHO 2: Edit banner juu kabisa kama admin anahariri ──
-  let editBannerHtml = '';
-  if (isEditing) {
-    editBannerHtml = `<div class="edit-banner fade-up-1" style="margin-bottom:16px;">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center"><i class="fa-solid fa-pen-to-square text-purple-600 text-lg"></i></div>
-        <div>
-          <h3 class="font-bold text-purple-900 text-lg">Editing Submitted Exam</h3>
-          <p class="text-sm text-purple-600">Originally set by: <strong>${editTeacherName}</strong> — You are correcting this exam as administrator</p>
-        </div>
-      </div>
-    </div>`;
-  }
-
-  // ── BADILISHO 3: Export & Submit section tofauti kwa edit mode ──
-  let exportSectionHtml = '';
-  if (isEditing) {
-    // Admin anahariri — onyesha buttons za Save, Approve, Cancel
-    exportSectionHtml = `<div class="card fade-up-3">
-      <h4 class="font-bold mb-3"><i class="fa-solid fa-floppy-disk text-purple-600 mr-2"></i> Save Changes</h4>
-      <div class="space-y-3">
-        <button class="btn-primary w-full" onclick="saveExamEdit()">
-          <i class="fa-solid fa-floppy-disk mr-1"></i> Save Changes (Keep Current Status)
-        </button>
-        <button class="btn-primary w-full" style="background:linear-gradient(135deg,#16A34A,#10B981)" onclick="saveExamEditAndApprove()">
-          <i class="fa-solid fa-check-double mr-1"></i> Save & Approve Now
-        </button>
-        <button class="btn-ghost w-full" onclick="cancelExamEdit()">
-          <i class="fa-solid fa-xmark mr-1"></i> Cancel Editing
-        </button>
-      </div>
-      <p class="text-xs text-slate-500 mt-2 text-center">Changes will be saved and the original teacher will be notified.</p>
-    </div>`;
-  } else {
-    // Mwalimu kawaida — onyesha Print na Submit
-    exportSectionHtml = `<div class="card fade-up-3">
-       <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
-        ${!isEligibleToPrint ? `
-          <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-sm mb-3">
-            <i class="fa-solid fa-lock mr-1"></i> You need at least <strong>${settings.defaultQuestions} questions</strong> to print. Currently you have <strong>${actualQuestionsCount}</strong>.
-          </div>
-          <button class="btn-primary w-full" disabled style="opacity:0.5; cursor:not-allowed;">
-            <i class="fa-solid fa-print mr-1"></i> Print Locked
-          </button>
-        ` : `
-          <button class="btn-primary w-full" onclick="printExamPaper()">
-            <i class="fa-solid fa-print mr-1"></i> Print / Save as PDF
-          </button>
-        `}
-        <p class="text-xs text-slate-500 mt-2 text-center">A copy will automatically be sent to the Admin for formatting review.</p>
-      </div>`;
-  }
-
-  return `${editBannerHtml}<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  return `<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 space-y-5">
       <div class="card fade-up-1" style="background:#F0FDF4; border-color:#A7F3D0">
         <div class="flex items-center gap-3">
@@ -2362,7 +2281,22 @@ function renderExamSet() {
           <div id="exam-live-preview" class="preview-pages-wrapper"></div>
         </div>
       </div>
-      ${exportSectionHtml}
+      <div class="card fade-up-3">
+       <h4 class="font-bold mb-3"><i class="fa-solid fa-print text-red-600 mr-2"></i> Export & Submit</h4>
+        ${!isEligibleToPrint ? `
+          <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-lg text-sm mb-3">
+            <i class="fa-solid fa-lock mr-1"></i> You need at least <strong>${settings.defaultQuestions} questions</strong> to print. Currently you have <strong>${actualQuestionsCount}</strong>.
+          </div>
+          <button class="btn-primary w-full" disabled style="opacity:0.5; cursor:not-allowed;">
+            <i class="fa-solid fa-print mr-1"></i> Print Locked
+          </button>
+        ` : `
+          <button class="btn-primary w-full" onclick="printExamPaper()">
+            <i class="fa-solid fa-print mr-1"></i> Print / Save as PDF
+          </button>
+        `}
+        <p class="text-xs text-slate-500 mt-2 text-center">A copy will automatically be sent to the Admin for formatting review.</p>
+      </div>
     </div>
   </div>`;
 }
@@ -2692,140 +2626,7 @@ function updateExamPreview() {
   const pages = paginateBlocks(blocks, c);
   previewDiv.innerHTML = renderExamPagesHTML(pages, c);
 }
-async function saveExamEdit() {
-  if (!state.examEditMode || !state.examEditId) { showToast('No exam being edited', 'error'); return; }
-  if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
-  if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const examIdNum = parseInt(state.examEditId);
-  const exam = state.exams.find(e => String(e.id) === String(state.examEditId));
-  const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
-
-  const updateData = {
-    class_id: state.examDraft.classId,
-    subject_id: state.examDraft.subjectId,
-    title: state.examDraft.title,
-    instructions: state.examDraft.customInstruction,
-    total_marks: totalMarks,
-    question_count: state.examQuestions.length,
-    edited_at: new Date().toISOString(),
-    questions: JSON.stringify(state.examQuestions)
-  };
-  if (exam && exam.status === 'approved') { updateData.status = 'approved'; }
-  else { updateData.status = 'pending'; }
-
-  // ── FIX: edited_by ni UUID, column ni integer. Tutumie timestamp tu kama alama ya edit ──
-  // Weka edited_by KAMA column ni UUID type, otherwise skip it
-  try {
-    // Jaribu kuweka UUID — kama column ni UUID itafanya kazi
-    const { error: testErr } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr) {
-      updateData.edited_by = state.currentUser.id;
-    }
-  } catch(e) {
-    // Column ni integer, skip edited_by
-  }
-
-  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
-  if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
-
-  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
-  const questionsData = state.examQuestions.map((q, i) => ({
-    exam_id: examIdNum,
-    type: q.type,
-    question_type: q.type,
-    question_text: q.text || '',
-    options: q.options ? JSON.stringify(q.options) : null,
-    correct_answer: q.answer || '',
-    marks: q.marks || 5,
-    order_index: i,
-    left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
-    right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
-    blanks: q.blanks ? JSON.stringify(q.blanks) : null,
-    instructions: q.instructions || null
-  }));
-  await supabase.from('exam_questions').insert(questionsData);
-
-  state.examEditMode = false;
-  state.examEditId = null;
-  state.examQuestions = [];
-  state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-  await fetchAllData();
-  showToast('Exam updated successfully!', 'success');
-  navigateTo('exam-review');
-}
-
-async function saveExamEditAndApprove() {
-  if (!state.examEditMode || !state.examEditId) { showToast('No exam being edited', 'error'); return; }
-  if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
-  if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
-
-  // Katika Supabase queries, tumia state.examEditId moja kwa moja:
-.eq('id', state.examEditId)    // Supabase inajua type conversion
-.eq('exam_id', state.examEditId)  // Kwa exam_questions table
-  const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
-
-  const updateData = {
-    class_id: state.examDraft.classId,
-    subject_id: state.examDraft.subjectId,
-    title: state.examDraft.title,
-    instructions: state.examDraft.customInstruction,
-    total_marks: totalMarks,
-    question_count: state.examQuestions.length,
-    status: 'approved',
-    approved_at: new Date().toISOString(),
-    edited_at: new Date().toISOString(),
-    questions: JSON.stringify(state.examQuestions)
-  };
-
-  // ── FIX: Same approach — jaribu UUID, kama column ni integer skip ──
-  try {
-    const { error: testErr1 } = await supabase.from('exams').update({ edited_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr1) { updateData.edited_by = state.currentUser.id; }
-  } catch(e) {}
-
-  try {
-    const { error: testErr2 } = await supabase.from('exams').update({ approved_by: state.currentUser.id }).eq('id', examIdNum);
-    if (!testErr2) { updateData.approved_by = state.currentUser.id; }
-  } catch(e) {}
-
-  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
-  if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
-
-  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
-  const questionsData = state.examQuestions.map((q, i) => ({
-    exam_id: examIdNum,
-    type: q.type,
-    question_type: q.type,
-    question_text: q.text || '',
-    options: q.options ? JSON.stringify(q.options) : null,
-    correct_answer: q.answer || '',
-    marks: q.marks || 5,
-    order_index: i,
-    left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
-    right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
-    blanks: q.blanks ? JSON.stringify(q.blanks) : null,
-    instructions: q.instructions || null
-  }));
-  await supabase.from('exam_questions').insert(questionsData);
-
-  state.examEditMode = false;
-  state.examEditId = null;
-  state.examQuestions = [];
-  state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-  await fetchAllData();
-  showToast('Exam corrected and approved!', 'success');
-  navigateTo('exam-review');
-}
-
-function cancelExamEdit() {
-  state.examEditMode = false;
-  state.examEditId = null;
-  state.examQuestions = [];
-  state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-  showToast('Edit cancelled. Returning to review page.', 'info');
-  navigateTo('exam-review');
-}
 function toRoman(num) { const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"]; return romans[num - 1] || num; }
 function getMentionPrefix(format, index) {
   const romans = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii"];
@@ -3063,280 +2864,22 @@ function updateMentioningFormat(qId, val) { const q = state.examQuestions.find(x
 function removeQuestion(id) { openConfirmModal('Remove Question', 'Are you sure?', () => { state.examQuestions = state.examQuestions.filter(q => q.id !== id); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); showToast('Question removed', 'info'); closeModal(); }); }
 
 function renderExamReview() {
-  const isAdmin = state.currentUser.role === 'admin';
-  const pendingExams = state.exams.filter(e => e.status === 'pending' || e.status === 'submitted');
-  const approvedExams = state.exams.filter(e => e.status === 'approved');
-  const rejectedExams = state.exams.filter(e => e.status === 'rejected');
-
-  let html = '<div class="fade-up-1">';
-  html += '<div class="flex items-center justify-between mb-6"><div><h3 class="text-lg font-bold text-slate-900">Review Submitted Examinations</h3><p class="text-sm text-slate-500 mt-1">Review, approve, reject, or edit exams</p></div>';
-  if (isAdmin) html += '<div class="badge badge-purple"><i class="fa-solid fa-shield-halved mr-1"></i>Admin Edit Mode</div>';
-  html += '</div>';
-
-  html += '<div class="grid grid-cols-3 gap-4 mb-6">';
-  html += '<div class="stat-card"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center"><i class="fa-solid fa-clock text-amber-500"></i></div><div><p class="text-xs text-slate-500 font-semibold">Pending</p><p class="text-2xl font-bold text-slate-900">' + pendingExams.length + '</p></div></div></div>';
-  html += '<div class="stat-card"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center"><i class="fa-solid fa-check text-emerald-500"></i></div><div><p class="text-xs text-slate-500 font-semibold">Approved</p><p class="text-2xl font-bold text-slate-900">' + approvedExams.length + '</p></div></div></div>';
-  html += '<div class="stat-card"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center"><i class="fa-solid fa-xmark text-red-500"></i></div><div><p class="text-xs text-slate-500 font-semibold">Rejected</p><p class="text-2xl font-bold text-slate-900">' + rejectedExams.length + '</p></div></div></div>';
-  html += '</div>';
-
-  if (pendingExams.length > 0) {
-    html += '<div class="card mb-6"><div class="section-title"><span><i class="fa-solid fa-clock text-amber-500 mr-2"></i>Pending Exams</span></div><div class="table-card-wrapper"><table class="data-table"><thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Teacher</th><th>Date</th><th>Actions</th></tr></thead><tbody>';
-    pendingExams.forEach(exam => {
-      const cls = state.classes.find(c => c.id === exam.class_id);
-      const subj = state.subjects.find(s => s.id === exam.subject_id);
-      const teacher = state.teachers.find(t => t.id === exam.created_by);
-      const tName = teacher ? teacher.full_name : (exam.profiles?.full_name || '?');
-      html += '<tr><td class="font-semibold">' + (exam.title || 'Untitled') + '</td><td>' + (cls ? cls.name : '?') + '</td><td>' + (subj ? subj.name : '?') + '</td><td>' + tName + '</td><td>' + new Date(exam.created_at).toLocaleDateString() + '</td><td><div class="flex items-center gap-2 flex-wrap">';
-      html += '<button class="btn-ghost text-xs px-2 py-1" onclick="previewExam(\'' + exam.id + '\')"><i class="fa-solid fa-eye mr-1"></i>View</button>';
-      html += '<button class="btn-primary text-xs px-2 py-1" style="font-size:12px" onclick="approveExam(\'' + exam.id + '\')"><i class="fa-solid fa-check mr-1"></i>Approve</button>';
-      html += '<button class="btn-ghost text-xs px-2 py-1 border-red-200 text-red-500" onclick="rejectExam(\'' + exam.id + '\')"><i class="fa-solid fa-xmark mr-1"></i>Reject</button>';
-      if (isAdmin) html += '<button class="btn-ghost text-xs px-2 py-1 border-purple-200 text-purple-600" onclick="editExam(\'' + exam.id + '\')"><i class="fa-solid fa-pen mr-1"></i>Edit</button>';
-      html += '</div></td></tr>';
-    });
-    html += '</tbody></table></div></div>';
-  } else {
-    html += '<div class="card mb-6 text-center py-10"><i class="fa-solid fa-check-double text-4xl text-emerald-300 mb-3"></i><p class="text-slate-500">No pending exams</p></div>';
-  }
-
-  if (approvedExams.length > 0) {
-    html += '<div class="card mb-6"><div class="section-title"><span><i class="fa-solid fa-check text-emerald-500 mr-2"></i>Approved Exams</span></div><div class="table-card-wrapper"><table class="data-table"><thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Teacher</th><th>Approved</th><th>Actions</th></tr></thead><tbody>';
-    approvedExams.forEach(exam => {
-      const cls = state.classes.find(c => c.id === exam.class_id);
-      const subj = state.subjects.find(s => s.id === exam.subject_id);
-      const teacher = state.teachers.find(t => t.id === exam.created_by);
-      html += '<tr><td class="font-semibold">' + (exam.title || 'Untitled') + '</td><td>' + (cls ? cls.name : '?') + '</td><td>' + (subj ? subj.name : '?') + '</td><td>' + (teacher ? teacher.full_name : (exam.profiles?.full_name || '?')) + '</td><td>' + (exam.approved_at ? new Date(exam.approved_at).toLocaleDateString() : '—') + '</td><td><div class="flex items-center gap-2">';
-      html += '<button class="btn-ghost text-xs px-2 py-1" onclick="previewExam(\'' + exam.id + '\')"><i class="fa-solid fa-eye mr-1"></i>View</button>';
-      html += '<button class="btn-ghost text-xs px-2 py-1 border-red-200 text-red-500" onclick="rejectExam(\'' + exam.id + '\')"><i class="fa-solid fa-rotate-left mr-1"></i>Revoke</button>';
-      if (isAdmin) html += '<button class="btn-ghost text-xs px-2 py-1 border-purple-200 text-purple-600" onclick="editExam(\'' + exam.id + '\')"><i class="fa-solid fa-pen mr-1"></i>Edit</button>';
-      html += '</div></td></tr>';
-    });
-    html += '</tbody></table></div></div>';
-  }
-
-  if (rejectedExams.length > 0) {
-    html += '<div class="card mb-6"><div class="section-title"><span><i class="fa-solid fa-xmark text-red-500 mr-2"></i>Rejected Exams</span></div><div class="table-card-wrapper"><table class="data-table"><thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Teacher</th><th>Reason</th><th>Actions</th></tr></thead><tbody>';
-    rejectedExams.forEach(exam => {
-      const cls = state.classes.find(c => c.id === exam.class_id);
-      const subj = state.subjects.find(s => s.id === exam.subject_id);
-      const teacher = state.teachers.find(t => t.id === exam.created_by);
-      html += '<tr><td class="font-semibold">' + (exam.title || 'Untitled') + '</td><td>' + (cls ? cls.name : '?') + '</td><td>' + (subj ? subj.name : '?') + '</td><td>' + (teacher ? teacher.full_name : (exam.profiles?.full_name || '?')) + '</td><td class="text-sm text-red-500">' + (exam.rejection_reason || 'No reason given') + '</td><td><div class="flex items-center gap-2">';
-      html += '<button class="btn-ghost text-xs px-2 py-1" onclick="previewExam(\'' + exam.id + '\')"><i class="fa-solid fa-eye mr-1"></i>View</button>';
-      if (isAdmin) html += '<button class="btn-ghost text-xs px-2 py-1 border-purple-200 text-purple-600" onclick="editExam(\'' + exam.id + '\')"><i class="fa-solid fa-pen mr-1"></i>Edit & Resubmit</button>';
-      html += '</div></td></tr>';
-    });
-    html += '</tbody></table></div></div>';
-  }
-
-  html += '</div>';
-  return html;
-}
-  
-function previewExam(examId) {
-  const exam = state.exams.find(e => String(e.id) === String(examId));
-  if (!exam) { showToast('Exam not found', 'error'); return; }
-
-  const cls = state.classes.find(c => c.id === exam.class_id);
-  const subj = state.subjects.find(s => s.id === exam.subject_id);
-  const teacher = state.teachers.find(t => t.id === exam.created_by);
-  const settings = getExamSettings(exam.class_id);
-  const isAdmin = state.currentUser.role === 'admin';
-  const tName = teacher ? teacher.full_name : (exam.profiles?.full_name || 'Unknown');
-
-  // Parse questions for display
-  let questionsList = [];
-  if (exam.questions) {
-    try {
-      const parsed = typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions;
-      questionsList = parsed;
-    } catch(e) { questionsList = []; }
-  }
-
-  // Build questions HTML for the preview
-  let questionsHtml = '';
-  if (questionsList.length > 0) {
-    questionsHtml = '<div style="margin-top:12px;max-height:300px;overflow-y:auto"><div style="font-weight:bold;margin-bottom:8px;font-size:13px">Questions Preview:</div>';
-    questionsList.forEach((q, i) => {
-      const qType = q.type || q.question_type || 'unknown';
-      const qText = q.text || q.question_text || 'No text';
-      questionsHtml += '<div style="background:#F8FAFC;padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:12px">';
-      questionsHtml += '<div style="font-weight:600">Q' + (i+1) + ' (' + qType + ') — ' + (q.marks || 5) + ' marks</div>';
-      questionsHtml += '<div style="color:#64748B;margin-top:2px">' + qText.substring(0, 100) + (qText.length > 100 ? '...' : '') + '</div>';
-      questionsHtml += '</div>';
-    });
-    questionsHtml += '</div>';
-  }
-
-  // Edited note
-  let editedNote = '';
-  if (exam.edited_by) {
-    const editor = state.teachers.find(t => t.id === exam.edited_by);
-    editedNote = '<div style="background:#F3E8FF;border:1px solid #C4B5FD;border-radius:8px;padding:10px;margin-top:12px;font-size:13px"><i class="fa-solid fa-pen-to-square text-purple-500" style="margin-right:4px"></i> Edited by <strong>' + (editor ? editor.full_name : 'Admin') + '</strong> on ' + new Date(exam.edited_at).toLocaleDateString() + '</div>';
-  }
-
-  // Rejection reason
-  let rejectionNote = '';
-  if (exam.status === 'rejected' && exam.rejection_reason) {
-    rejectionNote = '<div style="background:#FEE2E2;border:1px solid #FCA5A5;border-radius:8px;padding:10px;margin-top:12px;font-size:13px;color:#991B1B"><i class="fa-solid fa-exclamation-triangle" style="margin-right:4px"></i> Rejection Reason: <strong>' + exam.rejection_reason + '</strong></div>';
-  }
-
-  showModal(
-    '<div class="modal-header"><h3 class="text-lg font-bold">Exam Preview</h3><button onclick="closeModal()" style="background:none;border:none;cursor:pointer"><i class="fa-solid fa-xmark text-slate-400"></i></button></div>' +
-    '<div class="modal-body">' +
-      '<div style="display:flex;flex-direction:column;gap:12px">' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Title:</span><span style="font-weight:600">' + (exam.title || settings.examTitle) + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Class:</span><span style="font-weight:600">' + (cls ? cls.name : 'N/A') + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Subject:</span><span style="font-weight:600">' + (subj ? subj.name : 'N/A') + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Teacher:</span><span style="font-weight:600">' + tName + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Status:</span><span class="badge ' + (exam.status === 'approved' ? 'badge-green' : exam.status === 'rejected' ? 'badge-red' : 'badge-amber') + '">' + (exam.status || 'pending') + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Questions:</span><span style="font-weight:600">' + (exam.question_count || questionsList.length || 'N/A') + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Total Marks:</span><span style="font-weight:600">' + (exam.total_marks || 'N/A') + '</span></div>' +
-        '<div style="display:flex;justify-content:space-between"><span style="color:#64748B">Time:</span><span style="font-weight:600">' + (exam.time_allowed || settings.timeAllowed) + '</span></div>' +
-        (exam.instructions ? '<div><span style="color:#64748B;font-size:11px;font-weight:600;text-transform:uppercase">Instructions:</span><p style="font-size:13px;margin-top:4px">' + exam.instructions + '</p></div>' : '') +
-        rejectionNote +
-        editedNote +
-        questionsHtml +
-      '</div>' +
-    '</div>' +
-    '<div class="modal-footer">' +
-      (isAdmin ? '<button class="btn-ghost" style="border-color:#C4B5FD;color:#6B21A8" onclick="closeModal();editExam(\'' + exam.id + '\')"><i class="fa-solid fa-pen" style="margin-right:4px"></i>Edit</button>' : '') +
-      (isAdmin && exam.status !== 'approved' ? '<button class="btn-primary" style="background:linear-gradient(135deg,#16A34A,#10B981);font-size:13px;padding:8px 16px" onclick="closeModal();approveExam(\'' + exam.id + '\')"><i class="fa-solid fa-check" style="margin-right:4px"></i>Approve</button>' : '') +
-      '<button class="btn-ghost" onclick="closeModal()">Close</button>' +
-    '</div>'
-  );
+  return `<div class="card fade-up-1">
+    <div class="section-title"><span><i class="fa-solid fa-check-double text-emerald-600 mr-2"></i> Review Generated Exams</span></div>
+    <div class="overflow-x-auto"><table class="data-table"><thead><tr><th>Title</th><th>Class</th><th>Subject</th><th>Set By</th><th>Date</th><th>Action</th></tr></thead><tbody>
+      ${state.exams.length === 0 ? '<tr><td colspan="6" class="text-center text-slate-500 py-6">No exams saved yet.</td></tr>' : state.exams.map(ex => `
+        <tr>
+          <td class="font-semibold">${ex.title}</td>
+          <td>${ex.classes?.name || 'N/A'}</td>
+          <td>${ex.subjects?.name || 'N/A'}</td>
+          <td>${ex.profiles?.full_name || 'Unknown'}</td>
+          <td>${new Date(ex.created_at).toLocaleDateString()}</td>
+          <td><button class="btn-ghost btn-sm" onclick="reviewExamPrint(${ex.id})"><i class="fa-solid fa-print mr-1"></i> Print</button></td>
+        </tr>`).join('')}
+    </tbody></table></div>
+  </div>`;
 }
 
-async function approveExam(examId) {
-  const { error } = await supabase
-    .from('exams')
-    .update({ status: 'approved', approved_by: state.currentUser.id, approved_at: new Date().toISOString() })
-    .eq('id', examId);
-
-  if (error) {
-    showToast('Failed to approve: ' + error.message, 'error');
-    return;
-  }
-
-  await fetchAllData();
-  showToast('Exam approved successfully!', 'success');
-  renderPage();
-}
-
-async function rejectExam(examId) {
-  // Show reason modal
-  showModal(`
-    <div class="modal-header">
-      <h3 class="text-lg font-bold">Reject Exam</h3>
-      <button onclick="closeModal()"><i class="fa-solid fa-xmark text-slate-400 hover:text-slate-600"></i></button>
-    </div>
-    <div class="modal-body">
-      <p class="text-sm text-slate-500 mb-4">Please provide a reason for rejecting this exam. The teacher will see this feedback.</p>
-      <textarea id="rejectReasonInput" class="form-input" rows="4" placeholder="Enter rejection reason..."></textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary" style="background: linear-gradient(135deg, #DC2626, #EF4444);" onclick="confirmRejectExam('${examId}')"><i class="fa-solid fa-xmark mr-1"></i>Reject Exam</button>
-    </div>
-  `);
-}
-
-async function confirmRejectExam(examId) {
-  const reason = document.getElementById('rejectReasonInput')?.value || 'No reason provided';
-  
-  const { error } = await supabase
-    .from('exams')
-    .update({ status: 'rejected', rejected_by: state.currentUser.id, rejected_at: new Date().toISOString(), rejection_reason: reason })
-    .eq('id', examId);
-
-  closeModal();
-
-  if (error) {
-    showToast('Failed to reject: ' + error.message, 'error');
-    return;
-  }
-
-  await fetchAllData();
-  showToast('Exam rejected. Feedback sent to teacher.', 'warn');
-  renderPage();
-}
-
-function showModal(content) {
-  const host = document.getElementById('modalHost');
-  host.innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal-box">${content}</div></div>`;
-}
-
-function closeModal() {
-  const host = document.getElementById('modalHost');
-  const overlay = host.querySelector('.modal-overlay');
-  if (overlay) overlay.classList.remove('active');
-  setTimeout(() => { host.innerHTML = ''; }, 300);
-}
-  async function editExam(examId) {
-  if (state.currentUser.role !== 'admin') { showToast('Only admins can edit submitted exams', 'error'); return; }
-
-  const examIdNum = parseInt(examId);
-  const exam = state.exams.find(e => String(e.id) === String(examId));
-  if (!exam) { showToast('Exam not found', 'error'); return; }
-
-  // Load questions from database
-  const { data: questions, error: qError } = await supabase.from('exam_questions').select('*').eq('exam_id', examIdNum).order('order_index', { ascending: true });
-
-  if (qError || !questions || questions.length === 0) {
-    // Fallback: load from JSON in exam row — keep ALL properties as-is
-    let parsed = [];
-    if (exam.questions) { 
-      try { parsed = typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions; } catch(e) { parsed = []; } 
-    }
-    state.examQuestions = parsed.map(q => {
-      // Keep ALL properties from the original question object
-      const cleaned = { ...q };
-      // Only parse JSON strings for nested arrays/objects
-      try { if (typeof cleaned.options === 'string') cleaned.options = JSON.parse(cleaned.options); } catch(e) {}
-      try { if (typeof cleaned.leftItems === 'string') cleaned.leftItems = JSON.parse(cleaned.leftItems); } catch(e) {}
-      try { if (typeof cleaned.rightItems === 'string') cleaned.rightItems = JSON.parse(cleaned.rightItems); } catch(e) {}
-      try { if (typeof cleaned.blanks === 'string') cleaned.blanks = JSON.parse(cleaned.blanks); } catch(e) {}
-      try { if (typeof cleaned.left_items === 'string') { cleaned.leftItems = JSON.parse(cleaned.left_items); } } catch(e) {}
-      try { if (typeof cleaned.right_items === 'string') { cleaned.rightItems = JSON.parse(cleaned.right_items); } } catch(e) {}
-      // Map database column names to UI property names
-      if (cleaned.question_text && !cleaned.text) cleaned.text = cleaned.question_text;
-      if (cleaned.correct_answer && !cleaned.answer) cleaned.answer = cleaned.correct_answer;
-      if (cleaned.question_type && !cleaned.type) cleaned.type = cleaned.question_type;
-      return cleaned;
-    });
-  } else {
-    // Load from exam_questions table — map ALL properties
-    state.examQuestions = questions.map(q => {
-      const cleaned = {
-        id: q.id,
-        type: q.type || q.question_type || 'short',
-        text: q.question_text || '',
-        answer: q.correct_answer || '',
-        marks: q.marks || 5,
-        instructions: q.instructions || ''
-      };
-      try { cleaned.options = q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : []; } catch(e) { cleaned.options = []; }
-      try { cleaned.leftItems = q.left_items ? (typeof q.left_items === 'string' ? JSON.parse(q.left_items) : q.left_items) : []; } catch(e) { cleaned.leftItems = []; }
-      try { cleaned.rightItems = q.right_items ? (typeof q.right_items === 'string' ? JSON.parse(q.right_items) : q.right_items) : []; } catch(e) { cleaned.rightItems = []; }
-      try { cleaned.blanks = q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : []; } catch(e) { cleaned.blanks = []; }
-      return cleaned;
-    });
-  }
-
-  state.examEditMode = true;
-  state.examEditId = examIdNum;
-  state.examEditOriginalClassId = exam.class_id;
-  state.examEditOriginalSubjectId = exam.subject_id;
-  const settings = getExamSettings(exam.class_id);
-  state.examDraft = { 
-    classId: exam.class_id, 
-    subjectId: exam.subject_id, 
-    title: exam.title || settings.examTitle, 
-    customInstruction: exam.instructions || settings.instructions, 
-    isDirty: false 
-  };
-  showToast('Editing exam: ' + (exam.title || 'Untitled'), 'info');
-  navigateTo('exam-set');
-}
-  
 function reviewExamPrint(examId) { const exam = state.exams.find(e => e.id === examId); if (!exam) return; printExamPaper(exam); }
 
 async function printExamPaper(exam = null) {
@@ -3388,8 +2931,6 @@ async function printExamPaper(exam = null) {
     .a4-page { page-break-after: always; break-after: page; box-shadow: none; }
     .a4-page:last-child { page-break-after: auto; break-after: auto; }
   }
-  .edit-banner{background:linear-gradient(135deg,#F3E8FF,#EDE9FE);border:1px solid #C4B5FD;border-radius:12px;padding:16px 20px;margin-bottom:20px}
-body.dark-mode .edit-banner{background:linear-gradient(135deg,rgba(147,51,234,.15),rgba(147,51,234,.08));border-color:rgba(147,51,234,.3)}
 </style>
 </head>
 <body>
@@ -4217,65 +3758,7 @@ async function saveAttendance() {
   showToast('Attendance saved successfully!', 'success');
 }
 
-async function submitExam() {
-  // ── HII NI NYONGEZA: Kama admin anatumia exam-set page kwa editing mode,
-  //    isitumie kama exam mpya, badala yake itumie saveExamEdit
-  if (state.examEditMode) { return saveExamEdit(); }
 
-  // ── HAPA CHINI NI CODE YA ZAMANI YAKO, HAKUNA CHENGE ──
-  if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
-  if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
-
-  const settings = getExamSettings(state.examDraft.classId);
-  const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
-
-  const examData = {
-    class_id: state.examDraft.classId,
-    subject_id: state.examDraft.subjectId,
-    title: state.examDraft.title || settings.examTitle,
-    instructions: state.examDraft.customInstruction || settings.instructions,
-    time_allowed: settings.timeAllowed,
-    total_marks: totalMarks,
-    question_count: state.examQuestions.length,
-    status: 'pending',
-    created_by: state.currentUser.id,
-    font_type: settings.fontType,
-    font_size: settings.fontSize,
-    heading_font_size: settings.headingFontSize,
-    line_spacing: settings.lineSpacing,
-    heading_line_spacing: settings.headingLineSpacing,
-    border_style: settings.borderStyle,
-    questions: JSON.stringify(state.examQuestions)
-  };
-
-  const { data: examRes, error: eError } = await supabase.from('exams').insert([examData]).select().single();
-  if (eError) { showToast('Error: ' + eError.message, 'error'); return; }
-
-  // Insert into exam_questions table
-  const questionsData = state.examQuestions.map((q, i) => ({
-    exam_id: examRes.id,
-    type: q.type,
-    question_type: q.type,
-    question_text: q.text || '',
-    options: q.options ? JSON.stringify(q.options) : null,
-    correct_answer: q.answer || '',
-    marks: q.marks || 5,
-    order_index: i,
-    left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
-    right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
-    blanks: q.blanks ? JSON.stringify(q.blanks) : null,
-    instructions: q.instructions || null
-  }));
-  const { error: qError } = await supabase.from('exam_questions').insert(questionsData);
-  if (qError) { console.warn('exam_questions insert error:', qError.message); }
-
-  state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-  state.examQuestions = [];
-  await fetchAllData();
-  renderPage();
-  showToast('Exam submitted for review!', 'success');
-}
-  
 // ===== CSV BULK IMPORT SYSTEM =====
 function renderBulkImport() {
   return `<div class="card fade-up-1 max-w-2xl mx-auto">
