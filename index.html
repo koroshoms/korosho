@@ -2698,7 +2698,7 @@ async function saveExamEdit() {
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
   const examIdNum = parseInt(state.examEditId);
-  const exam = state.exams.find(e => e.id === examIdNum);
+  const exam = state.exams.find(e => String(e.id) === String(state.examEditId));
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
@@ -2760,7 +2760,9 @@ async function saveExamEditAndApprove() {
   if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
   if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const examIdNum = parseInt(state.examEditId);
+  // Katika Supabase queries, tumia state.examEditId moja kwa moja:
+.eq('id', state.examEditId)    // Supabase inajua type conversion
+.eq('exam_id', state.examEditId)  // Kwa exam_questions table
   const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
   const updateData = {
@@ -3130,8 +3132,7 @@ function renderExamReview() {
 }
   
 function previewExam(examId) {
-  const examIdNum = parseInt(examId);
-  const exam = state.exams.find(e => e.id === examIdNum);
+  const exam = state.exams.find(e => String(e.id) === String(examId));
   if (!exam) { showToast('Exam not found', 'error'); return; }
 
   const cls = state.classes.find(c => c.id === exam.class_id);
@@ -3273,7 +3274,7 @@ function closeModal() {
   if (state.currentUser.role !== 'admin') { showToast('Only admins can edit submitted exams', 'error'); return; }
 
   const examIdNum = parseInt(examId);
-  const exam = state.exams.find(e => e.id === examIdNum);
+  const exam = state.exams.find(e => String(e.id) === String(examId));
   if (!exam) { showToast('Exam not found', 'error'); return; }
 
   // Load questions from database
