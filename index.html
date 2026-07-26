@@ -2693,204 +2693,107 @@ function updateExamPreview() {
   previewDiv.innerHTML = renderExamPagesHTML(pages, c);
 }
 async function saveExamEdit() {
-  if (!state.examEditMode || !state.examEditId) {
-    showToast('No exam is being edited.', 'error');
-    return;
-  }
+  if (!state.examEditMode || !state.examEditId) { showToast('No exam being edited', 'error'); return; }
+  if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
+  if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  const exam = state.exams.find(e => e.id === state.examEditId);
-  if (!exam) {
-    showToast('Exam not found.', 'error');
-    return;
-  }
+  const examIdNum = parseInt(state.examEditId);
+  const exam = state.exams.find(e => e.id === examIdNum);
+  const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
-  // Validate draft
-  if (!state.examDraft.classId || !state.examDraft.subjectId) {
-    showToast('Please select a class and subject.', 'error');
-    return;
-  }
-  if (state.examQuestions.length === 0) {
-    showToast('Please add at least one question.', 'error');
-    return;
-  }
-
-  const settings = getExamSettings(state.examDraft.classId);
-
-  // Update the exam record
   const updateData = {
     class_id: state.examDraft.classId,
     subject_id: state.examDraft.subjectId,
-    title: state.examDraft.title || settings.examTitle,
-    instructions: state.examDraft.customInstruction || settings.instructions,
-    total_marks: state.examQuestions.reduce((sum, q) => sum + (q.marks || 5), 0),
+    title: state.examDraft.title,
+    instructions: state.examDraft.customInstruction,
+    total_marks: totalMarks,
     question_count: state.examQuestions.length,
     edited_by: state.currentUser.id,
     edited_at: new Date().toISOString(),
-    // Keep current status unless explicitly changed
+    questions: JSON.stringify(state.examQuestions)
   };
+  if (exam && exam.status === 'approved') { updateData.status = 'approved'; }
+  else { updateData.status = 'pending'; }
 
-  // If class or subject changed, we need to handle that
-  if (state.examDraft.classId !== state.examEditOriginalClassId || state.examDraft.subjectId !== state.examEditOriginalSubjectId) {
-    updateData.class_id = state.examDraft.classId;
-    updateData.subject_id = state.examDraft.subjectId;
-  }
+  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
+  if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
 
-  const { error: updateError } = await supabase
-    .from('exams')
-    .update(updateData)
-    .eq('id', state.examEditId);
+  // Delete old questions and insert new
+  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
+  const questionsData = state.examQuestions.map((q, i) => ({
+    exam_id: examIdNum,
+    type: q.type,
+    question_type: q.type,
+    question_text: q.text || '',
+    options: q.options ? JSON.stringify(q.options) : null,
+    correct_answer: q.answer || '',
+    marks: q.marks || 5,
+    order_index: i,
+    left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
+    right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
+    blanks: q.blanks ? JSON.stringify(q.blanks) : null,
+    instructions: q.instructions || null
+  }));
+  await supabase.from('exam_questions').insert(questionsData);
 
-  if (updateError) {
-    showToast('Failed to update exam: ' + updateError.message, 'error');
-    return;
-  }
-
-  // Update questions — delete old ones and insert new ones
-  // First, delete existing questions for this exam
-  const { error: deleteError } = await supabase
-    .from('exam_questions')
-    .delete()
-    .eq('exam_id', state.examEditId);
-
-  if (deleteError) {
-    console.warn('Could not delete old questions (table may not exist):', deleteError.message);
-    // Try updating exam's questions JSON column instead
-    const questionsJson = JSON.stringify(state.examQuestions.map((q, i) => ({
-      type: q.type,
-      question_text: q.text,
-      options: q.options,
-      correct_answer: q.answer,
-      marks: q.marks,
-      order_index: i,
-      leftItems: q.leftItems,
-      rightItems: q.rightItems,
-      blanks: q.blanks,
-      instructions: q.instructions
-    })));
-
-    await supabase.from('exams').update({ questions: questionsJson }).eq('id', state.examEditId);
-  } else {
-    // Insert new questions
-    const questionsData = state.examQuestions.map((q, i) => ({
-      exam_id: state.examEditId,
-      type: q.type,
-      question_type: q.type,
-      question_text: q.text,
-      options: q.options ? JSON.stringify(q.options) : null,
-      correct_answer: q.answer,
-      marks: q.marks || 5,
-      order_index: i,
-      left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
-      right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
-      blanks: q.blanks ? JSON.stringify(q.blanks) : null,
-      instructions: q.instructions || null
-    }));
-
-    const { error: insertError } = await supabase
-      .from('exam_questions')
-      .insert(questionsData);
-
-    if (insertError) {
-      showToast('Failed to save questions: ' + insertError.message, 'error');
-      return;
-    }
-  }
-
-  // Clear edit mode
   state.examEditMode = false;
   state.examEditId = null;
   state.examQuestions = [];
   state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-
-  // Refresh data and go back to review page
   await fetchAllData();
   showToast('Exam updated successfully!', 'success');
   navigateTo('exam-review');
 }
 
 async function saveExamEditAndApprove() {
-  if (!state.examEditMode || !state.examEditId) {
-    showToast('No exam is being edited.', 'error');
-    return;
-  }
+  if (!state.examEditMode || !state.examEditId) { showToast('No exam being edited', 'error'); return; }
+  if (!state.examDraft.classId || !state.examDraft.subjectId) { showToast('Select class and subject', 'error'); return; }
+  if (state.examQuestions.length === 0) { showToast('Add at least one question', 'error'); return; }
 
-  // Validate
-  if (!state.examDraft.classId || !state.examDraft.subjectId) {
-    showToast('Please select a class and subject.', 'error');
-    return;
-  }
-  if (state.examQuestions.length === 0) {
-    showToast('Please add at least one question.', 'error');
-    return;
-  }
+  const examIdNum = parseInt(state.examEditId);
+  const totalMarks = state.examQuestions.reduce((s, q) => s + (q.marks || 5), 0);
 
-  const settings = getExamSettings(state.examDraft.classId);
-
-  // Update exam with approved status
   const updateData = {
     class_id: state.examDraft.classId,
     subject_id: state.examDraft.subjectId,
-    title: state.examDraft.title || settings.examTitle,
-    instructions: state.examDraft.customInstruction || settings.instructions,
-    total_marks: state.examQuestions.reduce((sum, q) => sum + (q.marks || 5), 0),
+    title: state.examDraft.title,
+    instructions: state.examDraft.customInstruction,
+    total_marks: totalMarks,
     question_count: state.examQuestions.length,
     status: 'approved',
     approved_by: state.currentUser.id,
     approved_at: new Date().toISOString(),
     edited_by: state.currentUser.id,
-    edited_at: new Date().toISOString()
+    edited_at: new Date().toISOString(),
+    questions: JSON.stringify(state.examQuestions)
   };
 
-  const { error: updateError } = await supabase
-    .from('exams')
-    .update(updateData)
-    .eq('id', state.examEditId);
+  const { error: uError } = await supabase.from('exams').update(updateData).eq('id', examIdNum);
+  if (uError) { showToast('Update failed: ' + uError.message, 'error'); return; }
 
-  if (updateError) {
-    showToast('Failed to update exam: ' + updateError.message, 'error');
-    return;
-  }
+  await supabase.from('exam_questions').delete().eq('exam_id', examIdNum);
+  const questionsData = state.examQuestions.map((q, i) => ({
+    exam_id: examIdNum,
+    type: q.type,
+    question_type: q.type,
+    question_text: q.text || '',
+    options: q.options ? JSON.stringify(q.options) : null,
+    correct_answer: q.answer || '',
+    marks: q.marks || 5,
+    order_index: i,
+    left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
+    right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
+    blanks: q.blanks ? JSON.stringify(q.blanks) : null,
+    instructions: q.instructions || null
+  }));
+  await supabase.from('exam_questions').insert(questionsData);
 
-  // Update questions
-  const { error: deleteError } = await supabase
-    .from('exam_questions')
-    .delete()
-    .eq('exam_id', state.examEditId);
-
-  if (!deleteError) {
-    const questionsData = state.examQuestions.map((q, i) => ({
-      exam_id: state.examEditId,
-      type: q.type,
-      question_type: q.type,
-      question_text: q.text,
-      options: q.options ? JSON.stringify(q.options) : null,
-      correct_answer: q.answer,
-      marks: q.marks || 5,
-      order_index: i,
-      left_items: q.leftItems ? JSON.stringify(q.leftItems) : null,
-      right_items: q.rightItems ? JSON.stringify(q.rightItems) : null,
-      blanks: q.blanks ? JSON.stringify(q.blanks) : null,
-      instructions: q.instructions || null
-    }));
-
-    await supabase.from('exam_questions').insert(questionsData);
-  } else {
-    // Store as JSON in exam row
-    const questionsJson = JSON.stringify(state.examQuestions.map((q, i) => ({
-      type: q.type, question_text: q.text, options: q.options,
-      correct_answer: q.answer, marks: q.marks, order_index: i
-    })));
-    await supabase.from('exams').update({ questions: questionsJson }).eq('id', state.examEditId);
-  }
-
-  // Clear edit mode
   state.examEditMode = false;
   state.examEditId = null;
   state.examQuestions = [];
   state.examDraft = { classId: null, subjectId: null, title: '', customInstruction: '', isDirty: true };
-
   await fetchAllData();
-  showToast('Exam corrected and approved successfully!', 'success');
+  showToast('Exam corrected and approved!', 'success');
   navigateTo('exam-review');
 }
 
@@ -3308,40 +3211,41 @@ function closeModal() {
   setTimeout(() => { host.innerHTML = ''; }, 300);
 }
   async function editExam(examId) {
-  if (state.currentUser.role !== 'admin') {
-    showToast('Only administrators can edit submitted exams.', 'error');
-    return;
-  }
+  if (state.currentUser.role !== 'admin') { showToast('Only admins can edit submitted exams', 'error'); return; }
 
-  // Load the exam data
-  const exam = state.exams.find(e => e.id === examId);
-  if (!exam) {
-    showToast('Exam not found.', 'error');
-    return;
-  }
+  // ── FIX: Tumia examId (parameter) sio state.examEditId ──
+  // ── FIX: Badilisha examId kuwa number ili iambatane na integer id ──
+  const exam = state.exams.find(e => e.id === parseInt(examId));
+  if (!exam) { showToast('Exam not found', 'error'); return; }
 
-  // Load exam questions from the database
-  const { data: questions, error: qError } = await supabase
-    .from('exam_questions')
-    .select('*')
-    .eq('exam_id', examId)
-    .order('order_index', { ascending: true });
+  // Load questions from database
+  const { data: questions, error: qError } = await supabase.from('exam_questions').select('*').eq('exam_id', parseInt(examId)).order('order_index', { ascending: true });
 
-  if (qError) {
-    // Fallback: try loading from a 'questions' column in the exam row itself
-    console.warn('exam_questions table error:', qError.message);
-    // If questions are stored as JSON within the exam:
-    state.examQuestions = exam.questions ? (typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions) : [];
+  if (qError || !questions || questions.length === 0) {
+    // Fallback: load from JSON in exam row
+    let parsed = [];
+    if (exam.questions) { 
+      try { parsed = typeof exam.questions === 'string' ? JSON.parse(exam.questions) : exam.questions; } catch(e) { parsed = []; } 
+    }
+    state.examQuestions = parsed.map(q => ({
+      type: q.type || 'short_answer',
+      text: q.text || q.question_text || '',
+      options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
+      answer: q.answer || q.correct_answer || '',
+      marks: q.marks || 5,
+      leftItems: (q.leftItems || q.left_items) ? (typeof(q.leftItems || q.left_items) === 'string' ? JSON.parse(q.leftItems || q.left_items) : (q.leftItems || q.left_items)) : [],
+      rightItems: (q.rightItems || q.right_items) ? (typeof(q.rightItems || q.right_items) === 'string' ? JSON.parse(q.rightItems || q.right_items) : (q.rightItems || q.right_items)) : [],
+      blanks: q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : [],
+      instructions: q.instructions || ''
+    }));
   } else {
-    state.examQuestions = (questions || []).map(q => ({
+    state.examQuestions = questions.map(q => ({
       id: q.id,
       type: q.type || q.question_type || 'short_answer',
-      text: q.question_text || q.text || '',
+      text: q.question_text || '',
       options: q.options ? (typeof q.options === 'string' ? JSON.parse(q.options) : q.options) : [],
-      answer: q.correct_answer || q.answer || '',
+      answer: q.correct_answer || '',
       marks: q.marks || 5,
-      order_index: q.order_index || 0,
-      // Additional fields for match/fill types
       leftItems: q.left_items ? (typeof q.left_items === 'string' ? JSON.parse(q.left_items) : q.left_items) : [],
       rightItems: q.right_items ? (typeof q.right_items === 'string' ? JSON.parse(q.right_items) : q.right_items) : [],
       blanks: q.blanks ? (typeof q.blanks === 'string' ? JSON.parse(q.blanks) : q.blanks) : [],
@@ -3349,23 +3253,12 @@ function closeModal() {
     }));
   }
 
-  // Set edit mode state
   state.examEditMode = true;
-  state.examEditId = examId;
+  state.examEditId = parseInt(examId);
   state.examEditOriginalClassId = exam.class_id;
   state.examEditOriginalSubjectId = exam.subject_id;
-
-  // Pre-fill the draft with existing exam data
   const settings = getExamSettings(exam.class_id);
-  state.examDraft = {
-    classId: exam.class_id,
-    subjectId: exam.subject_id,
-    title: exam.title || settings.examTitle,
-    customInstruction: exam.instructions || settings.instructions,
-    isDirty: false
-  };
-
-  // Navigate to exam-set page (which will render in edit mode)
+  state.examDraft = { classId: exam.class_id, subjectId: exam.subject_id, title: exam.title || settings.examTitle, customInstruction: exam.instructions || settings.instructions, isDirty: false };
   showToast('Editing exam: ' + (exam.title || 'Untitled'), 'info');
   navigateTo('exam-set');
 }
