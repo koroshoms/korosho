@@ -2348,6 +2348,11 @@ function renderExamSet() {
           <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
           <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
           <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
+          <div class="q-type-card" onclick="addQuestion('passage')"><i class="fa-solid fa-book-open text-2xl text-orange-600 mb-2"></i><div class="font-semibold text-sm">Passage</div></div>
+<div class="q-type-card" onclick="addQuestion('line')"><i class="fa-solid fa-minus text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Insert Line</div></div>
+<div class="q-type-card" onclick="addQuestion('gap')"><i class="fa-solid fa-arrows-up-down text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Insert Gap</div></div>
+<div class="q-type-card" onclick="addQuestion('box')"><i class="fa-regular fa-square text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Insert Box</div></div>
+<div class="q-type-card" onclick="addQuestion('space')"><i class="fa-solid fa-bars text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Insert Space</div></div>
         </div>
       </div>
       <div class="card fade-up-2">
@@ -2475,7 +2480,41 @@ function buildExamBlocks(draft, c, questions) {
           </div>
         </div>`
       });
-
+      questions.forEach((q, i) => {
+  if (q.type === 'passage') {
+    blocks.push({
+      html: `<div style="margin-bottom:15px;">
+               <p style="font-weight:bold; margin-bottom:5px;">${i+1}. ${q.mainQuestion} <span style="float:right;">(${q.marks} marks)</span></p>
+               <div style="border-left:3px solid #000; padding-left:10px; margin:10px 0; font-style:italic; white-space:pre-wrap;">${q.passageText || '...'}</div>
+               <p style="margin-top:10px;">${q.subQuestion}</p>
+             </div>`,
+      height: 120 // makadirio ya kimo cha passage
+    });
+  } else if (q.type === 'line') {
+    blocks.push({
+      html: `<hr style="border:0; border-top:1px solid #000; margin:15px 0;">`,
+      height: 20
+    });
+  } else if (q.type === 'gap') {
+    blocks.push({
+      html: `<div style="height:30px;"></div>`,
+      height: 30
+    });
+  } else if (q.type === 'box') {
+    blocks.push({
+      html: `<div style="border:1px solid #000; height:${q.boxHeight}px; margin:10px 0;"></div>`,
+      height: parseInt(q.boxHeight) + 20
+    });
+  } else if (q.type === 'space') {
+    let linesHtml = '';
+    for(let l=0; l<parseInt(q.spaceLines); l++) linesHtml += '<div style="border-bottom:1px dotted #ccc; margin:8px 0;"></div>';
+    blocks.push({
+      html: `<div style="margin:10px 0;">${linesHtml}</div>`,
+      height: (parseInt(q.spaceLines) * 15) + 20
+    });
+  } 
+  // ... endelea na types zako za kawaida (mcq, short, long, n.k.)
+});
       if (q.subItems) {
         blocks.push({ type: 'sub-items', html: `<div style="margin-top: 5px; margin-left: 23px; white-space: pre-wrap; ${bodyStyle}">${q.subItems}</div>` });
       }
@@ -2844,6 +2883,59 @@ function renderQuestionEditor(q, i) {
     </div>`;
   }
   extraFields = `<div class="mt-3"><label class="form-label">Question Text</label><textarea class="form-input" rows="2" placeholder="Enter main question..." onchange="updateQuestionField(${q.id}, 'text', this.value)">${q.text||''}</textarea></div>`;
+  if (q.type === 'passage') {
+  return `
+    <div class="question-block">
+      <div class="flex justify-between items-center mb-2">
+        <span class="badge badge-purple">Passage Question</span>
+        <button class="text-red-500 text-sm" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash"></i></button>
+      </div>
+      <input class="form-input mb-2" value="${q.mainQuestion}" oninput="updateQuestionField(${q.id}, 'mainQuestion', this.value)" placeholder="Main Question">
+      <div style="border:1px solid #E2E8F0; border-left:4px solid #047857; padding:10px; background:#FFFBEB; border-radius:8px;">
+        <textarea class="form-input" style="background:transparent; border:none; min-height:80px;" oninput="updateQuestionField(${q.id}, 'passageText', this.value)" placeholder="Andika Passage hapa...">${q.passageText}</textarea>
+      </div>
+      <input class="form-input mt-2" value="${q.subQuestion}" oninput="updateQuestionField(${q.id}, 'subQuestion', this.value)" placeholder="Sub-question (e.g. What is the main idea?)">
+      <input type="number" class="form-input mt-2 w-24" value="${q.marks}" oninput="updateQuestionField(${q.id}, 'marks', this.value)" placeholder="Marks">
+    </div>`;
+}
+
+if (q.type === 'line' || q.type === 'gap') {
+  return `
+    <div class="question-block" style="padding:10px 16px; background:#F1F5F9;">
+      <div class="flex justify-between items-center">
+        <span><i class="fa-solid fa-${q.type === 'line' ? 'minus' : 'arrows-up-down'} mr-2 text-slate-500"></i> ${q.type === 'line' ? 'Horizontal Line' : 'Empty Gap'}</span>
+        <button class="text-red-500 text-sm" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>`;
+}
+
+if (q.type === 'box') {
+  return `
+    <div class="question-block" style="padding:10px 16px;">
+      <div class="flex justify-between items-center mb-2">
+        <span><i class="fa-regular fa-square mr-2 text-slate-500"></i> Drawing Box</span>
+        <button class="text-red-500 text-sm" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash"></i></button>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-slate-600">Height (px):</label>
+        <input type="number" class="form-input w-24" value="${q.boxHeight}" oninput="updateQuestionField(${q.id}, 'boxHeight', this.value)">
+      </div>
+    </div>`;
+}
+
+if (q.type === 'space') {
+  return `
+    <div class="question-block" style="padding:10px 16px;">
+      <div class="flex justify-between items-center mb-2">
+        <span><i class="fa-solid fa-bars mr-2 text-slate-500"></i> Empty Space (Lines)</span>
+        <button class="text-red-500 text-sm" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash"></i></button>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-slate-600">Lines:</label>
+        <input type="number" class="form-input w-24" value="${q.spaceLines}" oninput="updateQuestionField(${q.id}, 'spaceLines', this.value)">
+      </div>
+    </div>`;
+}
   if (q.type === 'mcq') {
     extraFields += `<div class="mt-4 border-t pt-3">
       <label class="form-label">Multiple Choice Items</label>
@@ -2984,10 +3076,24 @@ function renderPictureEditor(q) {
 function toggleQuestionCollapse(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q) { q.collapsed = !q.collapsed; renderPage(); setTimeout(updateExamPreview, 50); } }
 function unhideAllQuestions() { state.examQuestions.forEach(q => { q.collapsed = false; }); renderPage(); setTimeout(updateExamPreview, 50); }
 function addQuestion(type) { 
-  const id = Date.now(); state.examQuestions.forEach(q => { q.collapsed = true; });
+  const id = Date.now(); 
+  state.examQuestions.forEach(q => { q.collapsed = true; });
   const newQ = { id, type, text: '', marks: 5, collapsed: false }; 
+  
   if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
   if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; newQ.tableWidth = 100; newQ.colAWidth = 50; }
+  
+  // --- ONGEZO JIPYA: PASSAGE ---
+  if (type === 'passage') {
+    newQ.text = 'Read the following passage and answer the question that follows.';
+    newQ.passageText = '';
+    newQ.subQuestion = '';
+  }
+  
+  // --- ONGEZO JIPYA: BOX NA SPACE ---
+  if (type === 'box') newQ.boxHeight = 100;
+  if (type === 'space') newQ.spaceLines = 3;
+  
   if (type === 'picture') {
     newQ.rows = [{
       id: Date.now(),
@@ -3008,8 +3114,19 @@ function addQuestion(type) {
   }
   if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
   if (type === 'section') { newQ.text = 'SECTION A'; }
-  state.examQuestions.push(newQ); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50);
-  showToast(type === 'section' ? 'Section header added' : 'Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
+  
+  state.examQuestions.push(newQ); 
+  state.examDraft.isDirty = true; 
+  renderPage(); 
+  setTimeout(updateExamPreview, 50);
+  
+  // --- ONGEZO JIPYA: KUBADILISHA MESSAGE YA TOAST ---
+  let msg = 'Question added (previous questions hidden - click UNHIDE to edit)';
+  if (type === 'section') msg = 'Section header added';
+  if (['line', 'gap', 'box', 'space'].includes(type)) msg = `${type.charAt(0).toUpperCase() + type.slice(1)} added successfully`;
+  if (type === 'passage') msg = 'Passage question added';
+  
+  showToast(msg, 'success'); 
 }
 function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) { q[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
 function addMcqItem(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
