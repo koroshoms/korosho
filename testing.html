@@ -2483,52 +2483,46 @@ function buildExamBlocks(draft, c, questions) {
       questions.forEach((q, i) => {
   // --- HII NI SEHEMU YA PASSAGE ---
   if (q.type === 'passage') {
-    blocks.push({
-      html: `<div style="margin-bottom:15px; page-break-inside: avoid;">
-               <p style="font-weight:bold; margin-bottom:5px;">${i+1}. ${q.text} <span style="float:right;">(${q.marks} marks)</span></p>
-               <div style="border-left:3px solid #000; padding-left:10px; margin:10px 0; font-style:italic; white-space:pre-wrap;">${q.passageText || '...'}</div>
-               <p style="margin-top:10px;">${q.subQuestion || ''}</p>
-             </div>`,
-      height: 150
-    });
-    return; // <-- HII NI MUHIMU SANA! Inazuia code kuendelea kwenye blocks za kawaida
+  blocks.push({
+    html: `
+      <div style="margin-bottom:15px; page-break-inside: avoid;">
+        <p style="font-weight:bold; margin-bottom:5px;">${i+1}. ${q.text} <span style="float:right;">(${q.marks} marks)</span></p>
+        <div style="border-left:3px solid #000; padding-left:10px; margin:10px 0; font-style:italic; white-space:pre-wrap;">${q.passageText || '...'}</div>
+        <p style="margin-top:10px;">${q.subQuestion || ''}</p>
+      </div>
+    `,
+    height: 150
+  });
+} 
+else if (q.type === 'line') {
+  blocks.push({
+    html: `<hr style="border:0; border-top:1px solid #000; margin:15px 0;">`,
+    height: 20
+  });
+} 
+else if (q.type === 'gap') {
+  blocks.push({
+    html: `<div style="height:30px;"></div>`,
+    height: 30
+  });
+} 
+else if (q.type === 'box') {
+  blocks.push({
+    html: `<div style="border:1px solid #000; height:${q.boxHeight}px; margin:10px 0;"></div>`,
+    height: parseInt(q.boxHeight) + 20
+  });
+} 
+else if (q.type === 'space') {
+  let linesHtml = '';
+  for(let l=0; l<parseInt(q.spaceLines); l++) {
+    linesHtml += '<div style="border-bottom:1px dotted #ccc; margin:8px 0;"></div>';
   }
-  
-  // --- HII NI SEHEMU YA VITU VINGINE (Line, Gap, Box, Space) ---
-  if (q.type === 'line') {
-    blocks.push({
-      html: `<hr style="border:0; border-top:1px solid #000; margin:15px 0;">`,
-      height: 20
-    });
-    return; // <-- Ongeza hapa pia
-  }
-  
-  if (q.type === 'gap') {
-    blocks.push({
-      html: `<div style="height:30px;"></div>`,
-      height: 30
-    });
-    return; // <-- Ongeza hapa pia
-  }
-  
-  if (q.type === 'box') {
-    blocks.push({
-      html: `<div style="border:1px solid #000; height:${q.boxHeight}px; margin:10px 0;"></div>`,
-      height: parseInt(q.boxHeight) + 20
-    });
-    return; // <-- Ongeza hapa pia
-  }
-  
-  if (q.type === 'space') {
-    let linesHtml = '';
-    for(let l=0; l<parseInt(q.spaceLines); l++) linesHtml += '<div style="border-bottom:1px dotted #ccc; margin:8px 0;"></div>';
-    blocks.push({
-      html: `<div style="margin:10px 0;">${linesHtml}</div>`,
-      height: (parseInt(q.spaceLines) * 15) + 20
-    });
-    return; // <-- Ongeza hapa pia
-  }
-    });
+  blocks.push({
+    html: `<div style="margin:10px 0;">${linesHtml}</div>`,
+    height: (parseInt(q.spaceLines) * 15) + 20
+  });
+}
+
     if (q.subItems) {
         blocks.push({ type: 'sub-items', html: `<div style="margin-top: 5px; margin-left: 23px; white-space: pre-wrap; ${bodyStyle}">${q.subItems}</div>` });
       }
@@ -2920,7 +2914,8 @@ function renderQuestionEditor(q, i) {
         <label class="form-label">Marks</label>
         <input type="number" class="form-input w-24" value="${q.marks}" oninput="updateQuestionField(${q.id}, 'marks', this.value)">
       </div>
-    </div>`;
+    </div>
+  `;
 }
 
 if (q.type === 'line' || q.type === 'gap') {
