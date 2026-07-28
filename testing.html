@@ -289,6 +289,44 @@ body.dark-mode .modal-box { background: #1E293B; }
 body.dark-mode .modal-header { border-color: #334155; }
 body.dark-mode .modal-footer { border-color: #334155; }
 body.dark-mode .tt-class-mine { background: #0F172A; }
+/* === ZAIDI YA EXAM SET STYLES === */
+.passage-container {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  background: #FFFBEB;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+.passage-textarea {
+  width: 100%;
+  min-height: 80px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  resize: vertical;
+  color: var(--text);
+}
+body.dark-mode .passage-container { background: rgba(245, 158, 11, 0.05); }
+body.dark-mode .passage-textarea { color: #E2E8F0; }
+
+.element-block { 
+  background: #F1F5F9; 
+  border: 1px dashed var(--border); 
+  border-radius: 8px; 
+  padding: 10px; 
+  margin-bottom: 10px; 
+  display: flex; align-items: center; justify-content: space-between;
+}
+body.dark-mode .element-block { background: #0F172A; border-color: #334155; }
+
+/* Preview styles kwa A4 */
+.preview-passage { margin: 10px 0; padding: 10px; border-left: 3px solid #000; background: #f9f9f9; font-style: italic; }
+.preview-line { border-bottom: 1px solid #000; margin: 15px 0; }
+.preview-box { border: 1px solid #000; margin: 10px 0; }
+.preview-gap { height: 30px; }
+.preview-space { border-bottom: 1px dotted #ccc; margin: 5px 0; }
  /* ===== RESPONSIVE CONTENT WRAPPERS ===== */
 .table-card-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 10px; }
 .report-preview-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
@@ -2340,15 +2378,21 @@ function renderExamSet() {
       <div class="card fade-up-1">
         <div class="section-title"><span><i class="fa-solid fa-pen-ruler text-emerald-600 mr-2"></i> Add Element</span></div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
-          <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
-          <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
-          <div class="q-type-card" onclick="addQuestion('mentioning')"><i class="fa-solid fa-list-ol text-2xl text-cyan-600 mb-2"></i><div class="font-semibold text-sm">Mentioning</div></div>
-          <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
-          <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
-          <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
-          <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
-        </div>
+  <div class="q-type-card" onclick="addQuestion('section')"><i class="fa-solid fa-heading text-2xl text-slate-600 mb-2"></i><div class="font-semibold text-sm">Section Header</div></div>
+  <div class="q-type-card" onclick="addQuestion('mcq')"><i class="fa-solid fa-list-ul text-2xl text-emerald-600 mb-2"></i><div class="font-semibold text-sm">Multiple Choice</div></div>
+  <div class="q-type-card" onclick="addQuestion('matching')"><i class="fa-solid fa-table-columns text-2xl text-indigo-600 mb-2"></i><div class="font-semibold text-sm">Matching Items</div></div>
+  <div class="q-type-card" onclick="addQuestion('mentioning')"><i class="fa-solid fa-list-ol text-2xl text-cyan-600 mb-2"></i><div class="font-semibold text-sm">Mentioning</div></div>
+  <div class="q-type-card" onclick="addQuestion('short')"><i class="fa-solid fa-pen text-2xl text-blue-600 mb-2"></i><div class="font-semibold text-sm">Short Answer</div></div>
+  <div class="q-type-card" onclick="addQuestion('long')"><i class="fa-solid fa-paragraph text-2xl text-amber-600 mb-2"></i><div class="font-semibold text-sm">Long Answer</div></div>
+  <div class="q-type-card" onclick="addQuestion('passage')"><i class="fa-solid fa-book-open text-2xl text-orange-600 mb-2"></i><div class="font-semibold text-sm">Passage / Comprehension</div></div>
+  <div class="q-type-card" onclick="addQuestion('true_false')"><i class="fa-solid fa-circle-half-stroke text-2xl text-teal-600 mb-2"></i><div class="font-semibold text-sm">True / False</div></div>
+  <div class="q-type-card" onclick="addQuestion('fill_gap')"><i class="fa-solid fa-underline text-2xl text-pink-600 mb-2"></i><div class="font-semibold text-sm">Fill in Gaps</div></div>
+  <div class="q-type-card" onclick="addQuestion('drawing')"><i class="fa-solid fa-pencil text-2xl text-purple-600 mb-2"></i><div class="font-semibold text-sm">Drawing</div></div>
+  <div class="q-type-card" onclick="addQuestion('picture')"><i class="fa-solid fa-image text-2xl text-red-600 mb-2"></i><div class="font-semibold text-sm">Picture Question</div></div>
+  <div class="q-type-card" onclick="addQuestion('blank_lines')"><i class="fa-solid fa-lines-leaning text-2xl text-slate-500 mb-2"></i><div class="font-semibold text-sm">Blank Lines</div></div>
+  <div class="q-type-card" onclick="addQuestion('drawing_box')"><i class="fa-regular fa-square text-2xl text-slate-500 mb-2"></i><div class="font-semibold text-sm">Drawing Box</div></div>
+  <div class="q-type-card" onclick="addQuestion('separator')"><i class="fa-solid fa-minus text-2xl text-slate-400 mb-2"></i><div class="font-semibold text-sm">Separator Line</div></div>
+</div>
       </div>
       <div class="card fade-up-2">
         <div class="section-title"><span><i class="fa-solid fa-list-ol text-emerald-600 mr-2"></i> Questions & Sections (${state.examQuestions.length})</span>${state.examQuestions.filter(q => q.collapsed).length > 0 ? `<button class="btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="unhideAllQuestions()"><i class="fa-solid fa-eye mr-1"></i> UNHIDE ALL</button>` : ''}</div>
@@ -2691,6 +2735,87 @@ function updateExamPreview() {
   const blocks = buildExamBlocks(draft, c, questions);
   const pages = paginateBlocks(blocks, c);
   previewDiv.innerHTML = renderExamPagesHTML(pages, c);
+  // Kwenye loop ya updateExamPreview(), pamoja na maswali mengine:
+state.examQuestions.forEach((item, index) => {
+  let qNumber = index + 1;
+  
+  if (item.type === 'passage') {
+    previewHtml += `
+      <div style="margin-bottom: 15px;">
+        <p style="font-weight: bold; margin-bottom: 5px;">${qNumber}. ${item.mainQuestion} <span style="float: right;">(${item.marks} marks)</span></p>
+        <div class="preview-passage" style="white-space: pre-wrap;">${item.passage || '...'}</div>
+        <p style="margin-top: 10px;">${item.subQuestion || ''}</p>
+      </div>`;
+  } 
+  
+  else if (item.type === 'line') {
+    previewHtml += `<div class="preview-line"></div>`;
+  } 
+  
+  else if (item.type === 'gap') {
+    previewHtml += `<div class="preview-gap"></div>`;
+  } 
+  
+  else if (item.type === 'space') {
+    let spaceHtml = '';
+    for(let i=0; i<item.lines; i++) { spaceHtml += '<div class="preview-space"></div>'; }
+    previewHtml += `<div style="margin: 10px 0;">${spaceHtml}</div>`;
+  } 
+  // Kwenye loop ya kuandika maswali kwenye editor (renderExamEditor)
+state.examQuestions.forEach((item, index) => {
+  
+  if (item.type === 'passage') {
+    editorHtml += `
+      <div class="question-block">
+        <div class="flex justify-between items-center mb-2">
+          <span class="badge badge-purple">Passage Question</span>
+          <button onclick="removeExamElement(${item.id})" class="text-red-500 text-sm"><i class="fa-solid fa-trash"></i></button>
+        </div>
+        <input class="form-input mb-2" value="${item.mainQuestion}" onchange="updateExamElement(${item.id}, 'mainQuestion', this.value)" placeholder="Main Question (e.g. Read the passage...)">
+        <div class="passage-container">
+          <textarea class="passage-textarea" onchange="updateExamElement(${item.id}, 'passage', this.value)" placeholder="Andika Passage hapa (inaweza kuwa ndefu au fupi)...">${item.passage}</textarea>
+        </div>
+        <input class="form-input mt-2" value="${item.subQuestion}" onchange="updateExamElement(${item.id}, 'subQuestion', this.value)" placeholder="Sub-question (e.g. What is the main idea?)">
+        <input type="number" class="form-input mt-2 w-24" value="${item.marks}" onchange="updateExamElement(${item.id}, 'marks', this.value)" placeholder="Marks">
+      </div>`;
+  } 
+  
+  else if (item.type === 'space') {
+    editorHtml += `
+      <div class="element-block">
+        <span><i class="fa-solid fa-bars mr-2 text-slate-500"></i> Empty Space</span>
+        <div class="flex items-center gap-2">
+          <input type="number" class="form-input w-20" value="${item.lines}" onchange="updateExamElement(${item.id}, 'lines', this.value)" min="1">
+          <span>lines</span>
+          <button onclick="removeExamElement(${item.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`;
+  } 
+  
+  else if (item.type === 'box') {
+    editorHtml += `
+      <div class="element-block">
+        <span><i class="fa-regular fa-square mr-2 text-slate-500"></i> Drawing Box</span>
+        <div class="flex items-center gap-2">
+          <input type="number" class="form-input w-20" value="${item.height}" onchange="updateExamElement(${item.id}, 'height', this.value)" min="50">
+          <span>px height</span>
+          <button onclick="removeExamElement(${item.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`;
+  } 
+  
+  else if (item.type === 'line' || item.type === 'gap') {
+    editorHtml += `
+      <div class="element-block">
+        <span><i class="fa-solid fa-minus mr-2 text-slate-500"></i> ${item.type === 'line' ? 'Horizontal Line' : 'Gap'}</span>
+        <button onclick="removeExamElement(${item.id})" class="text-red-500"><i class="fa-solid fa-trash"></i></button>
+      </div>`;
+  }
+});
+  else if (item.type === 'box') {
+    previewHtml += `<div class="preview-box" style="height: ${item.height}px;"></div>`;
+  }
+});
 }
 async function saveExamEdit() {
   if (!state.examEditMode || !state.examEditId) { showToast('No exam being edited', 'error'); return; }
@@ -2983,33 +3108,27 @@ function renderPictureEditor(q) {
 
 function toggleQuestionCollapse(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q) { q.collapsed = !q.collapsed; renderPage(); setTimeout(updateExamPreview, 50); } }
 function unhideAllQuestions() { state.examQuestions.forEach(q => { q.collapsed = false; }); renderPage(); setTimeout(updateExamPreview, 50); }
-function addQuestion(type) { 
-  const id = Date.now(); state.examQuestions.forEach(q => { q.collapsed = true; });
-  const newQ = { id, type, text: '', marks: 5, collapsed: false }; 
-  if (type === 'mcq') newQ.items = [{ id: Date.now()+1, text: '', choices: ['', ''] }]; 
-  if (type === 'matching') { newQ.colA = ['', '']; newQ.colB = ['', '']; newQ.tableWidth = 100; newQ.colAWidth = 50; }
-  if (type === 'picture') {
-    newQ.rows = [{
-      id: Date.now(),
-      slots: {
-        'left': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
-        'center-left': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
-        'center': { enabled: true, text: '', url: '', width: 150, height: 150, hasLine: true },
-        'center-right': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false },
-        'right': { enabled: false, text: '', url: '', width: 120, height: 120, hasLine: false }
-      }
-    }];
-  }
-  if (type === 'drawing') {
-    newQ.items = [
-      { id: Date.now()+1, text: '', boxHeight: 100, boxWidth: 48 },
-      { id: Date.now()+2, text: '', boxHeight: 100, boxWidth: 48 }
-    ];
-  }
-  if (type === 'mentioning') { newQ.format = 'roman'; newQ.items = [{ id: Date.now()+1, text: '' }]; }
-  if (type === 'section') { newQ.text = 'SECTION A'; }
-  state.examQuestions.push(newQ); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50);
-  showToast(type === 'section' ? 'Section header added' : 'Question added (previous questions hidden - click UNHIDE to edit)', 'success'); 
+function addQuestion(type) {
+  const defaults = {
+    section: { type: 'section', text: 'SECTION A', marks: 0 },
+    mcq: { type: 'mcq', text: '', options: ['A', 'B', 'C', 'D'], answer: '', marks: 5 },
+    matching: { type: 'matching', text: '', leftItems: [''], rightItems: [''], marks: 5 },
+    mentioning: { type: 'mentioning', text: '', items: [''], marks: 5 },
+    short: { type: 'short', text: '', answer: '', marks: 5 },
+    long: { type: 'long', text: '', answer: '', marks: 10 },
+    passage: { type: 'passage', text: '', passageText: '', subQuestions: [], marks: 10 },
+    true_false: { type: 'true_false', text: '', answer: 'True', marks: 2 },
+    fill_gap: { type: 'fill_gap', text: '', blanks: ['____'], blankAnswers: [''], marks: 5 },
+    drawing: { type: 'drawing', text: '', marks: 5 },
+    picture: { type: 'picture', text: '', imageUrl: '', marks: 5 },
+    blank_lines: { type: 'blank_lines', text: '', lineCount: 3, marks: 0 },
+    drawing_box: { type: 'drawing_box', text: '', boxWidth: 'full', boxHeight: 3, marks: 5 },
+    separator: { type: 'separator', text: '', marks: 0 }
+  };
+  const q = defaults[type] || { type: 'short', text: '', marks: 5 };
+  state.examQuestions.push({ ...q });
+  renderPage();
+  setTimeout(updateExamPreview, 50);
 }
 function updateQuestionField(id, field, val) { const q = state.examQuestions.find(x => x.id === id); if (q) { q[field] = val; state.examDraft.isDirty = true; updateExamPreview(); } }
 function addMcqItem(qId) { const q = state.examQuestions.find(x => x.id === qId); if (q && q.type === 'mcq') { q.items.push({ id: Date.now(), text: '', choices: ['', ''] }); state.examDraft.isDirty = true; renderPage(); setTimeout(updateExamPreview, 50); } }
