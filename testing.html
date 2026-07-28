@@ -2481,41 +2481,55 @@ function buildExamBlocks(draft, c, questions) {
         </div>`
       });
       questions.forEach((q, i) => {
+  // --- HII NI SEHEMU YA PASSAGE ---
   if (q.type === 'passage') {
     blocks.push({
-      html: `<div style="margin-bottom:15px;">
-               <p style="font-weight:bold; margin-bottom:5px;">${i+1}. ${q.mainQuestion} <span style="float:right;">(${q.marks} marks)</span></p>
+      html: `<div style="margin-bottom:15px; page-break-inside: avoid;">
+               <p style="font-weight:bold; margin-bottom:5px;">${i+1}. ${q.text} <span style="float:right;">(${q.marks} marks)</span></p>
                <div style="border-left:3px solid #000; padding-left:10px; margin:10px 0; font-style:italic; white-space:pre-wrap;">${q.passageText || '...'}</div>
-               <p style="margin-top:10px;">${q.subQuestion}</p>
+               <p style="margin-top:10px;">${q.subQuestion || ''}</p>
              </div>`,
-      height: 120 // makadirio ya kimo cha passage
+      height: 150
     });
-  } else if (q.type === 'line') {
+    return; // <-- HII NI MUHIMU SANA! Inazuia code kuendelea kwenye blocks za kawaida
+  }
+  
+  // --- HII NI SEHEMU YA VITU VINGINE (Line, Gap, Box, Space) ---
+  if (q.type === 'line') {
     blocks.push({
       html: `<hr style="border:0; border-top:1px solid #000; margin:15px 0;">`,
       height: 20
     });
-  } else if (q.type === 'gap') {
+    return; // <-- Ongeza hapa pia
+  }
+  
+  if (q.type === 'gap') {
     blocks.push({
       html: `<div style="height:30px;"></div>`,
       height: 30
     });
-  } else if (q.type === 'box') {
+    return; // <-- Ongeza hapa pia
+  }
+  
+  if (q.type === 'box') {
     blocks.push({
       html: `<div style="border:1px solid #000; height:${q.boxHeight}px; margin:10px 0;"></div>`,
       height: parseInt(q.boxHeight) + 20
     });
-  } else if (q.type === 'space') {
+    return; // <-- Ongeza hapa pia
+  }
+  
+  if (q.type === 'space') {
     let linesHtml = '';
     for(let l=0; l<parseInt(q.spaceLines); l++) linesHtml += '<div style="border-bottom:1px dotted #ccc; margin:8px 0;"></div>';
     blocks.push({
       html: `<div style="margin:10px 0;">${linesHtml}</div>`,
       height: (parseInt(q.spaceLines) * 15) + 20
     });
-  } 
-  // ... endelea na types zako za kawaida (mcq, short, long, n.k.)
-});
-      if (q.subItems) {
+    return; // <-- Ongeza hapa pia
+  }
+    
+    if (q.subItems) {
         blocks.push({ type: 'sub-items', html: `<div style="margin-top: 5px; margin-left: 23px; white-space: pre-wrap; ${bodyStyle}">${q.subItems}</div>` });
       }
 
@@ -2890,12 +2904,22 @@ function renderQuestionEditor(q, i) {
         <span class="badge badge-purple">Passage Question</span>
         <button class="text-red-500 text-sm" onclick="removeQuestion(${q.id})"><i class="fa-solid fa-trash"></i></button>
       </div>
-      <input class="form-input mb-2" value="${q.mainQuestion}" oninput="updateQuestionField(${q.id}, 'mainQuestion', this.value)" placeholder="Main Question">
+      
+      <label class="form-label">Main Question / Instruction</label>
+      <input class="form-input mb-2" value="${q.text}" oninput="updateQuestionField(${q.id}, 'text', this.value)" placeholder="Main Question (e.g. Read the passage...)">
+      
+      <label class="form-label">Passage Text</label>
       <div style="border:1px solid #E2E8F0; border-left:4px solid #047857; padding:10px; background:#FFFBEB; border-radius:8px;">
-        <textarea class="form-input" style="background:transparent; border:none; min-height:80px;" oninput="updateQuestionField(${q.id}, 'passageText', this.value)" placeholder="Andika Passage hapa...">${q.passageText}</textarea>
+        <textarea class="form-input" style="background:transparent; border:none; min-height:80px;" oninput="updateQuestionField(${q.id}, 'passageText', this.value)" placeholder="Andika Passage hapa...">${q.passageText || ''}</textarea>
       </div>
-      <input class="form-input mt-2" value="${q.subQuestion}" oninput="updateQuestionField(${q.id}, 'subQuestion', this.value)" placeholder="Sub-question (e.g. What is the main idea?)">
-      <input type="number" class="form-input mt-2 w-24" value="${q.marks}" oninput="updateQuestionField(${q.id}, 'marks', this.value)" placeholder="Marks">
+      
+      <label class="form-label mt-2">Sub-Question (Optional)</label>
+      <input class="form-input mt-1" value="${q.subQuestion || ''}" oninput="updateQuestionField(${q.id}, 'subQuestion', this.value)" placeholder="Sub-question (e.g. What is the main idea?)">
+      
+      <div class="mt-2">
+        <label class="form-label">Marks</label>
+        <input type="number" class="form-input w-24" value="${q.marks}" oninput="updateQuestionField(${q.id}, 'marks', this.value)">
+      </div>
     </div>`;
 }
 
